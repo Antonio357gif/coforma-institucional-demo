@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -100,7 +100,7 @@ ${item.evidencia}
 La entidad deberá aportar la documentación o aclaración correspondiente dentro del plazo indicado para continuar la revisión administrativa del expediente.`;
 }
 
-export default function AccionesPage() {
+function AccionesPageContent() {
   const router = useRouter();
 
   const [actuaciones, setActuaciones] = useState<Actuacion[]>([]);
@@ -721,3 +721,19 @@ export default function AccionesPage() {
 
 
 
+
+export default function AccionesPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
+          <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-600">Cargando acciones administrativas...</p>
+          </section>
+        </main>
+      }
+    >
+      <AccionesPageContent />
+    </Suspense>
+  );
+}
