@@ -350,6 +350,12 @@ export default function DashboardPage() {
 
             <div className="mt-4 space-y-3">
               <ModuleCard
+                title="Mesa de fiscalización"
+                description="Vista ejecutiva inicial de la resolución FPED 2025, ranking de entidades, KPIs globales y ficha operativa."
+                status="activo"
+                href="/mesa-fiscalizacion"
+              />
+              <ModuleCard
                 title="Oferta formativa concedida"
                 description="Mesa operativa de todas las AF/CP concedidas, con estado, importe, entidad, incidencias y riesgo."
                 status="activo"
@@ -391,12 +397,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
