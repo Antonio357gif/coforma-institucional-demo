@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 type Resumen = {
@@ -12,6 +12,7 @@ type Resumen = {
   acciones_af: number;
   acciones_cp: number;
   importe_total_concedido: number;
+  importe_total_ejecutado: number;
   importe_total_en_riesgo: number;
   alumnos_previstos: number;
   alumnos_inicio: number;
@@ -37,12 +38,32 @@ type OfertaResumen = {
   finalizadas_pendiente_justificacion: number;
   riesgo_reintegro: number;
   importe_concedido_total: number;
+  importe_ejecutado_total: number;
   importe_en_riesgo_total: number;
+  importe_finalizado_potencial_cobro: number;
+  importe_pendiente_justificacion: number;
+  importe_sujeto_revision: number;
   importe_pendiente_ejecutar: number;
+  alumnos_previstos: number;
+  alumnos_inicio: number;
+  alumnos_activos: number;
+  bajas: number;
+  aptos: number;
+  no_aptos: number;
   incidencias_abiertas: number;
   requerimientos_pendientes: number;
   entidades_con_oferta: number;
   entidades_con_incidencias_o_riesgo: number;
+  nota_trazabilidad: string;
+};
+
+type Tone = "blue" | "green" | "red" | "amber" | "slate" | "violet" | "teal";
+
+type Modulo = {
+  label: string;
+  short: string;
+  href: string;
+  active?: boolean;
 };
 
 function euro(value: number | null | undefined) {
@@ -57,102 +78,358 @@ function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(value ?? 0);
 }
 
-function KpiCard({
+function pct(part: number | null | undefined, total: number | null | undefined) {
+  const safePart = Number(part ?? 0);
+  const safeTotal = Number(total ?? 0);
+  if (!safeTotal || safeTotal <= 0) return 0;
+  return Math.round((safePart / safeTotal) * 100);
+}
+
+function clamp(value: number, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function toneClasses(tone: Tone) {
+  if (tone === "green") {
+    return {
+      text: "text-emerald-800",
+      border: "border-emerald-200",
+      line: "bg-emerald-600",
+      soft: "bg-emerald-50 text-emerald-800",
+      chip: "border-emerald-100 bg-emerald-50 text-emerald-800",
+      icon: "bg-emerald-100 text-emerald-800",
+      bottom: "after:bg-emerald-600",
+    };
+  }
+
+  if (tone === "red") {
+    return {
+      text: "text-red-800",
+      border: "border-red-200",
+      line: "bg-red-600",
+      soft: "bg-red-50 text-red-800",
+      chip: "border-red-100 bg-red-50 text-red-800",
+      icon: "bg-red-100 text-red-800",
+      bottom: "after:bg-red-600",
+    };
+  }
+
+  if (tone === "amber") {
+    return {
+      text: "text-amber-800",
+      border: "border-amber-200",
+      line: "bg-amber-500",
+      soft: "bg-amber-50 text-amber-800",
+      chip: "border-amber-100 bg-amber-50 text-amber-800",
+      icon: "bg-amber-100 text-amber-800",
+      bottom: "after:bg-amber-500",
+    };
+  }
+
+  if (tone === "violet") {
+    return {
+      text: "text-violet-800",
+      border: "border-violet-200",
+      line: "bg-violet-600",
+      soft: "bg-violet-50 text-violet-800",
+      chip: "border-violet-100 bg-violet-50 text-violet-800",
+      icon: "bg-violet-100 text-violet-800",
+      bottom: "after:bg-violet-600",
+    };
+  }
+
+  if (tone === "teal") {
+    return {
+      text: "text-teal-800",
+      border: "border-teal-200",
+      line: "bg-teal-600",
+      soft: "bg-teal-50 text-teal-800",
+      chip: "border-teal-100 bg-teal-50 text-teal-800",
+      icon: "bg-teal-100 text-teal-800",
+      bottom: "after:bg-teal-600",
+    };
+  }
+
+  if (tone === "slate") {
+    return {
+      text: "text-slate-900",
+      border: "border-slate-200",
+      line: "bg-slate-700",
+      soft: "bg-slate-50 text-slate-700",
+      chip: "border-slate-200 bg-slate-50 text-slate-700",
+      icon: "bg-slate-100 text-slate-700",
+      bottom: "after:bg-slate-700",
+    };
+  }
+
+  return {
+    text: "text-blue-800",
+    border: "border-blue-200",
+    line: "bg-blue-600",
+    soft: "bg-blue-50 text-blue-800",
+    chip: "border-blue-100 bg-blue-50 text-blue-800",
+    icon: "bg-blue-100 text-blue-800",
+    bottom: "after:bg-blue-600",
+  };
+}
+
+function RailItem({ modulo }: { modulo: Modulo }) {
+  return (
+    <Link
+      href={modulo.href}
+      title={modulo.label}
+      aria-label={modulo.label}
+      className={`group relative flex h-9 w-9 items-center justify-center rounded-xl text-[10px] font-bold transition ${
+        modulo.active
+          ? "bg-blue-600 text-white shadow-sm"
+          : "text-blue-100 hover:bg-white/10 hover:text-white"
+      }`}
+    >
+      {modulo.short}
+      <span className="pointer-events-none absolute left-[46px] top-1/2 z-30 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-slate-950 px-2.5 py-1.5 text-[11px] font-medium text-white shadow-lg group-hover:block">
+        {modulo.label}
+      </span>
+    </Link>
+  );
+}
+
+function KpiIcon({ tone, children }: { tone: Tone; children: ReactNode }) {
+  const palette = toneClasses(tone);
+
+  return (
+    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${palette.icon}`}>
+      <span className="text-[15px] font-black leading-none">{children}</span>
+    </span>
+  );
+}
+
+function KpiCell({
   label,
   value,
-  detail,
-  tone = "default",
-  href,
+  tone = "slate",
 }: {
   label: string;
   value: string;
-  detail: string;
-  tone?: "default" | "blue" | "amber" | "red" | "green";
-  href?: string;
+  tone?: Tone;
 }) {
-  const toneClass =
-    tone === "red"
-      ? "border-red-200 bg-white text-red-800 hover:border-red-400"
-      : tone === "amber"
-      ? "border-amber-200 bg-white text-amber-800 hover:border-amber-400"
-      : tone === "green"
-      ? "border-emerald-200 bg-white text-emerald-800 hover:border-emerald-400"
-      : tone === "blue"
-      ? "border-blue-200 bg-white text-blue-800 hover:border-blue-400"
-      : "border-slate-200 bg-white text-slate-950 hover:border-blue-300";
-
-  const content = (
-    <>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          {label}
-        </p>
-        {href ? (
-          <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
-            abrir
-          </span>
-        ) : null}
-      </div>
-      <p className="mt-2 text-2xl font-semibold">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
-    </>
-  );
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        className={`block rounded-2xl border p-4 shadow-sm transition ${toneClass}`}
-      >
-        {content}
-      </Link>
-    );
-  }
+  const palette = toneClasses(tone);
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${toneClass}`}>
-      {content}
+    <div className="min-w-0 border-r border-slate-200 px-1.5 py-1.5 text-center last:border-r-0">
+      <p className="truncate text-[8px] font-black uppercase tracking-[0.06em] text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-0.5 truncate text-[11px] font-black leading-none ${palette.text}`}>
+        {value}
+      </p>
     </div>
   );
 }
 
-function ModuleCard({
+function KpiCard({
   title,
-  description,
-  status,
+  mainValue,
+  subtitle,
+  href,
+  tone,
+  icon,
+  percentValue,
+  cells,
+}: {
+  title: string;
+  mainValue: string;
+  subtitle: string;
+  href: string;
+  tone: Tone;
+  icon: ReactNode;
+  percentValue?: number;
+  cells: Array<{ label: string; value: string; tone?: Tone }>;
+}) {
+  const palette = toneClasses(tone);
+  const progress = typeof percentValue === "number" ? clamp(percentValue) : null;
+
+  return (
+    <Link
+      href={href}
+      className={`relative flex h-[196px] min-w-0 flex-col justify-between overflow-hidden rounded-2xl border ${palette.border} bg-white p-3 shadow-sm transition after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full hover:-translate-y-0.5 hover:shadow-md ${palette.bottom}`}
+    >
+      <div className="min-w-0">
+        <div className="flex items-start gap-2">
+          <KpiIcon tone={tone}>{icon}</KpiIcon>
+
+          <p className={`min-w-0 text-[11px] font-black uppercase leading-4 tracking-[0.07em] ${palette.text}`}>
+            {title}
+          </p>
+        </div>
+
+        <p className={`mt-2 truncate text-[22px] font-black leading-none ${palette.text}`}>
+          {mainValue}
+        </p>
+        <p className="mt-1 truncate text-[11px] text-slate-600">{subtitle}</p>
+
+        <div className="mt-2 flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={`h-full rounded-full ${palette.line}`}
+              style={{ width: `${progress ?? 100}%` }}
+            />
+          </div>
+          {progress !== null ? (
+            <span className="text-[10px] font-black text-slate-500">{progress}%</span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+        <div className="grid grid-cols-2 border-b border-slate-200">
+          {cells.slice(0, 2).map((cell) => (
+            <KpiCell key={cell.label} {...cell} />
+          ))}
+        </div>
+        <div className="grid grid-cols-2">
+          {cells.slice(2, 4).map((cell) => (
+            <KpiCell key={cell.label} {...cell} />
+          ))}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function PriorityRow({
+  href,
+  tone,
+  label,
+  value,
+}: {
+  href: string;
+  tone: Tone;
+  label: string;
+  value: string;
+}) {
+  const palette = toneClasses(tone);
+
+  return (
+    <Link
+      href={href}
+      className="grid grid-cols-[28px_1fr_50px] items-center gap-2 rounded-xl bg-slate-50 px-2.5 py-2 text-xs transition hover:bg-blue-50"
+    >
+      <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${palette.icon}`}>
+        <span className={`h-2.5 w-2.5 rounded-full ${palette.line}`} />
+      </span>
+      <span className="truncate font-semibold text-slate-800">{label}</span>
+      <span className={`rounded-lg px-2 py-1 text-center text-[11px] font-bold ${palette.soft}`}>
+        {value}
+      </span>
+    </Link>
+  );
+}
+
+function BarRow({
+  label,
+  value,
+  max,
+  tone,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  tone: Tone;
+}) {
+  const palette = toneClasses(tone);
+  const width = max > 0 ? clamp((value / max) * 100) : 0;
+
+  return (
+    <div className="grid grid-cols-[105px_1fr_38px] items-center gap-2 text-[11px]">
+      <span className="truncate text-slate-600">{label}</span>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${palette.line}`} style={{ width: `${width}%` }} />
+      </div>
+      <span className="text-right font-bold text-slate-700">{num(value)}</span>
+    </div>
+  );
+}
+
+function FocusPanel({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+      <h3 className="mb-2 text-xs font-bold text-slate-950">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function SegmentedBar({
+  segments,
+}: {
+  segments: Array<{ label: string; value: number; tone: Tone; display: string }>;
+}) {
+  const total = segments.reduce((sum, item) => sum + item.value, 0) || 1;
+
+  return (
+    <div>
+      <div className="flex h-6 overflow-hidden rounded-lg bg-slate-100 text-[10px] font-bold text-white">
+        {segments.map((item) => {
+          const width = clamp((item.value / total) * 100);
+          const palette = toneClasses(item.tone);
+
+          return (
+            <div
+              key={item.label}
+              className={`flex items-center justify-center ${palette.line}`}
+              style={{ width: `${width}%` }}
+            >
+              {width > 8 ? item.display : ""}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-2 grid grid-cols-4 gap-1 text-center text-[10px] text-slate-600">
+        {segments.map((item) => (
+          <div key={item.label} className="border-r border-slate-200 last:border-r-0">
+            <p className="truncate">{item.label}</p>
+            <p className="font-bold text-slate-900">{item.display}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NoteCard({
+  title,
+  text,
   href,
 }: {
   title: string;
-  description: string;
-  status: string;
-  href?: string;
+  text: string;
+  href: string;
 }) {
-  const content = (
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <h3 className="text-sm font-semibold text-slate-950">{title}</h3>
-        <p className="mt-2 text-xs leading-5 text-slate-600">{description}</p>
+  return (
+    <div className="flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+          i
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-slate-950">{title}</h2>
+          <p className="truncate text-xs text-slate-600">{text}</p>
+        </div>
       </div>
-      <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-800">
-        {status}
-      </span>
-    </div>
-  );
 
-  if (href) {
-    return (
       <Link
         href={href}
-        className="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+        className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-100"
       >
-        {content}
+        Abrir
       </Link>
-    );
-  }
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm opacity-90">
-      {content}
     </div>
   );
 }
@@ -189,10 +466,24 @@ export default function DashboardPage() {
     loadDashboard();
   }, []);
 
+  const modulos: Modulo[] = useMemo(
+    () => [
+      { label: "Dashboard", short: "DG", href: "/dashboard", active: true },
+      { label: "Mesa de fiscalización", short: "MF", href: "/mesa-fiscalizacion" },
+      { label: "Usuarios demo", short: "UD", href: "/usuarios-demo" },
+      { label: "Oferta formativa", short: "OF", href: "/oferta-formativa" },
+      { label: "Entidades", short: "EN", href: "/entidades" },
+      { label: "Alertas", short: "AL", href: "/alertas" },
+      { label: "Justificación económica", short: "JE", href: "/justificacion-economica" },
+      { label: "Datos operativos", short: "DO", href: "/actuaciones-emitidas" },
+    ],
+    []
+  );
+
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#edf3f8] p-6 text-slate-950">
-        <section className="mx-auto max-w-7xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-600">Cargando dashboard institucional...</p>
         </section>
       </main>
@@ -201,11 +492,9 @@ export default function DashboardPage() {
 
   if (error || !resumen || !ofertaResumen) {
     return (
-      <main className="min-h-screen bg-[#edf3f8] p-6 text-slate-950">
-        <section className="mx-auto max-w-7xl rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-red-700">
-            Error cargando dashboard institucional
-          </p>
+      <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
+        <section className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-semibold text-red-700">Error cargando dashboard institucional</p>
           <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-red-50 p-4 text-xs text-red-800">
             {error ?? "No se pudo cargar la información institucional."}
           </pre>
@@ -214,192 +503,340 @@ export default function DashboardPage() {
     );
   }
 
+  const totalAcciones = ofertaResumen.acciones_total || resumen.acciones_concedidas || 1;
+  const ejecucionEconomicaPct = pct(
+    ofertaResumen.importe_ejecutado_total,
+    ofertaResumen.importe_concedido_total
+  );
+  const riesgoImportePct = pct(
+    ofertaResumen.importe_en_riesgo_total,
+    ofertaResumen.importe_concedido_total
+  );
+  const activosPct = pct(ofertaResumen.alumnos_activos, ofertaResumen.alumnos_inicio);
+
+  const maxCargaAdministrativa = Math.max(
+    ofertaResumen.requerimientos_pendientes,
+    ofertaResumen.incidencias_abiertas,
+    resumen.alertas_altas,
+    resumen.alertas_medias,
+    1
+  );
+
   return (
     <main className="min-h-screen bg-[#edf3f8] text-slate-950">
-      <section className="bg-[#183B63] px-6 py-6 text-white shadow-sm">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200">
-              Coforma Institucional
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold">Dashboard ejecutivo institucional</h1>
-            <p className="mt-1 text-sm text-blue-100">
-              {resumen.convocatoria_codigo} · {resumen.convocatoria_nombre}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm">
-            <p className="font-semibold">Resolución oficial trazada</p>
-            <p className="text-xs text-blue-100">
-              Concesión oficial cargada · Ejecución marcada como simulación controlada
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl space-y-5 px-6 py-5">
-        <div className="flex items-center justify-between gap-3">
-          <Link href="/login" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
-            ← Volver al acceso
-          </Link>
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Entorno demo institucional · KPIs clicables
-          </span>
-        </div>
-
-        <section className="grid gap-3 lg:grid-cols-4">
-          <KpiCard
-            label="Entidades"
-            value={num(resumen.entidades_beneficiarias)}
-            detail="expedientes principales"
-            tone="blue"
-            href="/entidades"
-          />
-          <KpiCard
-            label="Acciones concedidas"
-            value={num(resumen.acciones_concedidas)}
-            detail={`${num(resumen.acciones_af)} AF · ${num(resumen.acciones_cp)} CP`}
-            tone="default"
-            href="/oferta-formativa"
-          />
-          <KpiCard
-            label="Importe concedido"
-            value={euro(resumen.importe_total_concedido)}
-            detail="cuadrado al céntimo"
-            tone="green"
-            href="/oferta-formativa"
-          />
-          <KpiCard
-            label="Importe en riesgo"
-            value={euro(resumen.importe_total_en_riesgo)}
-            detail={`${num(resumen.alertas_altas)} alertas altas`}
-            tone="red"
-            href="/alertas"
-          />
-        </section>
-
-        <section className="grid gap-3 lg:grid-cols-5">
-          <KpiCard
-            label="Pendientes de ejecutar"
-            value={num(ofertaResumen.pendientes_ejecutar)}
-            detail={euro(ofertaResumen.importe_pendiente_ejecutar)}
-            tone="blue"
-            href="/oferta-formativa?estado=pendiente_ejecutar"
-          />
-          <KpiCard
-            label="En ejecución"
-            value={num(ofertaResumen.en_ejecucion)}
-            detail="sin incidencia crítica"
-            tone="green"
-            href="/oferta-formativa?estado=en_ejecucion"
-          />
-          <KpiCard
-            label="Con incidencia"
-            value={num(ofertaResumen.en_ejecucion_con_incidencia)}
-            detail={`${num(ofertaResumen.incidencias_abiertas)} incidencias abiertas`}
-            tone="amber"
-            href="/oferta-formativa?estado=en_ejecucion_con_incidencia"
-          />
-          <KpiCard
-            label="Pendientes justificar"
-            value={num(ofertaResumen.finalizadas_pendiente_justificacion)}
-            detail="acciones finalizadas"
-            tone="default"
-            href="/oferta-formativa?estado=finalizada_pendiente_justificacion"
-          />
-          <KpiCard
-            label="Riesgo reintegro"
-            value={num(ofertaResumen.riesgo_reintegro)}
-            detail={`${num(ofertaResumen.requerimientos_pendientes)} requerimientos pendientes`}
-            tone="red"
-            href="/alertas"
-          />
-        </section>
-
-        <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold">Lectura ejecutiva</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-700">
-              La demo parte de una resolución oficial cargada y validada. Cada entidad beneficiaria
-              se interpreta como expediente principal y cada AF/CP concedida como subexpediente
-              fiscalizable. El dashboard detecta volumen, estados operativos, incidencias,
-              requerimientos y riesgo para orientar la revisión administrativa.
-            </p>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                <p className="text-[11px] font-semibold uppercase text-slate-500">Alumnos inicio</p>
-                <p className="mt-1 text-lg font-semibold">{num(resumen.alumnos_inicio)}</p>
-              </div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                <p className="text-[11px] font-semibold uppercase text-slate-500">Alumnos activos</p>
-                <p className="mt-1 text-lg font-semibold">{num(resumen.alumnos_activos)}</p>
-              </div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                <p className="text-[11px] font-semibold uppercase text-slate-500">Bajas</p>
-                <p className="mt-1 text-lg font-semibold">{num(resumen.bajas)}</p>
-              </div>
+      <div className="flex min-h-screen">
+        <aside className="hidden w-[72px] shrink-0 bg-[#092f55] text-white lg:flex lg:flex-col lg:items-center">
+          <div className="flex h-[76px] w-full items-center justify-center border-b border-white/10">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-emerald-400 bg-white text-sm font-black text-[#183B63]">
+              CF
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold">Módulos de fiscalización</h2>
-            <p className="mt-2 text-xs leading-5 text-slate-600">
-              Se activan uno a uno para evitar enlaces vacíos y mantener navegación defendible.
-            </p>
+          <nav className="flex flex-1 flex-col items-center gap-2 py-4">
+            {modulos.map((modulo) => (
+              <RailItem key={modulo.href} modulo={modulo} />
+            ))}
+          </nav>
 
-            <div className="mt-4 space-y-3">
-              <ModuleCard
-                title="Mesa de fiscalización"
-                description="Vista ejecutiva inicial de la resolución FPED 2025, ranking de entidades, KPIs globales y ficha operativa."
-                status="activo"
-                href="/mesa-fiscalizacion"
-              />
-              <ModuleCard
-                title="Usuarios demo institucionales"
-                description="Alta rápida de accesos nominales para asistentes a la reunión, con contraseña demo común y control de estado."
-                status="activo"
-                href="/usuarios-demo"
-              />
-              <ModuleCard
-                title="Oferta formativa concedida"
-                description="Mesa operativa de todas las AF/CP concedidas, con estado, importe, entidad, incidencias y riesgo."
-                status="activo"
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[11px] font-bold">
+            MP
+          </div>
+        </aside>
+
+        <section className="min-w-0 flex-1">
+          <header className="border-b border-[#12395f] bg-[#0d3760] px-5 py-3 text-white">
+            <div className="flex min-h-[108px] flex-col justify-center gap-2">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">
+                    Coforma Institucional
+                  </p>
+                  <h1 className="mt-1 text-[27px] font-black leading-none">
+                    Dashboard ejecutivo institucional
+                  </h1>
+                  <p className="mt-2 truncate text-sm text-blue-100">
+                    {resumen.convocatoria_codigo} · {resumen.convocatoria_nombre}
+                  </p>
+                </div>
+
+                <Link
+                  href="/login"
+                  className="hidden rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/15 sm:inline-flex"
+                >
+                  🔒 Acceso
+                </Link>
+              </div>
+
+              <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-50">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                Resolución oficial trazada · simulación controlada
+              </span>
+            </div>
+          </header>
+
+          <div className="space-y-3 px-5 py-3">
+            <section className="grid grid-cols-5 gap-3">
+              <KpiCard
+                title="Resolución concedida"
+                mainValue={num(resumen.acciones_concedidas)}
+                subtitle={`${euro(resumen.importe_total_concedido)} concedidos`}
                 href="/oferta-formativa"
+                tone="violet"
+                icon="▣"
+                cells={[
+                  { label: "AF", value: num(resumen.acciones_af), tone: "blue" },
+                  { label: "CP", value: num(resumen.acciones_cp), tone: "violet" },
+                  { label: "Entidades", value: num(resumen.entidades_beneficiarias), tone: "blue" },
+                  { label: "Con oferta", value: num(ofertaResumen.entidades_con_oferta), tone: "green" },
+                ]}
               />
-              <ModuleCard
-                title="Entidades beneficiarias"
-                description="Expedientes principales por entidad, con resumen de acciones, riesgos, incidencias y requerimientos."
-                status="activo"
-                href="/entidades"
-              />
-              <ModuleCard
-                title="Alertas e incidencias"
-                description="Bandeja transversal para priorizar riesgos, incidencias abiertas y posibles reintegros."
-                status="activo"
-                href="/alertas"
-              />
-              <ModuleCard
-                title="Justificación económica"
-                description="Control del dinero concedido, ejecutado, justificado, pendiente y en riesgo para toma de decisiones."
-                status="activo"
+
+              <KpiCard
+                title="Ejecución económica"
+                mainValue={euro(ofertaResumen.importe_ejecutado_total)}
+                subtitle={`${ejecucionEconomicaPct}% ejecutado sobre lo concedido`}
                 href="/justificacion-economica"
+                tone="green"
+                icon="€"
+                percentValue={ejecucionEconomicaPct}
+                cells={[
+                  { label: "Pend. ejecutar", value: euro(ofertaResumen.importe_pendiente_ejecutar), tone: "blue" },
+                  { label: "Pend. justificar", value: euro(ofertaResumen.importe_pendiente_justificacion), tone: "amber" },
+                  { label: "Sujeto revisión", value: euro(ofertaResumen.importe_sujeto_revision), tone: "red" },
+                  { label: "Finalizado", value: euro(ofertaResumen.importe_finalizado_potencial_cobro), tone: "slate" },
+                ]}
               />
-              <ModuleCard
-                title="Datos operativos"
-                description="Actuaciones emitidas, comunicaciones/canal, trazabilidad técnica y auditoría de intervención."
-                status="activo"
-                href="/actuaciones-emitidas"
+
+              <KpiCard
+                title="Riesgo y revisión"
+                mainValue={euro(ofertaResumen.importe_en_riesgo_total)}
+                subtitle={`${riesgoImportePct}% del importe concedido`}
+                href="/alertas"
+                tone="red"
+                icon="!"
+                percentValue={riesgoImportePct}
+                cells={[
+                  { label: "Incidencias", value: num(ofertaResumen.incidencias_abiertas), tone: "amber" },
+                  { label: "Req.", value: num(ofertaResumen.requerimientos_pendientes), tone: "red" },
+                  { label: "Reintegro", value: num(ofertaResumen.riesgo_reintegro), tone: "red" },
+                  { label: "Entidades", value: num(ofertaResumen.entidades_con_incidencias_o_riesgo), tone: "blue" },
+                ]}
               />
-            </div>
+
+              <KpiCard
+                title="Entidades beneficiarias"
+                mainValue={num(resumen.entidades_beneficiarias)}
+                subtitle={`${num(ofertaResumen.entidades_con_incidencias_o_riesgo)} priorizables`}
+                href="/entidades"
+                tone="blue"
+                icon="▦"
+                percentValue={pct(
+                  ofertaResumen.entidades_con_incidencias_o_riesgo,
+                  resumen.entidades_beneficiarias
+                )}
+                cells={[
+                  { label: "Con oferta", value: num(ofertaResumen.entidades_con_oferta), tone: "green" },
+                  { label: "Priorizables", value: num(ofertaResumen.entidades_con_incidencias_o_riesgo), tone: "red" },
+                  { label: "Alertas altas", value: num(resumen.alertas_altas), tone: "red" },
+                  { label: "Alertas medias", value: num(resumen.alertas_medias), tone: "amber" },
+                ]}
+              />
+
+              <KpiCard
+                title="Alumnado y resultados"
+                mainValue={num(ofertaResumen.alumnos_activos)}
+                subtitle={`${activosPct}% activos sobre inicio`}
+                href="/mesa-fiscalizacion"
+                tone="teal"
+                icon="☷"
+                percentValue={activosPct}
+                cells={[
+                  { label: "Inicio", value: num(ofertaResumen.alumnos_inicio), tone: "blue" },
+                  { label: "Bajas", value: num(ofertaResumen.bajas), tone: "red" },
+                  { label: "Aptos", value: num(ofertaResumen.aptos), tone: "green" },
+                  { label: "No aptos", value: num(ofertaResumen.no_aptos), tone: "amber" },
+                ]}
+              />
+            </section>
+
+            <section className="grid gap-3 xl:grid-cols-[0.32fr_0.68fr]">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <h2 className="text-sm font-black text-slate-950">Prioridades de revisión</h2>
+                <div className="mt-3 space-y-2">
+                  <PriorityRow
+                    href="/entidades"
+                    tone="blue"
+                    label="Revisar entidades priorizables"
+                    value={num(ofertaResumen.entidades_con_incidencias_o_riesgo)}
+                  />
+                  <PriorityRow
+                    href="/oferta-formativa?requerimientos=1"
+                    tone="red"
+                    label="Atender requerimientos pendientes"
+                    value={num(ofertaResumen.requerimientos_pendientes)}
+                  />
+                  <PriorityRow
+                    href="/justificacion-economica?pendiente_justificar=1"
+                    tone="amber"
+                    label="Controlar acciones pendientes de justificar"
+                    value={num(ofertaResumen.finalizadas_pendiente_justificacion)}
+                  />
+                  <PriorityRow
+                    href="/trazabilidad-tecnica"
+                    tone="blue"
+                    label="Verificar trazabilidad técnica"
+                    value={num(resumen.acciones_sin_datos_ejecucion)}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <h2 className="text-sm font-black text-slate-950">Focos de fiscalización</h2>
+
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  <FocusPanel title="Ejecución económica">
+                    <SegmentedBar
+                      segments={[
+                        {
+                          label: "Ejecutado",
+                          value: ofertaResumen.importe_ejecutado_total,
+                          tone: "green",
+                          display: `${pct(
+                            ofertaResumen.importe_ejecutado_total,
+                            ofertaResumen.importe_concedido_total
+                          )}%`,
+                        },
+                        {
+                          label: "Pendiente",
+                          value: ofertaResumen.importe_pendiente_ejecutar,
+                          tone: "blue",
+                          display: `${pct(
+                            ofertaResumen.importe_pendiente_ejecutar,
+                            ofertaResumen.importe_concedido_total
+                          )}%`,
+                        },
+                        {
+                          label: "Justificar",
+                          value: ofertaResumen.importe_pendiente_justificacion,
+                          tone: "amber",
+                          display: `${pct(
+                            ofertaResumen.importe_pendiente_justificacion,
+                            ofertaResumen.importe_concedido_total
+                          )}%`,
+                        },
+                        {
+                          label: "Revisión",
+                          value: ofertaResumen.importe_sujeto_revision,
+                          tone: "red",
+                          display: `${pct(
+                            ofertaResumen.importe_sujeto_revision,
+                            ofertaResumen.importe_concedido_total
+                          )}%`,
+                        },
+                      ]}
+                    />
+                  </FocusPanel>
+
+                  <FocusPanel title="Estado operativo">
+                    <SegmentedBar
+                      segments={[
+                        {
+                          label: "En ejecución",
+                          value: ofertaResumen.en_ejecucion,
+                          tone: "green",
+                          display: `${pct(ofertaResumen.en_ejecucion, totalAcciones)}%`,
+                        },
+                        {
+                          label: "Pendiente",
+                          value: ofertaResumen.pendientes_ejecutar,
+                          tone: "blue",
+                          display: `${pct(ofertaResumen.pendientes_ejecutar, totalAcciones)}%`,
+                        },
+                        {
+                          label: "Incidencia",
+                          value: ofertaResumen.en_ejecucion_con_incidencia,
+                          tone: "amber",
+                          display: `${pct(ofertaResumen.en_ejecucion_con_incidencia, totalAcciones)}%`,
+                        },
+                        {
+                          label: "Justificar",
+                          value: ofertaResumen.finalizadas_pendiente_justificacion,
+                          tone: "red",
+                          display: `${pct(ofertaResumen.finalizadas_pendiente_justificacion, totalAcciones)}%`,
+                        },
+                      ]}
+                    />
+                  </FocusPanel>
+
+                  <FocusPanel title="Carga administrativa">
+                    <div className="space-y-1.5">
+                      <BarRow
+                        label="Requerimientos"
+                        value={ofertaResumen.requerimientos_pendientes}
+                        max={maxCargaAdministrativa}
+                        tone="violet"
+                      />
+                      <BarRow
+                        label="Incidencias"
+                        value={ofertaResumen.incidencias_abiertas}
+                        max={maxCargaAdministrativa}
+                        tone="blue"
+                      />
+                      <BarRow
+                        label="Alertas altas"
+                        value={resumen.alertas_altas}
+                        max={maxCargaAdministrativa}
+                        tone="red"
+                      />
+                      <BarRow
+                        label="Alertas medias"
+                        value={resumen.alertas_medias}
+                        max={maxCargaAdministrativa}
+                        tone="amber"
+                      />
+                    </div>
+                  </FocusPanel>
+
+                  <FocusPanel title="Seguimiento de alumnado">
+                    <div className="space-y-1.5">
+                      <BarRow
+                        label="Inicio"
+                        value={ofertaResumen.alumnos_inicio}
+                        max={ofertaResumen.alumnos_inicio}
+                        tone="teal"
+                      />
+                      <BarRow
+                        label="Activos"
+                        value={ofertaResumen.alumnos_activos}
+                        max={ofertaResumen.alumnos_inicio}
+                        tone="green"
+                      />
+                      <BarRow
+                        label="Bajas"
+                        value={ofertaResumen.bajas}
+                        max={ofertaResumen.alumnos_inicio}
+                        tone="amber"
+                      />
+                      <BarRow
+                        label="Aptos"
+                        value={ofertaResumen.aptos}
+                        max={ofertaResumen.alumnos_inicio}
+                        tone="blue"
+                      />
+                    </div>
+                  </FocusPanel>
+                </div>
+              </div>
+            </section>
+
+            <NoteCard
+              title="Nota de trazabilidad"
+              text={resumen.nota_trazabilidad}
+              href="/trazabilidad-tecnica"
+            />
           </div>
         </section>
-
-        <footer className="rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600 shadow-sm">
-          <p className="font-semibold text-slate-800">Trazabilidad</p>
-          <p className="mt-1">{resumen.nota_trazabilidad}</p>
-        </footer>
-      </section>
+      </div>
     </main>
   );
 }

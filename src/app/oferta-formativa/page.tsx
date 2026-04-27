@@ -117,6 +117,7 @@ export default function OfertaFormativaPage() {
   const [entidadFiltro, setEntidadFiltro] = useState("todos");
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const [tipoFiltro, setTipoFiltro] = useState("todos");
+  const [soloRequerimientos, setSoloRequerimientos] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -154,15 +155,17 @@ export default function OfertaFormativaPage() {
     const estado = params.get("estado");
     const entidad = params.get("entidad");
     const tipo = params.get("tipo");
+    const requerimientos = params.get("requerimientos");
 
     if (estado) setEstadoFiltro(estado);
     if (entidad) setEntidadFiltro(entidad);
     if (tipo) setTipoFiltro(tipo.toUpperCase());
+    if (requerimientos === "1" || requerimientos === "true") setSoloRequerimientos(true);
   }, []);
 
   useEffect(() => {
     setPagina(1);
-  }, [entidadFiltro, estadoFiltro, tipoFiltro, busqueda, pageSize]);
+  }, [entidadFiltro, estadoFiltro, tipoFiltro, soloRequerimientos, busqueda, pageSize]);
 
   const entidades = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -203,6 +206,7 @@ export default function OfertaFormativaPage() {
         ""
       );
       const tipo = text(row, ["tipo_oferta", "tipo", "tipo_accion"], "").toUpperCase();
+      const requerimientosPendientes = numberValue(row, ["requerimientos_pendientes"]);
 
       const textoBusqueda = [
         text(row, ["entidad_nombre", "entidad", "nombre_entidad"], ""),
@@ -220,11 +224,12 @@ export default function OfertaFormativaPage() {
       const pasaEntidad = entidadFiltro === "todos" || entidadId === entidadFiltro;
       const pasaEstado = estadoFiltro === "todos" || estado === estadoFiltro;
       const pasaTipo = tipoFiltro === "todos" || tipo === tipoFiltro;
+      const pasaRequerimientos = !soloRequerimientos || requerimientosPendientes > 0;
       const pasaBusqueda = term === "" || textoBusqueda.includes(term);
 
-      return pasaEntidad && pasaEstado && pasaTipo && pasaBusqueda;
+      return pasaEntidad && pasaEstado && pasaTipo && pasaRequerimientos && pasaBusqueda;
     });
-  }, [rows, entidadFiltro, estadoFiltro, tipoFiltro, busqueda]);
+  }, [rows, entidadFiltro, estadoFiltro, tipoFiltro, soloRequerimientos, busqueda]);
 
   const totalPaginas = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const paginaSegura = Math.min(pagina, totalPaginas);
@@ -236,6 +241,7 @@ export default function OfertaFormativaPage() {
     setEntidadFiltro("todos");
     setEstadoFiltro("todos");
     setTipoFiltro("todos");
+    setSoloRequerimientos(false);
     setBusqueda("");
     setPagina(1);
   }
@@ -296,12 +302,20 @@ export default function OfertaFormativaPage() {
             ← Volver al dashboard
           </Link>
 
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Clic en una fila para abrir subexpediente
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {soloRequerimientos ? (
+              <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-800 shadow-sm">
+                Filtro activo: requerimientos pendientes
+              </span>
+            ) : null}
+
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+              Clic en una fila para abrir subexpediente
+            </span>
+          </div>
         </div>
 
-        <section className="grid gap-2 lg:grid-cols-5">
+        <section className="grid gap-2 lg:grid-cols-6">
           <Kpi
             label="Total acciones"
             value={num(resumen.acciones_total)}
@@ -313,33 +327,55 @@ export default function OfertaFormativaPage() {
             value={num(resumen.pendientes_ejecutar)}
             detail={euro(resumen.importe_pendiente_ejecutar)}
             tone="blue"
-            onClick={() => setEstadoFiltro("pendiente_ejecutar")}
+            onClick={() => {
+              setSoloRequerimientos(false);
+              setEstadoFiltro("pendiente_ejecutar");
+            }}
           />
           <Kpi
             label="En ejecución"
             value={num(resumen.en_ejecucion)}
             detail="acciones sin incidencia crítica"
             tone="green"
-            onClick={() => setEstadoFiltro("en_ejecucion")}
+            onClick={() => {
+              setSoloRequerimientos(false);
+              setEstadoFiltro("en_ejecucion");
+            }}
           />
           <Kpi
             label="Con incidencia"
             value={num(resumen.en_ejecucion_con_incidencia)}
             detail={`${num(resumen.incidencias_abiertas)} incidencias abiertas`}
             tone="amber"
-            onClick={() => setEstadoFiltro("en_ejecucion_con_incidencia")}
+            onClick={() => {
+              setSoloRequerimientos(false);
+              setEstadoFiltro("en_ejecucion_con_incidencia");
+            }}
           />
           <Kpi
             label="Riesgo reintegro"
             value={num(resumen.riesgo_reintegro)}
             detail={euro(resumen.importe_en_riesgo_total)}
             tone="red"
-            onClick={() => setEstadoFiltro("riesgo_reintegro")}
+            onClick={() => {
+              setSoloRequerimientos(false);
+              setEstadoFiltro("riesgo_reintegro");
+            }}
+          />
+          <Kpi
+            label="Requerimientos"
+            value={num(resumen.requerimientos_pendientes)}
+            detail="acciones con requerimiento pendiente"
+            tone="red"
+            onClick={() => {
+              setEstadoFiltro("todos");
+              setSoloRequerimientos(true);
+            }}
           />
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.25fr_0.95fr_0.75fr_0.55fr_auto]">
+          <div className="grid gap-2 lg:grid-cols-[1.25fr_0.95fr_0.75fr_0.55fr_auto_auto]">
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -401,6 +437,20 @@ export default function OfertaFormativaPage() {
                 <option value="AF">AF</option>
                 <option value="CP">CP</option>
               </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => setSoloRequerimientos((prev) => !prev)}
+                className={
+                  soloRequerimientos
+                    ? "h-8 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-semibold text-red-800 hover:bg-red-100"
+                    : "h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                }
+              >
+                Con requerimientos
+              </button>
             </div>
 
             <div className="flex items-end">

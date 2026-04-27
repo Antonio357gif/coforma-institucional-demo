@@ -34,6 +34,14 @@ type JustificacionRow = {
   aptos: number | null;
   alerta: string | null;
   nivel_riesgo: string | null;
+
+  estado_operativo_administrativo: string | null;
+  estado_operativo_label: string | null;
+  incidencias_abiertas: number | null;
+  requerimientos_pendientes: number | null;
+  riesgo_administrativo: string | null;
+  riesgo_economico: string | null;
+  actuacion_sugerida: string | null;
 };
 
 function euro(value: number | null | undefined) {
@@ -82,7 +90,8 @@ function badgeClass(value: string | null | undefined) {
   if (
     normalizado.includes("total") ||
     normalizado.includes("validada") ||
-    normalizado.includes("ordinario")
+    normalizado.includes("ordinario") ||
+    normalizado.includes("ejecucion")
   ) {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
   }
@@ -116,6 +125,7 @@ export default function JustificacionEconomicaPage() {
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const [decisionFiltro, setDecisionFiltro] = useState("todos");
   const [prioridadFiltro, setPrioridadFiltro] = useState("todos");
+  const [soloPendientesJustificar, setSoloPendientesJustificar] = useState(false);
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [seleccionada, setSeleccionada] = useState<JustificacionRow | null>(null);
@@ -145,6 +155,15 @@ export default function JustificacionEconomicaPage() {
     loadJustificacion();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pendienteJustificar = params.get("pendiente_justificar");
+
+    if (pendienteJustificar === "1" || pendienteJustificar === "true") {
+      setSoloPendientesJustificar(true);
+    }
+  }, []);
+
   const estados = useMemo(() => {
     return Array.from(new Set(rows.map((row) => row.estado_justificacion))).filter(Boolean) as string[];
   }, [rows]);
@@ -169,10 +188,15 @@ export default function JustificacionEconomicaPage() {
         row.codigo_especialidad,
         row.denominacion,
         row.estado_justificacion,
+        row.estado_operativo_administrativo,
+        row.estado_operativo_label,
         row.decision_recomendada,
         row.prioridad_decision,
         row.motivo_decision,
         row.tecnico_nombre,
+        row.riesgo_administrativo,
+        row.riesgo_economico,
+        row.actuacion_sugerida,
       ]
         .join(" ")
         .toLowerCase();
@@ -182,13 +206,17 @@ export default function JustificacionEconomicaPage() {
       const pasaDecision = decisionFiltro === "todos" || row.decision_recomendada === decisionFiltro;
       const pasaPrioridad = prioridadFiltro === "todos" || row.prioridad_decision === prioridadFiltro;
 
-      return pasaBusqueda && pasaEstado && pasaDecision && pasaPrioridad;
+      const pasaPendienteJustificar =
+        !soloPendientesJustificar ||
+        row.estado_operativo_administrativo === "finalizada_pendiente_justificacion";
+
+      return pasaBusqueda && pasaEstado && pasaDecision && pasaPrioridad && pasaPendienteJustificar;
     });
-  }, [rows, busqueda, estadoFiltro, decisionFiltro, prioridadFiltro]);
+  }, [rows, busqueda, estadoFiltro, decisionFiltro, prioridadFiltro, soloPendientesJustificar]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [busqueda, estadoFiltro, decisionFiltro, prioridadFiltro, pageSize]);
+  }, [busqueda, estadoFiltro, decisionFiltro, prioridadFiltro, soloPendientesJustificar, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -225,6 +253,14 @@ export default function JustificacionEconomicaPage() {
       }
     );
   }, [filtradas]);
+
+  function limpiarFiltros() {
+    setBusqueda("");
+    setEstadoFiltro("todos");
+    setDecisionFiltro("todos");
+    setPrioridadFiltro("todos");
+    setSoloPendientesJustificar(false);
+  }
 
   if (loading) {
     return (
@@ -283,9 +319,17 @@ export default function JustificacionEconomicaPage() {
             </Link>
           </div>
 
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Justificación económica · toma de decisiones
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {soloPendientesJustificar ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800 shadow-sm">
+                Filtro activo: finalizadas pendientes de justificación
+              </span>
+            ) : null}
+
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+              Justificación económica · toma de decisiones
+            </span>
+          </div>
         </div>
 
         <section className="grid gap-2 lg:grid-cols-6">
@@ -298,7 +342,7 @@ export default function JustificacionEconomicaPage() {
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.2fr_0.75fr_0.75fr_0.65fr_auto]">
+          <div className="grid gap-2 lg:grid-cols-[1.2fr_0.75fr_0.75fr_0.65fr_auto_auto]">
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -368,12 +412,21 @@ export default function JustificacionEconomicaPage() {
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={() => {
-                  setBusqueda("");
-                  setEstadoFiltro("todos");
-                  setDecisionFiltro("todos");
-                  setPrioridadFiltro("todos");
-                }}
+                onClick={() => setSoloPendientesJustificar((prev) => !prev)}
+                className={
+                  soloPendientesJustificar
+                    ? "h-8 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+                    : "h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                }
+              >
+                Pend. justificar
+              </button>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={limpiarFiltros}
                 className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
@@ -463,9 +516,14 @@ export default function JustificacionEconomicaPage() {
                     <td className="px-2 py-1.5 text-right font-semibold text-red-700">{euro(row.importe_en_riesgo)}</td>
 
                     <td className="px-2 py-1.5">
-                      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.estado_justificacion)}`}>
-                        {label(row.estado_justificacion)}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.estado_justificacion)}`}>
+                          {label(row.estado_justificacion)}
+                        </span>
+                        <span className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.estado_operativo_administrativo)}`}>
+                          {label(row.estado_operativo_label ?? row.estado_operativo_administrativo)}
+                        </span>
+                      </div>
                     </td>
 
                     <td className="px-2 py-1.5">
@@ -559,6 +617,13 @@ export default function JustificacionEconomicaPage() {
               </section>
 
               <section className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Actuación sugerida</p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  {seleccionada.actuacion_sugerida ?? "Sin actuación sugerida registrada."}
+                </p>
+              </section>
+
+              <section className="rounded-xl border border-slate-200 bg-white p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Datos de ejecución</p>
                 <div className="mt-2 grid gap-2 md:grid-cols-4">
                   <p className="text-sm">Inicio: <strong>{num(seleccionada.alumnos_inicio)}</strong></p>
@@ -598,5 +663,3 @@ export default function JustificacionEconomicaPage() {
     </main>
   );
 }
-
-
