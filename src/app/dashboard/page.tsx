@@ -356,6 +356,12 @@ export default function DashboardPage() {
                 href="/mesa-fiscalizacion"
               />
               <ModuleCard
+                title="Usuarios demo institucionales"
+                description="Alta rápida de accesos nominales para asistentes a la reunión, con contraseña demo común y control de estado."
+                status="activo"
+                href="/usuarios-demo"
+              />
+              <ModuleCard
                 title="Oferta formativa concedida"
                 description="Mesa operativa de todas las AF/CP concedidas, con estado, importe, entidad, incidencias y riesgo."
                 status="activo"
