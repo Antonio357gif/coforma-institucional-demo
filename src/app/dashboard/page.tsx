@@ -604,10 +604,14 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-[#edf3f8] text-slate-950">
       <div className="flex min-h-screen">
         <aside className="hidden w-[72px] shrink-0 bg-[#092f55] text-white lg:flex lg:flex-col lg:items-center">
-          <div className="flex h-[76px] w-full items-center justify-center border-b border-white/10">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-emerald-400 bg-white text-sm font-black text-[#183B63]">
-              CF
-            </div>
+          <div className="flex h-[92px] w-full items-center justify-center border-b border-white/10">
+  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-400 bg-white p-1 shadow-sm">
+  <img
+    src="/coforma-isotipo.png"
+    alt="Coforma"
+    className="h-full w-full object-contain"
+  />
+</div>
           </div>
 
           <nav className="flex flex-1 flex-col items-center gap-2 py-4">

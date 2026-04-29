@@ -75,7 +75,15 @@ export default function LoginPage() {
       <section className="flex min-h-screen items-center justify-center px-6 py-10">
         <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl lg:grid-cols-[1.05fr_0.95fr]">
           <div className="bg-[#183B63] p-8 text-white lg:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200">
+            <div className="inline-flex items-center gap-4 rounded-3xl border border-white/15 bg-white px-5 py-4 shadow-sm">
+              <img
+                src="/coforma-logo.png"
+                alt="Coforma"
+                className="h-20 w-auto object-contain"
+              />
+            </div>
+
+            <p className="mt-7 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200">
               Coforma Institucional
             </p>
 
