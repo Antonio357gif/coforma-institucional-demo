@@ -126,6 +126,9 @@ export default function JustificacionEconomicaPage() {
   const [decisionFiltro, setDecisionFiltro] = useState("todos");
   const [prioridadFiltro, setPrioridadFiltro] = useState("todos");
   const [soloPendientesJustificar, setSoloPendientesJustificar] = useState(false);
+  const [operativoFiltro, setOperativoFiltro] = useState("todos");
+  const [importeFiltro, setImporteFiltro] = useState("todos");
+  const [revisionFiltro, setRevisionFiltro] = useState(false);
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [seleccionada, setSeleccionada] = useState<JustificacionRow | null>(null);
@@ -158,14 +161,37 @@ export default function JustificacionEconomicaPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const pendienteJustificar = params.get("pendiente_justificar");
+    const operativo = params.get("operativo");
+    const importe = params.get("importe");
+    const revision = params.get("revision");
 
     if (pendienteJustificar === "1" || pendienteJustificar === "true") {
       setSoloPendientesJustificar(true);
+      setOperativoFiltro("finalizada_pendiente_justificacion");
+    }
+
+    if (operativo) {
+      setOperativoFiltro(operativo);
+      if (operativo === "finalizada_pendiente_justificacion") {
+        setSoloPendientesJustificar(true);
+      }
+    }
+
+    if (importe === "ejecutado") {
+      setImporteFiltro("ejecutado");
+    }
+
+    if (revision === "1" || revision === "true") {
+      setRevisionFiltro(true);
     }
   }, []);
 
   const estados = useMemo(() => {
     return Array.from(new Set(rows.map((row) => row.estado_justificacion))).filter(Boolean) as string[];
+  }, [rows]);
+
+  const operativos = useMemo(() => {
+    return Array.from(new Set(rows.map((row) => row.estado_operativo_administrativo))).filter(Boolean) as string[];
   }, [rows]);
 
   const decisiones = useMemo(() => {
@@ -203,6 +229,7 @@ export default function JustificacionEconomicaPage() {
 
       const pasaBusqueda = term === "" || texto.includes(term);
       const pasaEstado = estadoFiltro === "todos" || row.estado_justificacion === estadoFiltro;
+      const pasaOperativo = operativoFiltro === "todos" || row.estado_operativo_administrativo === operativoFiltro;
       const pasaDecision = decisionFiltro === "todos" || row.decision_recomendada === decisionFiltro;
       const pasaPrioridad = prioridadFiltro === "todos" || row.prioridad_decision === prioridadFiltro;
 
@@ -210,13 +237,50 @@ export default function JustificacionEconomicaPage() {
         !soloPendientesJustificar ||
         row.estado_operativo_administrativo === "finalizada_pendiente_justificacion";
 
-      return pasaBusqueda && pasaEstado && pasaDecision && pasaPrioridad && pasaPendienteJustificar;
+      const pasaImporte =
+        importeFiltro !== "ejecutado" || Number(row.importe_ejecutado ?? 0) > 0;
+
+      const pasaRevision =
+        !revisionFiltro ||
+        row.estado_operativo_administrativo === "en_ejecucion_con_incidencia" ||
+        row.estado_operativo_administrativo === "riesgo_reintegro";
+
+      return (
+        pasaBusqueda &&
+        pasaEstado &&
+        pasaOperativo &&
+        pasaDecision &&
+        pasaPrioridad &&
+        pasaPendienteJustificar &&
+        pasaImporte &&
+        pasaRevision
+      );
     });
-  }, [rows, busqueda, estadoFiltro, decisionFiltro, prioridadFiltro, soloPendientesJustificar]);
+  }, [
+    rows,
+    busqueda,
+    estadoFiltro,
+    operativoFiltro,
+    decisionFiltro,
+    prioridadFiltro,
+    soloPendientesJustificar,
+    importeFiltro,
+    revisionFiltro,
+  ]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [busqueda, estadoFiltro, decisionFiltro, prioridadFiltro, soloPendientesJustificar, pageSize]);
+  }, [
+    busqueda,
+    estadoFiltro,
+    operativoFiltro,
+    decisionFiltro,
+    prioridadFiltro,
+    soloPendientesJustificar,
+    importeFiltro,
+    revisionFiltro,
+    pageSize,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -257,9 +321,12 @@ export default function JustificacionEconomicaPage() {
   function limpiarFiltros() {
     setBusqueda("");
     setEstadoFiltro("todos");
+    setOperativoFiltro("todos");
     setDecisionFiltro("todos");
     setPrioridadFiltro("todos");
     setSoloPendientesJustificar(false);
+    setImporteFiltro("todos");
+    setRevisionFiltro(false);
   }
 
   if (loading) {
@@ -326,6 +393,24 @@ export default function JustificacionEconomicaPage() {
               </span>
             ) : null}
 
+            {operativoFiltro !== "todos" && !soloPendientesJustificar ? (
+              <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-800 shadow-sm">
+                Filtro operativo: {label(operativoFiltro)}
+              </span>
+            ) : null}
+
+            {importeFiltro === "ejecutado" ? (
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm">
+                Filtro activo: importe ejecutado mayor que cero
+              </span>
+            ) : null}
+
+            {revisionFiltro ? (
+              <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-800 shadow-sm">
+                Filtro activo: sujeto a revisión
+              </span>
+            ) : null}
+
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
               Justificación económica · toma de decisiones
             </span>
@@ -342,7 +427,7 @@ export default function JustificacionEconomicaPage() {
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.2fr_0.75fr_0.75fr_0.65fr_auto_auto]">
+          <div className="grid gap-2 lg:grid-cols-[1.15fr_0.7fr_0.7fr_0.7fr_0.6fr_auto_auto_auto_auto]">
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -368,6 +453,28 @@ export default function JustificacionEconomicaPage() {
                 {estados.map((estado) => (
                   <option key={estado} value={estado}>
                     {label(estado)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Estado operativo
+              </label>
+              <select
+                value={operativoFiltro}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setOperativoFiltro(value);
+                  setSoloPendientesJustificar(value === "finalizada_pendiente_justificacion");
+                }}
+                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+              >
+                <option value="todos">Todos</option>
+                {operativos.map((operativo) => (
+                  <option key={operativo} value={operativo}>
+                    {label(operativo)}
                   </option>
                 ))}
               </select>
@@ -412,7 +519,13 @@ export default function JustificacionEconomicaPage() {
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={() => setSoloPendientesJustificar((prev) => !prev)}
+                onClick={() => {
+                  setSoloPendientesJustificar((prev) => {
+                    const next = !prev;
+                    setOperativoFiltro(next ? "finalizada_pendiente_justificacion" : "todos");
+                    return next;
+                  });
+                }}
                 className={
                   soloPendientesJustificar
                     ? "h-8 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
@@ -420,6 +533,34 @@ export default function JustificacionEconomicaPage() {
                 }
               >
                 Pend. justificar
+              </button>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => setImporteFiltro((prev) => (prev === "ejecutado" ? "todos" : "ejecutado"))}
+                className={
+                  importeFiltro === "ejecutado"
+                    ? "h-8 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                    : "h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                }
+              >
+                Ejecutado
+              </button>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => setRevisionFiltro((prev) => !prev)}
+                className={
+                  revisionFiltro
+                    ? "h-8 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-semibold text-red-800 hover:bg-red-100"
+                    : "h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                }
+              >
+                Revisión
               </button>
             </div>
 

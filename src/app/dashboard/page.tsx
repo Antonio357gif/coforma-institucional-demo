@@ -74,6 +74,23 @@ function euro(value: number | null | undefined) {
   }).format(value ?? 0);
 }
 
+function euroShort(value: number | null | undefined) {
+  const safeValue = Number(value ?? 0);
+  const absValue = Math.abs(safeValue);
+
+  if (absValue >= 1_000_000) {
+    return `${(safeValue / 1_000_000).toLocaleString("es-ES", {
+      maximumFractionDigits: 1,
+    })} M€`;
+  }
+
+  if (absValue >= 1_000) {
+    return `${Math.round(safeValue / 1_000).toLocaleString("es-ES")} mil €`;
+  }
+
+  return euro(safeValue);
+}
+
 function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(value ?? 0);
 }
@@ -365,40 +382,101 @@ function FocusPanel({
   );
 }
 
-function SegmentedBar({
-  segments,
+function FocusRows({
+  rows,
 }: {
-  segments: Array<{ label: string; value: number; tone: Tone; display: string }>;
+  rows: Array<{
+    label: string;
+    value: number;
+    base: number;
+    tone: Tone;
+    valueText?: string;
+    href?: string;
+    title?: string;
+  }>;
 }) {
-  const total = segments.reduce((sum, item) => sum + item.value, 0) || 1;
+  return (
+    <div className="space-y-1.5">
+      {rows.map((item) => {
+        const palette = toneClasses(item.tone);
+        const percentage = pct(item.value, item.base);
+        const width = clamp(percentage);
+        const rowContent = (
+          <>
+            <span className="truncate text-slate-600 group-hover:text-slate-900">{item.label}</span>
+            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div className={`h-full rounded-full ${palette.line}`} style={{ width: `${width}%` }} />
+            </div>
+            <span className="text-right font-bold text-slate-800">{item.valueText ?? num(item.value)}</span>
+            <span className="text-right font-bold text-slate-500">{percentage}%</span>
+          </>
+        );
+
+        if (item.href) {
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              title={item.title ?? item.label}
+              className="group grid grid-cols-[96px_1fr_116px_38px] items-center gap-2 rounded-lg px-1.5 py-1 text-[11px] transition hover:bg-blue-50"
+            >
+              {rowContent}
+            </Link>
+          );
+        }
+
+        return (
+          <div key={item.label} className="grid grid-cols-[96px_1fr_116px_38px] items-center gap-2 px-1.5 py-1 text-[11px]">
+            {rowContent}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VerticalBars({
+  items,
+  base,
+}: {
+  items: Array<{
+    label: string;
+    value: number;
+    tone: Tone;
+    href: string;
+    title?: string;
+  }>;
+  base: number;
+}) {
+  const safeBase = base > 0 ? base : 1;
+  const maxValue = Math.max(...items.map((item) => item.value), 1);
 
   return (
-    <div>
-      <div className="flex h-6 overflow-hidden rounded-lg bg-slate-100 text-[10px] font-bold text-white">
-        {segments.map((item) => {
-          const width = clamp((item.value / total) * 100);
-          const palette = toneClasses(item.tone);
+    <div className="grid grid-cols-5 gap-2">
+      {items.map((item) => {
+        const palette = toneClasses(item.tone);
+        const percentage = pct(item.value, safeBase);
+        const height = Math.max(8, clamp((item.value / maxValue) * 100));
 
-          return (
-            <div
-              key={item.label}
-              className={`flex items-center justify-center ${palette.line}`}
-              style={{ width: `${width}%` }}
-            >
-              {width > 8 ? item.display : ""}
+        return (
+          <Link
+            key={item.label}
+            href={item.href}
+            title={item.title ?? item.label}
+            className="group flex min-w-0 flex-col rounded-xl border border-slate-100 bg-slate-50 px-2 py-2 text-center transition hover:border-blue-200 hover:bg-blue-50"
+          >
+            <div className="flex h-[86px] items-end justify-center rounded-lg bg-white px-1 py-1.5">
+              <div
+                className={`w-full max-w-[30px] rounded-t-md ${palette.line} transition group-hover:opacity-90`}
+                style={{ height: `${height}%` }}
+              />
             </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-2 grid grid-cols-4 gap-1 text-center text-[10px] text-slate-600">
-        {segments.map((item) => (
-          <div key={item.label} className="border-r border-slate-200 last:border-r-0">
-            <p className="truncate">{item.label}</p>
-            <p className="font-bold text-slate-900">{item.display}</p>
-          </div>
-        ))}
-      </div>
+            <p className="mt-1.5 truncate text-[10px] font-semibold text-slate-700">{item.label}</p>
+            <p className="mt-0.5 text-[12px] font-black leading-none text-slate-950">{num(item.value)}</p>
+            <p className={`mt-0.5 text-[10px] font-black ${palette.text}`}>{percentage}%</p>
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -695,74 +773,86 @@ export default function DashboardPage() {
 
                 <div className="mt-3 grid gap-2 md:grid-cols-2">
                   <FocusPanel title="Ejecución económica">
-                    <SegmentedBar
-                      segments={[
+                    <FocusRows
+                      rows={[
                         {
                           label: "Ejecutado",
                           value: ofertaResumen.importe_ejecutado_total,
+                          base: ofertaResumen.importe_concedido_total,
                           tone: "green",
-                          display: `${pct(
-                            ofertaResumen.importe_ejecutado_total,
-                            ofertaResumen.importe_concedido_total
-                          )}%`,
+                          valueText: euro(ofertaResumen.importe_ejecutado_total),
+                          href: "/justificacion-economica?importe=ejecutado",
+                          title: "Ver acciones con importe ejecutado",
                         },
                         {
                           label: "Pendiente",
                           value: ofertaResumen.importe_pendiente_ejecutar,
+                          base: ofertaResumen.importe_concedido_total,
                           tone: "blue",
-                          display: `${pct(
-                            ofertaResumen.importe_pendiente_ejecutar,
-                            ofertaResumen.importe_concedido_total
-                          )}%`,
+                          valueText: euro(ofertaResumen.importe_pendiente_ejecutar),
+                          href: "/justificacion-economica?operativo=pendiente_ejecutar",
+                          title: "Ver acciones pendientes de ejecutar",
                         },
                         {
                           label: "Justificar",
                           value: ofertaResumen.importe_pendiente_justificacion,
+                          base: ofertaResumen.importe_concedido_total,
                           tone: "amber",
-                          display: `${pct(
-                            ofertaResumen.importe_pendiente_justificacion,
-                            ofertaResumen.importe_concedido_total
-                          )}%`,
+                          valueText: euro(ofertaResumen.importe_pendiente_justificacion),
+                          href: "/justificacion-economica?operativo=finalizada_pendiente_justificacion",
+                          title: "Ver acciones finalizadas pendientes de justificación",
                         },
                         {
                           label: "Revisión",
                           value: ofertaResumen.importe_sujeto_revision,
+                          base: ofertaResumen.importe_concedido_total,
                           tone: "red",
-                          display: `${pct(
-                            ofertaResumen.importe_sujeto_revision,
-                            ofertaResumen.importe_concedido_total
-                          )}%`,
+                          valueText: euro(ofertaResumen.importe_sujeto_revision),
+                          href: "/justificacion-economica?revision=1",
+                          title: "Ver acciones sujetas a revisión",
                         },
                       ]}
                     />
                   </FocusPanel>
 
                   <FocusPanel title="Estado operativo">
-                    <SegmentedBar
-                      segments={[
+                    <VerticalBars
+                      base={totalAcciones}
+                      items={[
                         {
-                          label: "En ejecución",
+                          label: "Ejecución",
                           value: ofertaResumen.en_ejecucion,
                           tone: "green",
-                          display: `${pct(ofertaResumen.en_ejecucion, totalAcciones)}%`,
+                          href: "/oferta-formativa?estado=en_ejecucion",
+                          title: "Ver acciones en ejecución",
                         },
                         {
                           label: "Pendiente",
                           value: ofertaResumen.pendientes_ejecutar,
                           tone: "blue",
-                          display: `${pct(ofertaResumen.pendientes_ejecutar, totalAcciones)}%`,
+                          href: "/oferta-formativa?estado=pendiente_ejecutar",
+                          title: "Ver acciones pendientes de ejecutar",
                         },
                         {
                           label: "Incidencia",
                           value: ofertaResumen.en_ejecucion_con_incidencia,
                           tone: "amber",
-                          display: `${pct(ofertaResumen.en_ejecucion_con_incidencia, totalAcciones)}%`,
+                          href: "/oferta-formativa?estado=en_ejecucion_con_incidencia",
+                          title: "Ver acciones en ejecución con incidencia",
                         },
                         {
                           label: "Justificar",
                           value: ofertaResumen.finalizadas_pendiente_justificacion,
                           tone: "red",
-                          display: `${pct(ofertaResumen.finalizadas_pendiente_justificacion, totalAcciones)}%`,
+                          href: "/justificacion-economica?pendiente_justificar=1",
+                          title: "Ver acciones finalizadas pendientes de justificación",
+                        },
+                        {
+                          label: "Reintegro",
+                          value: ofertaResumen.riesgo_reintegro,
+                          tone: "violet",
+                          href: "/oferta-formativa?estado=riesgo_reintegro",
+                          title: "Ver acciones con riesgo de reintegro",
                         },
                       ]}
                     />
