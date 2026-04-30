@@ -45,6 +45,7 @@ function text(row: OfertaRow, keys: string[], fallback = "—") {
       return String(value);
     }
   }
+
   return fallback;
 }
 
@@ -55,6 +56,7 @@ function numberValue(row: OfertaRow, keys: string[]) {
       return Number(value);
     }
   }
+
   return 0;
 }
 
@@ -68,6 +70,34 @@ function estadoClass(estado: string) {
   if (normalizado.includes("ejecucion")) return "border-emerald-200 bg-emerald-50 text-emerald-800";
 
   return "border-slate-200 bg-white text-slate-700";
+}
+
+async function cargarTodasLasAcciones() {
+  const pageSize = 1000;
+  let from = 0;
+  let allRows: OfertaRow[] = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("v_oferta_formativa_institucional")
+      .select("*")
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const bloque = (data ?? []) as OfertaRow[];
+    allRows = [...allRows, ...bloque];
+
+    if (bloque.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return allRows;
 }
 
 function Kpi({
@@ -122,32 +152,54 @@ export default function OfertaFormativaPage() {
   const [pagina, setPagina] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
+  const [loadingMsg, setLoadingMsg] = useState("Cargando oferta formativa concedida...");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let activo = true;
+
     async function loadOferta() {
       setLoading(true);
       setError(null);
+      setLoadingMsg("Cargando resumen institucional...");
 
-      const [rowsRes, resumenRes] = await Promise.all([
-        supabase.from("v_oferta_formativa_institucional").select("*").limit(1000),
-        supabase.from("v_oferta_formativa_resumen_institucional").select("*").single(),
-      ]);
+      try {
+        const resumenPromise = supabase
+          .from("v_oferta_formativa_resumen_institucional")
+          .select("*")
+          .single();
 
-      const firstError = rowsRes.error || resumenRes.error;
+        setLoadingMsg("Cargando acciones concedidas...");
 
-      if (firstError) {
-        setError(firstError.message);
+        const [rowsData, resumenRes] = await Promise.all([
+          cargarTodasLasAcciones(),
+          resumenPromise,
+        ]);
+
+        if (!activo) return;
+
+        if (resumenRes.error) {
+          setError(resumenRes.error.message);
+          setLoading(false);
+          return;
+        }
+
+        setRows(rowsData);
+        setResumen(resumenRes.data as OfertaResumen);
         setLoading(false);
-        return;
-      }
+      } catch (err: any) {
+        if (!activo) return;
 
-      setRows((rowsRes.data ?? []) as OfertaRow[]);
-      setResumen(resumenRes.data as OfertaResumen);
-      setLoading(false);
+        setError(err?.message ?? "No se pudo cargar la oferta formativa institucional.");
+        setLoading(false);
+      }
     }
 
     loadOferta();
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -173,7 +225,10 @@ export default function OfertaFormativaPage() {
     rows.forEach((row) => {
       const id = text(row, ["entidad_id"], "");
       const nombre = text(row, ["entidad_nombre", "entidad", "nombre_entidad"], "");
-      if (id && nombre) mapa.set(id, nombre);
+
+      if (id && nombre) {
+        mapa.set(id, nombre);
+      }
     });
 
     return Array.from(mapa.entries()).sort((a, b) => a[1].localeCompare(b[1], "es"));
@@ -189,7 +244,9 @@ export default function OfertaFormativaPage() {
         ""
       );
 
-      if (estado) set.add(estado);
+      if (estado) {
+        set.add(estado);
+      }
     });
 
     return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
@@ -248,14 +305,17 @@ export default function OfertaFormativaPage() {
 
   function abrirSubexpediente(row: OfertaRow) {
     const id = text(row, ["oferta_id", "id"], "");
-    if (id) router.push(`/oferta-formativa/${id}`);
+
+    if (id) {
+      router.push(`/subexpedientes-accion/${id}`);
+    }
   }
 
   if (loading) {
     return (
       <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
         <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-600">Cargando oferta formativa concedida...</p>
+          <p className="text-sm text-slate-600">{loadingMsg}</p>
         </section>
       </main>
     );
@@ -278,7 +338,7 @@ export default function OfertaFormativaPage() {
 
   return (
     <main className="min-h-screen bg-[#edf3f8] text-slate-950">
-      <section className="bg-[#183B63] px-5 py-4 text-white shadow-sm">
+      <section className="sticky top-0 z-30 bg-[#183B63] px-5 py-4 text-white shadow-sm">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
@@ -322,6 +382,7 @@ export default function OfertaFormativaPage() {
             detail={`${num(resumen.acciones_af)} AF · ${num(resumen.acciones_cp)} CP`}
             onClick={limpiarFiltros}
           />
+
           <Kpi
             label="Pendientes ejecutar"
             value={num(resumen.pendientes_ejecutar)}
@@ -332,6 +393,7 @@ export default function OfertaFormativaPage() {
               setEstadoFiltro("pendiente_ejecutar");
             }}
           />
+
           <Kpi
             label="En ejecución"
             value={num(resumen.en_ejecucion)}
@@ -342,6 +404,7 @@ export default function OfertaFormativaPage() {
               setEstadoFiltro("en_ejecucion");
             }}
           />
+
           <Kpi
             label="Con incidencia"
             value={num(resumen.en_ejecucion_con_incidencia)}
@@ -352,6 +415,7 @@ export default function OfertaFormativaPage() {
               setEstadoFiltro("en_ejecucion_con_incidencia");
             }}
           />
+
           <Kpi
             label="Riesgo reintegro"
             value={num(resumen.riesgo_reintegro)}
@@ -362,6 +426,7 @@ export default function OfertaFormativaPage() {
               setEstadoFiltro("riesgo_reintegro");
             }}
           />
+
           <Kpi
             label="Requerimientos"
             value={num(resumen.requerimientos_pendientes)}
@@ -545,35 +610,46 @@ export default function OfertaFormativaPage() {
                       <td className="px-2 py-1.5 font-semibold text-slate-950">
                         {text(row, ["codigo_accion", "codigo_administrativo"])}
                       </td>
+
                       <td className="px-2 py-1.5">
                         <p className="font-medium text-slate-900">
                           {text(row, ["entidad_nombre", "entidad", "nombre_entidad"])}
                         </p>
                         <p className="text-[10px] text-slate-500">{text(row, ["cif"])}</p>
                       </td>
-                      <td className="px-2 py-1.5">{text(row, ["tipo_oferta", "tipo", "tipo_accion"])}</td>
+
+                      <td className="px-2 py-1.5">
+                        {text(row, ["tipo_oferta", "tipo", "tipo_accion"])}
+                      </td>
+
                       <td className="px-2 py-1.5 font-medium">
                         {text(row, ["codigo_especialidad", "especialidad"])}
                       </td>
+
                       <td className="max-w-[260px] px-2 py-1.5">
                         <p className="line-clamp-2 text-slate-700">
                           {text(row, ["denominacion", "nombre_accion", "nombre"])}
                         </p>
                       </td>
+
                       <td className="px-2 py-1.5">
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estadoClass(estado)}`}>
                           {estado}
                         </span>
                       </td>
+
                       <td className="px-2 py-1.5 text-right font-medium">
                         {euro(numberValue(row, ["importe_concedido", "importe_total_concedido"]))}
                       </td>
+
                       <td className="px-2 py-1.5 text-right font-medium text-red-700">
                         {euro(numberValue(row, ["importe_en_riesgo", "riesgo_economico"]))}
                       </td>
+
                       <td className="px-2 py-1.5 text-right">
                         {num(numberValue(row, ["incidencias_abiertas"]))}
                       </td>
+
                       <td className="px-2 py-1.5 text-right">
                         {num(numberValue(row, ["requerimientos_pendientes"]))}
                       </td>
