@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -275,7 +275,7 @@ export default function SubexpedienteAccionPage() {
                 </Link>
 
                 <Link
-                  href="/acciones"
+                  href={`/acciones/nueva?ofertaId=${ofertaId}`}
                   className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Emitir actuación

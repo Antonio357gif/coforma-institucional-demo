@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
+import InstitutionalBrandBadge from "../components/InstitutionalBrandBadge";
 
 type OfertaRow = Record<string, any>;
 
@@ -344,6 +345,7 @@ export default function OfertaFormativaPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
+
             <h1 className="mt-1 text-xl font-semibold">Oferta formativa concedida</h1>
             <p className="mt-0.5 text-xs text-blue-100">
               Mesa de auditoría y fiscalización de subexpedientes AF/CP.
