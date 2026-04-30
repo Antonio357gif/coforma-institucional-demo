@@ -230,13 +230,18 @@ function KpiCell({
   tone?: Tone;
 }) {
   const palette = toneClasses(tone);
+  const isMoneyValue = value.includes("€");
 
   return (
     <div className="min-w-0 border-r border-slate-200 px-1.5 py-1.5 text-center last:border-r-0">
       <p className="truncate text-[8px] font-black uppercase tracking-[0.06em] text-slate-500">
         {label}
       </p>
-      <p className={`mt-0.5 truncate text-[11px] font-black leading-none ${palette.text}`}>
+      <p
+        className={`mt-0.5 font-black ${
+          isMoneyValue ? "break-words text-[9px] leading-[1.05]" : "truncate text-[11px] leading-none"
+        } ${palette.text}`}
+      >
         {value}
       </p>
     </div>
@@ -264,11 +269,12 @@ function KpiCard({
 }) {
   const palette = toneClasses(tone);
   const progress = typeof percentValue === "number" ? clamp(percentValue) : null;
+  const isMoneyValue = mainValue.includes("€");
 
   return (
     <Link
       href={href}
-      className={`relative flex h-[196px] min-w-0 flex-col justify-between overflow-hidden rounded-2xl border ${palette.border} bg-white p-3 shadow-sm transition after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full hover:-translate-y-0.5 hover:shadow-md ${palette.bottom}`}
+      className={`relative flex h-[218px] min-w-0 flex-col justify-between overflow-hidden rounded-2xl border ${palette.border} bg-white p-3 shadow-sm transition after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full hover:-translate-y-0.5 hover:shadow-md ${palette.bottom}`}
     >
       <div className="min-w-0">
         <div className="flex items-start gap-2">
@@ -279,10 +285,17 @@ function KpiCard({
           </p>
         </div>
 
-        <p className={`mt-2 truncate text-[22px] font-black leading-none ${palette.text}`}>
+        <p
+          className={`mt-2 font-black ${
+            isMoneyValue ? "break-words text-[14px] leading-[1.08]" : "truncate text-[18px] leading-none"
+          } ${palette.text}`}
+        >
           {mainValue}
         </p>
-        <p className="mt-1 truncate text-[11px] text-slate-600">{subtitle}</p>
+
+        <p className="mt-1 break-words text-[11px] leading-4 text-slate-600">
+          {subtitle}
+        </p>
 
         <div className="mt-2 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
@@ -605,13 +618,13 @@ export default function DashboardPage() {
       <div className="flex min-h-screen">
         <aside className="hidden w-[72px] shrink-0 bg-[#092f55] text-white lg:flex lg:flex-col lg:items-center">
           <div className="flex h-[92px] w-full items-center justify-center border-b border-white/10">
-  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-400 bg-white p-1 shadow-sm">
-  <img
-    src="/coforma-isotipo.png"
-    alt="Coforma"
-    className="h-full w-full object-contain"
-  />
-</div>
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-400 bg-white p-1 shadow-sm">
+              <img
+                src="/coforma-isotipo.png"
+                alt="Coforma"
+                className="h-full w-full object-contain"
+              />
+            </div>
           </div>
 
           <nav className="flex flex-1 flex-col items-center gap-2 py-4">
