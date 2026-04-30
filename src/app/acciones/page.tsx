@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -429,7 +429,7 @@ function AccionesPageContent() {
       <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
-            ← Volver al dashboard
+            ? Volver al dashboard
           </Link>
 
           <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
@@ -571,13 +571,12 @@ function AccionesPageContent() {
                     </td>
                     <td className="px-2 py-1.5">
                       <div className="flex flex-col gap-1">
-                        <button
-                          type="button"
-                          onClick={() => abrirEmision(item)}
-                          className="rounded-lg bg-[#183B63] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#122f4f]"
-                        >
-                          Emitir
-                        </button>
+                        <Link
+  href={`/acciones/nueva?accionId=${encodeURIComponent(item.id)}&ofertaId=${item.ofertaId ?? ""}&tipo=${encodeURIComponent(item.tipo)}&origen=${encodeURIComponent(item.origen)}`}
+  className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+>
+  Emitir
+</Link>
                         <button
                           type="button"
                           onClick={() => router.push(item.destino)}
@@ -737,3 +736,4 @@ export default function AccionesPage() {
     </Suspense>
   );
 }
+
