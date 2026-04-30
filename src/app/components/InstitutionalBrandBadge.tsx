@@ -15,7 +15,7 @@ export default function InstitutionalBrandBadge() {
   }
 
   return (
-    <div className="pointer-events-none fixed left-1/2 top-[14px] z-50 -translate-x-1/2">
+    <div className="pointer-events-none absolute left-1/2 top-[14px] z-30 -translate-x-1/2">
       <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-400 bg-white p-1 shadow-lg">
         <img
           src="/coforma-isotipo.png"

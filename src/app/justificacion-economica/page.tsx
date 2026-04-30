@@ -60,7 +60,10 @@ function pct(parte: number | null | undefined, total: number | null | undefined)
   const p = Number(parte ?? 0);
   const t = Number(total ?? 0);
   if (!t) return "0 %";
-  return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format((p / t) * 100)} %`;
+
+  return `${new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 1,
+  }).format((p / t) * 100)} %`;
 }
 
 function label(value: string | null | undefined) {
@@ -99,6 +102,36 @@ function badgeClass(value: string | null | undefined) {
   return "border-blue-200 bg-blue-50 text-blue-800";
 }
 
+async function cargarTodaLaJustificacion() {
+  const pageSize = 1000;
+  let from = 0;
+  let allRows: JustificacionRow[] = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("v_justificacion_economica")
+      .select("*")
+      .order("importe_en_riesgo", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const bloque = (data ?? []) as JustificacionRow[];
+    allRows = [...allRows, ...bloque];
+
+    if (bloque.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return allRows;
+}
+
 function Kpi({
   labelText,
   value,
@@ -133,29 +166,37 @@ export default function JustificacionEconomicaPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [seleccionada, setSeleccionada] = useState<JustificacionRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMsg, setLoadingMsg] = useState("Cargando justificación económica...");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let activo = true;
+
     async function loadJustificacion() {
       setLoading(true);
       setError(null);
+      setLoadingMsg("Cargando justificación económica completa...");
 
-      const { data, error: supabaseError } = await supabase
-        .from("v_justificacion_economica")
-        .select("*")
-        .order("importe_en_riesgo", { ascending: false });
+      try {
+        const data = await cargarTodaLaJustificacion();
 
-      if (supabaseError) {
-        setError(supabaseError.message);
+        if (!activo) return;
+
+        setRows(data);
         setLoading(false);
-        return;
-      }
+      } catch (err: any) {
+        if (!activo) return;
 
-      setRows((data ?? []) as JustificacionRow[]);
-      setLoading(false);
+        setError(err?.message ?? "No se pudo cargar la justificación económica.");
+        setLoading(false);
+      }
     }
 
     loadJustificacion();
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -187,19 +228,27 @@ export default function JustificacionEconomicaPage() {
   }, []);
 
   const estados = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.estado_justificacion))).filter(Boolean) as string[];
+    return Array.from(new Set(rows.map((row) => row.estado_justificacion)))
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
   }, [rows]);
 
   const operativos = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.estado_operativo_administrativo))).filter(Boolean) as string[];
+    return Array.from(new Set(rows.map((row) => row.estado_operativo_administrativo)))
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
   }, [rows]);
 
   const decisiones = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.decision_recomendada))).filter(Boolean) as string[];
+    return Array.from(new Set(rows.map((row) => row.decision_recomendada)))
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
   }, [rows]);
 
   const prioridades = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.prioridad_decision))).filter(Boolean) as string[];
+    return Array.from(new Set(rows.map((row) => row.prioridad_decision)))
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
   }, [rows]);
 
   const filtradas = useMemo(() => {
@@ -229,7 +278,8 @@ export default function JustificacionEconomicaPage() {
 
       const pasaBusqueda = term === "" || texto.includes(term);
       const pasaEstado = estadoFiltro === "todos" || row.estado_justificacion === estadoFiltro;
-      const pasaOperativo = operativoFiltro === "todos" || row.estado_operativo_administrativo === operativoFiltro;
+      const pasaOperativo =
+        operativoFiltro === "todos" || row.estado_operativo_administrativo === operativoFiltro;
       const pasaDecision = decisionFiltro === "todos" || row.decision_recomendada === decisionFiltro;
       const pasaPrioridad = prioridadFiltro === "todos" || row.prioridad_decision === prioridadFiltro;
 
@@ -237,8 +287,7 @@ export default function JustificacionEconomicaPage() {
         !soloPendientesJustificar ||
         row.estado_operativo_administrativo === "finalizada_pendiente_justificacion";
 
-      const pasaImporte =
-        importeFiltro !== "ejecutado" || Number(row.importe_ejecutado ?? 0) > 0;
+      const pasaImporte = importeFiltro !== "ejecutado" || Number(row.importe_ejecutado ?? 0) > 0;
 
       const pasaRevision =
         !revisionFiltro ||
@@ -333,7 +382,7 @@ export default function JustificacionEconomicaPage() {
     return (
       <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
         <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-600">Cargando justificación económica...</p>
+          <p className="text-sm text-slate-600">{loadingMsg}</p>
         </section>
       </main>
     );
@@ -658,10 +707,18 @@ export default function JustificacionEconomicaPage() {
 
                     <td className="px-2 py-1.5">
                       <div className="flex flex-col gap-1">
-                        <span className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.estado_justificacion)}`}>
+                        <span
+                          className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
+                            row.estado_justificacion
+                          )}`}
+                        >
                           {label(row.estado_justificacion)}
                         </span>
-                        <span className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.estado_operativo_administrativo)}`}>
+                        <span
+                          className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
+                            row.estado_operativo_administrativo
+                          )}`}
+                        >
                           {label(row.estado_operativo_label ?? row.estado_operativo_administrativo)}
                         </span>
                       </div>
@@ -669,23 +726,26 @@ export default function JustificacionEconomicaPage() {
 
                     <td className="px-2 py-1.5">
                       <p className="font-semibold text-slate-950">{label(row.decision_recomendada)}</p>
-                      <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.prioridad_decision)}`}>
+                      <span
+                        className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
+                          row.prioridad_decision
+                        )}`}
+                      >
                         {label(row.prioridad_decision)}
                       </span>
                     </td>
 
                     <td className="px-2 py-1.5">
                       <div className="flex flex-col gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setSeleccionada(row)}
-                          className="rounded-lg bg-[#183B63] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#122f4f]"
-                        >
-                          Ver decisión
-                        </button>
+                        <Link
+  href={`/decisiones-economicas/${row.id}`}
+  className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+>
+  Ver decisión
+</Link>
 
                         <Link
-                          href={`/oferta-formativa/${row.oferta_id}`}
+                          href={`/subexpedientes-accion/${row.oferta_id}`}
                           className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           Subexpediente
@@ -767,16 +827,24 @@ export default function JustificacionEconomicaPage() {
               <section className="rounded-xl border border-slate-200 bg-white p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Datos de ejecución</p>
                 <div className="mt-2 grid gap-2 md:grid-cols-4">
-                  <p className="text-sm">Inicio: <strong>{num(seleccionada.alumnos_inicio)}</strong></p>
-                  <p className="text-sm">Activos: <strong>{num(seleccionada.alumnos_activos)}</strong></p>
-                  <p className="text-sm">Bajas: <strong>{num(seleccionada.bajas)}</strong></p>
-                  <p className="text-sm">Aptos: <strong>{num(seleccionada.aptos)}</strong></p>
+                  <p className="text-sm">
+                    Inicio: <strong>{num(seleccionada.alumnos_inicio)}</strong>
+                  </p>
+                  <p className="text-sm">
+                    Activos: <strong>{num(seleccionada.alumnos_activos)}</strong>
+                  </p>
+                  <p className="text-sm">
+                    Bajas: <strong>{num(seleccionada.bajas)}</strong>
+                  </p>
+                  <p className="text-sm">
+                    Aptos: <strong>{num(seleccionada.aptos)}</strong>
+                  </p>
                 </div>
               </section>
 
               <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
                 <Link
-                  href={`/oferta-formativa/${seleccionada.oferta_id}`}
+                  href={`/subexpedientes-accion/${seleccionada.oferta_id}`}
                   className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Ver subexpediente
