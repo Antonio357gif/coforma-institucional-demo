@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
@@ -98,9 +98,12 @@ function DataCard({
 
 export default function SubexpedienteAccionPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const ofertaId = Number(params.id);
+  const tipologiaParam = searchParams.get("tipologia");
 
   const [accion, setAccion] = useState<AccionDetalle | null>(null);
+  const [alertaTipificada, setAlertaTipificada] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +124,25 @@ export default function SubexpedienteAccionPage() {
       }
 
       setAccion(data as AccionDetalle);
+
+      if (tipologiaParam) {
+        const { data: alertaData, error: alertaError } = await supabase
+          .from("v_alertas_institucionales_tipificadas")
+          .select("*")
+          .eq("oferta_id", ofertaId)
+          .eq("tipologia_codigo", tipologiaParam)
+          .limit(1)
+          .maybeSingle();
+
+        if (!alertaError && alertaData) {
+          setAlertaTipificada(alertaData);
+        } else {
+          setAlertaTipificada(null);
+        }
+      } else {
+        setAlertaTipificada(null);
+      }
+
       setLoading(false);
     }
 
@@ -130,7 +152,7 @@ export default function SubexpedienteAccionPage() {
       setError("Identificador de acción no válido.");
       setLoading(false);
     }
-  }, [ofertaId]);
+  }, [ofertaId, tipologiaParam]);
 
   if (loading) {
     return (
@@ -180,8 +202,8 @@ export default function SubexpedienteAccionPage() {
             ← Volver a oferta formativa
           </Link>
 
-          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(accion.prioridad_operativa)}`}>
-            {accion.prioridad_operativa}
+          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(alertaTipificada?.nivel_aplicado ?? accion.prioridad_operativa)}`}>
+            {alertaTipificada ? `Prioridad ${alertaTipificada.nivel_aplicado}` : accion.prioridad_operativa}
           </span>
         </div>        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-3 lg:grid-cols-[1.4fr_0.45fr_0.9fr] lg:items-center">
@@ -241,15 +263,17 @@ export default function SubexpedienteAccionPage() {
               </div>
 
               <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <span className="text-[10px] font-semibold uppercase text-slate-500">Nivel de riesgo</span>
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(accion.nivel_riesgo)}`}>
-                  {accion.nivel_riesgo}
+                <span className="text-[10px] font-semibold uppercase text-slate-500">
+                  {alertaTipificada ? "Nivel de alerta" : "Nivel de riesgo"}
+                </span>
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(alertaTipificada?.nivel_aplicado ?? accion.nivel_riesgo)}`}>
+                  {alertaTipificada?.nivel_aplicado ?? accion.nivel_riesgo}
                 </span>
               </div>
 
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
                 <p className="text-[10px] font-semibold uppercase text-slate-500">Alerta</p>
-                <p className="mt-0.5 text-xs leading-5 text-slate-800">{accion.alerta}</p>
+                <p className="mt-0.5 text-xs leading-5 text-slate-800">{alertaTipificada?.tipologia_nombre ?? accion.alerta}</p>
               </div>
             </div>
           </section>
@@ -258,7 +282,7 @@ export default function SubexpedienteAccionPage() {
             <div className="grid gap-2">
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
                 <p className="text-[10px] font-semibold uppercase text-slate-500">Evidencia a revisar</p>
-                <p className="mt-0.5 text-xs leading-5 text-slate-800">{accion.evidencia_a_revisar}</p>
+                <p className="mt-0.5 text-xs leading-5 text-slate-800">{alertaTipificada?.evidencia_requerida ?? accion.evidencia_a_revisar}</p>
               </div>
 
               <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2">

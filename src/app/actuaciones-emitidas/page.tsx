@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -419,13 +419,12 @@ export default function ActuacionesEmitidasPage() {
 
                     <td className="px-2 py-1.5">
                       <div className="flex flex-col gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setSeleccionada(row)}
-                          className="rounded-lg bg-[#183B63] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                        <Link
+                          href={`/actuaciones-emitidas/${row.id}`}
+                          className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
                         >
                           Ver emisión
-                        </button>
+                        </Link>
 
                         <Link
                           href={`/oferta-formativa/${row.oferta_id}`}

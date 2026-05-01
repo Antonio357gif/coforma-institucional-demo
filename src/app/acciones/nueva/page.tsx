@@ -113,7 +113,7 @@ function Kpi({
   );
 }
 
-async function cargarActuacionesAdministrativas() {
+async function cargarActuacionesAdministrativas(ofertaIdSolicitada: number | null = null) {
   const [alertasRes, ofertaRes] = await Promise.all([
     supabase.from("v_alertas_institucionales_tipificadas").select("*"),
     supabase.from("v_oferta_formativa_institucional").select("*"),
@@ -217,6 +217,14 @@ async function cargarActuacionesAdministrativas() {
           "Comprobar comunicación de inicio, planificación, disponibilidad de alumnado, aula/docente y calendario.";
       }
 
+      if (!tipo && ofertaIdSolicitada && ofertaId === ofertaIdSolicitada) {
+        tipo = "Seguimiento ordinario";
+        prioridad = "normal";
+        motivo = "Actuación administrativa ordinaria solicitada desde el subexpediente.";
+        evidenciaRequerida =
+          "Registrar seguimiento ordinario del subexpediente, dejando trazabilidad de la revisión técnica.";
+      }
+
       if (!tipo) return null;
 
       return {
@@ -292,7 +300,7 @@ function NuevaActuacionContent() {
       setError(null);
 
       try {
-        const actuaciones = await cargarActuacionesAdministrativas();
+        const actuaciones = await cargarActuacionesAdministrativas(ofertaIdInicial);
 
         if (!activo) return;
 

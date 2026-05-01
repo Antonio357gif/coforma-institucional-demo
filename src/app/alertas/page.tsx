@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -230,7 +230,7 @@ export default function AlertasPage() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Alertas institucionales tipificadas</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Pagos anticipados · discrepancias formativas · suplantación de alumnos/trabajadores.
+              Riesgo económico · discrepancias formativas · identidad/alumnado · documentación subsanable.
             </p>
           </div>
 
@@ -349,7 +349,7 @@ export default function AlertasPage() {
                 {filtradas.map((row) => (
                   <tr
                     key={`${row.oferta_id}-${row.tipologia_codigo}`}
-                    onClick={() => router.push(`/oferta-formativa/${row.oferta_id}`)}
+                    onClick={() => router.push(`/subexpedientes-accion/${row.oferta_id}?tipologia=${encodeURIComponent(row.tipologia_codigo)}`)}
                     className="cursor-pointer border-t border-slate-100 hover:bg-blue-50"
                   >
                     <td className="px-2 py-1.5">

@@ -339,7 +339,7 @@ export default function OfertaFormativaPage() {
 
   return (
     <main className="min-h-screen bg-[#edf3f8] text-slate-950">
-      <section className="sticky top-0 z-30 bg-[#183B63] px-5 py-4 text-white shadow-sm">
+      <section className="bg-[#183B63] px-5 py-4 text-white shadow-sm">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
