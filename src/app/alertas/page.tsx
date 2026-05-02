@@ -69,6 +69,10 @@ function badgeClass(value: string) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
 
+  if (normalizado.includes("bajo") || normalizado.includes("baja")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
@@ -171,7 +175,8 @@ export default function AlertasPage() {
         acc.importeRiesgo += Number(row.importe_en_riesgo ?? 0);
         acc.altas += row.nivel_aplicado === "alto" ? 1 : 0;
         acc.medias += row.nivel_aplicado === "medio" ? 1 : 0;
-        acc.bajas += Number(row.bajas ?? 0);
+        acc.bajasNivel += row.nivel_aplicado === "bajo" ? 1 : 0;
+        acc.documentales += row.tipologia_codigo?.startsWith("FALTA_") ? 1 : 0;
 
         if (row.tipologia_codigo === "PAGOS_ANTICIPADOS") acc.pagos++;
         if (row.tipologia_codigo === "DISCREPANCIAS_FORMACION") acc.discrepancias++;
@@ -183,7 +188,8 @@ export default function AlertasPage() {
         importeRiesgo: 0,
         altas: 0,
         medias: 0,
-        bajas: 0,
+        bajasNivel: 0,
+        documentales: 0,
         pagos: 0,
         discrepancias: 0,
         suplantacion: 0,
@@ -255,9 +261,9 @@ export default function AlertasPage() {
           <Kpi label="Alertas" value={num(filtradas.length)} detail="casos tipificados" />
           <Kpi label="Nivel alto" value={num(resumen.altas)} detail="prioridad inmediata" />
           <Kpi label="Nivel medio" value={num(resumen.medias)} detail="seguimiento técnico" />
+          <Kpi label="Documentación subsanable" value={num(resumen.documentales)} detail="pendiente de subsanación" />
           <Kpi label="Pagos anticipados" value={num(resumen.pagos)} detail="riesgo económico previo" />
           <Kpi label="Discrepancias" value={num(resumen.discrepancias)} detail="calidad/ejecución" />
-          <Kpi label="Suplantación" value={num(resumen.suplantacion)} detail="identidad/alumnado" />
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -326,7 +332,7 @@ export default function AlertasPage() {
           <div className="border-b border-slate-100 px-3 py-2">
             <h2 className="text-sm font-semibold">Bandeja de revisión institucional</h2>
             <p className="text-[11px] text-slate-500">
-              Casos vinculados a acciones reales de la resolución y marcados como simulación controlada de demo institucional.
+              Casos de riesgo, incidencias y documentación subsanable vinculados a acciones de la resolución.
             </p>
           </div>
 

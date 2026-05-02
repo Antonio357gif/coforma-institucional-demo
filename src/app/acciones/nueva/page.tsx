@@ -5,12 +5,40 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 
-type AnyRow = Record<string, any>;
+type PrioridadActuacion = "alta" | "media" | "baja" | "normal";
+
+type AccionPendienteRow = {
+  accion_pendiente_id: string;
+  fuente_pendiente: string;
+  oferta_id: number | null;
+  convocatoria_id: number | null;
+  convocatoria_codigo: string | null;
+  entidad_id: number | null;
+  entidad_nombre: string | null;
+  cif: string | null;
+  codigo_accion: string | null;
+  tipo_oferta: string | null;
+  codigo_especialidad: string | null;
+  denominacion: string | null;
+  importe_concedido: number | null;
+  importe_en_riesgo: number | null;
+  estado_origen: string | null;
+  tipologia_codigo: string | null;
+  tipologia_nombre: string | null;
+  tipo_actuacion: string | null;
+  prioridad_operativa: string | null;
+  motivo: string | null;
+  evidencia_requerida: string | null;
+  estado_revision: string | null;
+  origen: string | null;
+  destino_subexpediente: string | null;
+};
 
 type Actuacion = {
   id: string;
+  fuentePendiente: string;
   tipo: string;
-  prioridad: "alta" | "media" | "normal";
+  prioridad: PrioridadActuacion;
   entidadId: number | null;
   entidad: string;
   cif: string;
@@ -24,6 +52,7 @@ type Actuacion = {
   destino: string;
   importeRiesgo: number;
   estado: string;
+  tipologiaCodigo: string | null;
 };
 
 function euro(value: number | null | undefined) {
@@ -38,31 +67,21 @@ function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
 }
 
-function text(row: AnyRow, keys: string[], fallback = "—") {
-  for (const key of keys) {
-    const value = row[key];
-    if (value !== null && value !== undefined && String(value).trim() !== "") {
-      return String(value);
-    }
-  }
+function normalizarPrioridad(value: string | null | undefined): PrioridadActuacion {
+  const normalizada = String(value ?? "").trim().toLowerCase();
 
-  return fallback;
-}
+  if (normalizada === "alta") return "alta";
+  if (normalizada === "media") return "media";
+  if (normalizada === "baja") return "baja";
+  if (normalizada === "normal") return "normal";
 
-function numberValue(row: AnyRow, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (value !== null && value !== undefined && !Number.isNaN(Number(value))) {
-      return Number(value);
-    }
-  }
-
-  return 0;
+  return "normal";
 }
 
 function priorityClass(prioridad: string) {
   if (prioridad === "alta") return "border-red-200 bg-red-50 text-red-800";
   if (prioridad === "media") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (prioridad === "baja") return "border-emerald-200 bg-emerald-50 text-emerald-800";
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
@@ -113,161 +132,55 @@ function Kpi({
   );
 }
 
-async function cargarActuacionesAdministrativas(ofertaIdSolicitada: number | null = null) {
-  const [alertasRes, ofertaRes] = await Promise.all([
-    supabase.from("v_alertas_institucionales_tipificadas").select("*"),
-    supabase.from("v_oferta_formativa_institucional").select("*"),
-  ]);
+function mapRowToActuacion(row: AccionPendienteRow): Actuacion {
+  return {
+    id: row.accion_pendiente_id,
+    fuentePendiente: row.fuente_pendiente ?? "pendiente_backend",
+    tipo: row.tipo_actuacion ?? "Actuación administrativa",
+    prioridad: normalizarPrioridad(row.prioridad_operativa),
+    entidadId: row.entidad_id,
+    entidad: row.entidad_nombre ?? "Entidad no informada",
+    cif: row.cif ?? "—",
+    ofertaId: row.oferta_id,
+    codigoAccion: row.codigo_accion ?? "—",
+    especialidad: row.codigo_especialidad ?? "—",
+    denominacion: row.denominacion ?? "—",
+    motivo: row.motivo ?? "Actuación administrativa pendiente de revisión.",
+    evidencia: row.evidencia_requerida ?? "Revisar evidencia asociada al expediente.",
+    origen: row.origen ?? "Acción administrativa pendiente",
+    destino:
+      row.destino_subexpediente ??
+      (row.oferta_id ? `/subexpedientes-accion/${row.oferta_id}` : "/acciones"),
+    importeRiesgo: Number(row.importe_en_riesgo ?? 0),
+    estado: row.estado_revision ?? row.estado_origen ?? "pendiente_revision",
+    tipologiaCodigo: row.tipologia_codigo,
+  };
+}
 
-  const firstError = alertasRes.error || ofertaRes.error;
+async function cargarActuacionesAdministrativas() {
+  const { data, error } = await supabase
+    .from("v_acciones_administrativas_pendientes")
+    .select("*");
 
-  if (firstError) {
-    throw firstError;
+  if (error) {
+    throw error;
   }
 
-  const alertas = (alertasRes.data ?? []) as AnyRow[];
-  const ofertas = (ofertaRes.data ?? []) as AnyRow[];
+  const rows = (data ?? []) as AccionPendienteRow[];
 
-  const desdeAlertas: Actuacion[] = alertas.map((row, index) => {
-    const tipologia = text(row, ["tipologia_codigo"], "");
-    const ofertaId = numberValue(row, ["oferta_id"]);
-    const nivel = text(row, ["nivel_aplicado", "nivel_riesgo"], "medio");
+  const actuaciones = rows.map(mapRowToActuacion);
 
-    let tipo = "Abrir revisión prioritaria";
-
-    if (tipologia === "PAGOS_ANTICIPADOS") {
-      tipo = "Revisar posible reintegro";
-    }
-
-    if (tipologia === "DISCREPANCIAS_FORMACION") {
-      tipo = "Revisar asistencia / alumnado";
-    }
-
-    if (tipologia === "SUPLANTACION_ALUMNOS") {
-      tipo = "Abrir revisión prioritaria";
-    }
-
-    return {
-      id: `alerta-${ofertaId}-${tipologia}-${index}`,
-      tipo,
-      prioridad: nivel === "alto" ? "alta" : "media",
-      entidadId: numberValue(row, ["entidad_id"]),
-      entidad: text(row, ["entidad_nombre"]),
-      cif: text(row, ["cif"]),
-      ofertaId,
-      codigoAccion: text(row, ["codigo_accion"]),
-      especialidad: text(row, ["codigo_especialidad"]),
-      denominacion: text(row, ["denominacion"]),
-      motivo: text(row, ["descripcion_caso", "alerta"]),
-      evidencia: text(row, ["evidencia_requerida", "regla_alerta_aplicada"]),
-      origen: text(row, ["tipologia_nombre"], "Alerta institucional tipificada"),
-      destino: ofertaId ? `/subexpedientes-accion/${ofertaId}` : "/acciones",
-      importeRiesgo: numberValue(row, ["importe_en_riesgo"]),
-      estado: text(row, ["estado_revision"], "pendiente_revision"),
-    };
-  });
-
-  const desdeOferta: Actuacion[] = ofertas
-    .map((row, index) => {
-      const estado = text(
-        row,
-        ["estado_operativo_administrativo", "estado_operativo", "estado_ejecucion", "estado"],
-        ""
-      );
-
-      const ofertaId = numberValue(row, ["oferta_id", "id"]);
-      const incidencias = numberValue(row, ["incidencias_abiertas"]);
-      const requerimientos = numberValue(row, ["requerimientos_pendientes"]);
-      const riesgo = numberValue(row, ["importe_en_riesgo", "riesgo_economico"]);
-
-      let tipo = "";
-      let prioridad: "alta" | "media" | "normal" = "normal";
-      let motivo = "";
-      let evidenciaRequerida = "";
-
-      if (estado === "en_ejecucion_con_incidencia" || incidencias > 0) {
-        tipo = "Requerir documentación";
-        prioridad = "media";
-        motivo = "Acción en ejecución con incidencia abierta o seguimiento operativo pendiente.";
-        evidenciaRequerida =
-          "Revisar documentación de ejecución, asistencia, seguimiento y comunicación de incidencias.";
-      }
-
-      if (estado === "riesgo_reintegro" || riesgo > 0) {
-        tipo = "Revisar posible reintegro";
-        prioridad = "alta";
-        motivo = "Acción con importe en riesgo o señal de posible reintegro.";
-        evidenciaRequerida =
-          "Revisar causa del riesgo, alumnado activo, bajas, documentación justificativa y resolución administrativa.";
-      }
-
-      if (estado === "finalizada_pendiente_justificacion" || requerimientos > 0) {
-        tipo = "Validar cierre / justificación";
-        prioridad = prioridad === "alta" ? "alta" : "normal";
-        motivo = "Acción finalizada o con requerimiento pendiente de justificación.";
-        evidenciaRequerida =
-          "Revisar memoria, asistencia, evaluación, documentación final y justificación económica.";
-      }
-
-      if (estado === "pendiente_ejecutar") {
-        tipo = "Control de inicio";
-        prioridad = "normal";
-        motivo = "Acción pendiente de ejecución o inicio administrativo.";
-        evidenciaRequerida =
-          "Comprobar comunicación de inicio, planificación, disponibilidad de alumnado, aula/docente y calendario.";
-      }
-
-      if (!tipo && ofertaIdSolicitada && ofertaId === ofertaIdSolicitada) {
-        tipo = "Seguimiento ordinario";
-        prioridad = "normal";
-        motivo = "Actuación administrativa ordinaria solicitada desde el subexpediente.";
-        evidenciaRequerida =
-          "Registrar seguimiento ordinario del subexpediente, dejando trazabilidad de la revisión técnica.";
-      }
-
-      if (!tipo) return null;
-
-      return {
-        id: `oferta-${ofertaId}-${estado}-${index}`,
-        tipo,
-        prioridad,
-        entidadId: numberValue(row, ["entidad_id"]),
-        entidad: text(row, ["entidad_nombre"]),
-        cif: text(row, ["cif"]),
-        ofertaId,
-        codigoAccion: text(row, ["codigo_accion"]),
-        especialidad: text(row, ["codigo_especialidad"]),
-        denominacion: text(row, ["denominacion"]),
-        motivo,
-        evidencia: evidenciaRequerida,
-        origen: "Oferta formativa institucional",
-        destino: ofertaId ? `/subexpedientes-accion/${ofertaId}` : "/acciones",
-        importeRiesgo: riesgo,
-        estado: estado || "pendiente_revision",
-      };
-    })
-    .filter(Boolean) as Actuacion[];
-
-  const combinadas = [...desdeAlertas, ...desdeOferta];
-
-  const unicas = Array.from(
-    new Map(
-      combinadas.map((item) => [
-        `${item.tipo}-${item.ofertaId}-${item.origen}`,
-        item,
-      ])
-    ).values()
-  );
-
-  unicas.sort((a, b) => {
-    const prioridadA = a.prioridad === "alta" ? 1 : a.prioridad === "media" ? 2 : 3;
-    const prioridadB = b.prioridad === "alta" ? 1 : b.prioridad === "media" ? 2 : 3;
+  actuaciones.sort((a, b) => {
+    const prioridadA =
+      a.prioridad === "alta" ? 1 : a.prioridad === "media" ? 2 : a.prioridad === "baja" ? 3 : 4;
+    const prioridadB =
+      b.prioridad === "alta" ? 1 : b.prioridad === "media" ? 2 : b.prioridad === "baja" ? 3 : 4;
 
     if (prioridadA !== prioridadB) return prioridadA - prioridadB;
     return b.importeRiesgo - a.importeRiesgo;
   });
 
-  return unicas;
+  return actuaciones;
 }
 
 function NuevaActuacionContent() {
@@ -278,6 +191,7 @@ function NuevaActuacionContent() {
   const ofertaIdParam = searchParams.get("ofertaId");
   const tipoParam = searchParams.get("tipo");
   const origenParam = searchParams.get("origen");
+  const tipologiaParam = searchParams.get("tipologia");
 
   const [actuacion, setActuacion] = useState<Actuacion | null>(null);
   const [asunto, setAsunto] = useState("");
@@ -292,6 +206,8 @@ function NuevaActuacionContent() {
 
   const ofertaIdInicial = ofertaIdParam ? Number(ofertaIdParam) : null;
 
+  const subexpedienteHref = actuacion?.destino ?? "/acciones";
+
   useEffect(() => {
     let activo = true;
 
@@ -300,7 +216,7 @@ function NuevaActuacionContent() {
       setError(null);
 
       try {
-        const actuaciones = await cargarActuacionesAdministrativas(ofertaIdInicial);
+        const actuaciones = await cargarActuacionesAdministrativas();
 
         if (!activo) return;
 
@@ -310,8 +226,11 @@ function NuevaActuacionContent() {
             const coincideOferta = ofertaIdInicial ? item.ofertaId === ofertaIdInicial : false;
             const coincideTipo = tipoParam ? item.tipo === tipoParam : true;
             const coincideOrigen = origenParam ? item.origen === origenParam : true;
+            const coincideTipologia = tipologiaParam
+              ? item.tipologiaCodigo === tipologiaParam
+              : true;
 
-            return coincideOferta && coincideTipo && coincideOrigen;
+            return coincideOferta && coincideTipo && coincideOrigen && coincideTipologia;
           }) ??
           null;
 
@@ -343,7 +262,7 @@ function NuevaActuacionContent() {
     return () => {
       activo = false;
     };
-  }, [accionId, ofertaIdInicial, tipoParam, origenParam]);
+  }, [accionId, ofertaIdInicial, tipoParam, origenParam, tipologiaParam]);
 
   const puedeEmitir = useMemo(() => {
     return Boolean(
@@ -481,7 +400,7 @@ function NuevaActuacionContent() {
 
             {actuacion.ofertaId ? (
               <Link
-                href={`/subexpedientes-accion/${actuacion.ofertaId}`}
+                href={subexpedienteHref}
                 className="text-xs font-semibold text-blue-800 hover:text-blue-950"
               >
                 Ver subexpediente
@@ -531,7 +450,7 @@ function NuevaActuacionContent() {
 
         <section className="grid gap-2 lg:grid-cols-4">
           <Kpi label="Tipo de actuación" value={actuacion.tipo} detail={actuacion.origen} />
-          <Kpi label="Prioridad" value={actuacion.prioridad} detail="criterio de intervención" />
+          <Kpi label="Prioridad" value={actuacion.prioridad} detail="criterio backend" />
           <Kpi
             label="Importe en riesgo"
             value={euro(actuacion.importeRiesgo)}
@@ -548,7 +467,7 @@ function NuevaActuacionContent() {
                 Lectura administrativa
               </p>
               <p className="mt-1">
-                Esta pantalla prepara una actuación administrativa vinculada al subexpediente,
+                Esta pantalla prepara una actuación administrativa desde la vista backend de pendientes,
                 manteniendo trazabilidad entre alerta, oferta, entidad beneficiaria y registro emitido.
               </p>
             </section>
@@ -634,7 +553,7 @@ function NuevaActuacionContent() {
           <div className="flex flex-wrap justify-end gap-2">
             {actuacion.ofertaId ? (
               <Link
-                href={`/subexpedientes-accion/${actuacion.ofertaId}`}
+                href={subexpedienteHref}
                 className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Ver subexpediente

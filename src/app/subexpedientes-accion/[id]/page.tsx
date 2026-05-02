@@ -299,7 +299,7 @@ export default function SubexpedienteAccionPage() {
                 </Link>
 
                 <Link
-                  href={`/acciones/nueva?ofertaId=${ofertaId}`}
+                  href={`/acciones/nueva?ofertaId=${ofertaId}${tipologiaParam ? `&tipologia=${encodeURIComponent(tipologiaParam)}` : ""}`}
                   className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Emitir actuación
