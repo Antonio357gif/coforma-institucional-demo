@@ -72,19 +72,24 @@ function Kpi({
   label,
   value,
   detail,
+  href,
 }: {
   label: string;
   value: string;
   detail: string;
+  href: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+    <Link
+      href={href}
+      className="block rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:border-blue-200 hover:bg-blue-50"
+    >
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
-    </div>
+      <p className="mt-0.5 truncate text-lg font-semibold leading-6 text-slate-950">{value}</p>
+      <p className="text-[10px] text-slate-500">{detail}</p>
+    </Link>
   );
 }
 
@@ -93,6 +98,8 @@ export default function EntidadesPage() {
   const [entidades, setEntidades] = useState<Entidad[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [riesgoFiltro, setRiesgoFiltro] = useState("todos");
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -148,6 +155,16 @@ export default function EntidadesPage() {
       return pasaBusqueda && pasaRiesgo;
     });
   }, [entidades, busqueda, riesgoFiltro]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [busqueda, riesgoFiltro, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(entidadesFiltradas.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const entidadesPaginadas = entidadesFiltradas.slice(startIndex, endIndex);
 
   const resumen = useMemo(() => {
     return entidadesFiltradas.reduce(
@@ -230,30 +247,35 @@ export default function EntidadesPage() {
             label="Entidades"
             value={num(entidadesFiltradas.length)}
             detail="expedientes visibles"
+            href="/entidades"
           />
           <Kpi
             label="Acciones"
             value={num(resumen.acciones)}
             detail="AF/CP concedidas"
+            href="/oferta-formativa"
           />
           <Kpi
             label="Importe concedido"
             value={euro(resumen.importe)}
             detail="total filtrado"
+            href="/oferta-formativa"
           />
           <Kpi
             label="Importe en riesgo"
             value={euro(resumen.riesgo)}
             detail={`${num(resumen.alertasAltas)} alertas altas`}
+            href="/acciones"
           />
           <Kpi
             label="Seguimiento"
             value={num(resumen.alertasMedias)}
             detail="alertas medias"
+            href="/alertas"
           />
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.4fr_0.7fr_auto]">
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
@@ -263,7 +285,7 @@ export default function EntidadesPage() {
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Entidad, CIF, isla, municipio, decisión..."
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
@@ -274,7 +296,7 @@ export default function EntidadesPage() {
               <select
                 value={riesgoFiltro}
                 onChange={(event) => setRiesgoFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {nivelesRiesgo.map((riesgo) => (
@@ -292,7 +314,7 @@ export default function EntidadesPage() {
                   setBusqueda("");
                   setRiesgoFiltro("todos");
                 }}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>
@@ -301,11 +323,47 @@ export default function EntidadesPage() {
         </section>
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-3 py-2">
-            <h2 className="text-sm font-semibold">Expedientes de entidad</h2>
-            <p className="text-[11px] text-slate-500">
-              Listado de entidades beneficiarias. El detalle del expediente se activará en el siguiente paso.
-            </p>
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Expedientes de entidad</h2>
+              <p className="text-[11px] text-slate-500">
+                Listado de entidades beneficiarias. El detalle del expediente se activará en el siguiente paso.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+              <span className="font-semibold">
+                Página {safeCurrentPage} de {totalPages}
+              </span>
+
+              <select
+                value={pageSize}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none"
+              >
+                <option value={25}>25 filas</option>
+                <option value={50}>50 filas</option>
+                <option value={100}>100 filas</option>
+              </select>
+
+              <button
+                type="button"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 disabled:opacity-40"
+              >
+                Anterior
+              </button>
+
+              <button
+                type="button"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 disabled:opacity-40"
+              >
+                Siguiente
+              </button>
+            </div>
           </div>
 
           <div className="max-h-[610px] overflow-auto">
@@ -325,8 +383,12 @@ export default function EntidadesPage() {
               </thead>
 
               <tbody>
-                {entidadesFiltradas.map((entidad) => (
-                  <tr key={entidad.entidad_id} onClick={() => router.push(`/entidades/${entidad.entidad_id}`)} className="cursor-pointer border-t border-slate-100 hover:bg-blue-50">
+                {entidadesPaginadas.map((entidad) => (
+                  <tr
+                    key={entidad.entidad_id}
+                    onClick={() => router.push(`/entidades/${entidad.entidad_id}`)}
+                    className="cursor-pointer border-t border-slate-100 hover:bg-blue-50"
+                  >
                     <td className="px-2 py-1.5">
                       <p className="font-semibold text-slate-950">{entidad.entidad_nombre}</p>
                       <p className="text-[10px] text-slate-500">{entidad.cif}</p>
@@ -390,5 +452,3 @@ export default function EntidadesPage() {
     </main>
   );
 }
-
-

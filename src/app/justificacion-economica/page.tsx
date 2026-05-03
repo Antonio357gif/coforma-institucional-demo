@@ -137,19 +137,31 @@ function Kpi({
   labelText,
   value,
   detail,
+  href,
 }: {
   labelText: string;
   value: string;
   detail: string;
+  href?: string;
 }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+  const card = (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
+      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
         {labelText}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-lg font-semibold leading-6 text-slate-950">
+        {value}
+      </p>
+      <p className="truncate text-[11px] text-slate-500">{detail}</p>
     </div>
+  );
+
+  if (!href) return card;
+
+  return (
+    <Link href={href} className="block min-w-0">
+      {card}
+    </Link>
   );
 }
 
@@ -176,6 +188,21 @@ function JustificacionEconomicaPageContent() {
   const [loading, setLoading] = useState(true);
   const [loadingMsg, setLoadingMsg] = useState("Cargando justificación económica...");
   const [error, setError] = useState<string | null>(null);
+
+  function justificacionHref(params: Record<string, string>) {
+    const query = new URLSearchParams();
+
+    if (tieneFiltroOferta && ofertaIdFiltro !== null) {
+      query.set("ofertaId", String(ofertaIdFiltro));
+    }
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) query.set(key, value);
+    });
+
+    const qs = query.toString();
+    return qs ? `/justificacion-economica?${qs}` : "/justificacion-economica";
+  }
 
   useEffect(() => {
     let activo = true;
@@ -212,6 +239,7 @@ function JustificacionEconomicaPageContent() {
     const operativo = searchParams.get("operativo");
     const importe = searchParams.get("importe");
     const revision = searchParams.get("revision");
+    const prioridad = searchParams.get("prioridad");
 
     if (pendienteJustificar === "1" || pendienteJustificar === "true") {
       setSoloPendientesJustificar(true);
@@ -229,8 +257,16 @@ function JustificacionEconomicaPageContent() {
       setImporteFiltro("ejecutado");
     }
 
+    if (importe === "justificado") {
+      setImporteFiltro("justificado");
+    }
+
     if (revision === "1" || revision === "true") {
       setRevisionFiltro(true);
+    }
+
+    if (prioridad) {
+      setPrioridadFiltro(prioridad);
     }
   }, [searchParams]);
 
@@ -304,7 +340,10 @@ function JustificacionEconomicaPageContent() {
         !soloPendientesJustificar ||
         row.estado_operativo_administrativo === "finalizada_pendiente_justificacion";
 
-      const pasaImporte = importeFiltro !== "ejecutado" || Number(row.importe_ejecutado ?? 0) > 0;
+      const pasaImporte =
+        importeFiltro === "todos" ||
+        (importeFiltro === "ejecutado" && Number(row.importe_ejecutado ?? 0) > 0) ||
+        (importeFiltro === "justificado" && Number(row.importe_justificado ?? 0) > 0);
 
       const pasaRevision =
         !revisionFiltro ||
@@ -472,9 +511,21 @@ function JustificacionEconomicaPageContent() {
               </span>
             ) : null}
 
+            {importeFiltro === "justificado" ? (
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm">
+                Filtro activo: importe justificado mayor que cero
+              </span>
+            ) : null}
+
             {revisionFiltro ? (
               <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-800 shadow-sm">
                 Filtro activo: sujeto a revisión
+              </span>
+            ) : null}
+
+            {prioridadFiltro !== "todos" ? (
+              <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-800 shadow-sm">
+                Prioridad: {label(prioridadFiltro)}
               </span>
             ) : null}
 
@@ -485,12 +536,42 @@ function JustificacionEconomicaPageContent() {
         </div>
 
         <section className="grid gap-2 lg:grid-cols-6">
-          <Kpi labelText="Concedido" value={euro(resumen.concedido)} detail={`${num(filtradas.length)} acciones`} />
-          <Kpi labelText="Ejecutado" value={euro(resumen.ejecutado)} detail={pct(resumen.ejecutado, resumen.concedido)} />
-          <Kpi labelText="Justificado" value={euro(resumen.justificado)} detail={pct(resumen.justificado, resumen.concedido)} />
-          <Kpi labelText="Pendiente justificar" value={euro(resumen.pendiente)} detail={pct(resumen.pendiente, resumen.concedido)} />
-          <Kpi labelText="En riesgo" value={euro(resumen.riesgo)} detail={`${num(resumen.reintegro)} posibles reintegros`} />
-          <Kpi labelText="Prioridad alta" value={num(resumen.alta)} detail={`${num(resumen.enRevision)} en revisión`} />
+          <Kpi
+            labelText="Concedido"
+            value={euro(resumen.concedido)}
+            detail={`${num(filtradas.length)} acciones`}
+            href={justificacionHref({})}
+          />
+          <Kpi
+            labelText="Ejecutado"
+            value={euro(resumen.ejecutado)}
+            detail={pct(resumen.ejecutado, resumen.concedido)}
+            href={justificacionHref({ importe: "ejecutado" })}
+          />
+          <Kpi
+            labelText="Justificado"
+            value={euro(resumen.justificado)}
+            detail={pct(resumen.justificado, resumen.concedido)}
+            href={justificacionHref({ importe: "justificado" })}
+          />
+          <Kpi
+            labelText="Pendiente justificar"
+            value={euro(resumen.pendiente)}
+            detail={pct(resumen.pendiente, resumen.concedido)}
+            href={justificacionHref({ pendiente_justificar: "1" })}
+          />
+          <Kpi
+            labelText="En riesgo"
+            value={euro(resumen.riesgo)}
+            detail={`${num(resumen.reintegro)} posibles reintegros`}
+            href={justificacionHref({ revision: "1" })}
+          />
+          <Kpi
+            labelText="Prioridad alta"
+            value={num(resumen.alta)}
+            detail={`${num(resumen.enRevision)} en revisión`}
+            href={justificacionHref({ prioridad: "alta" })}
+          />
         </section>
 
         {tieneFiltroOferta ? (
@@ -517,28 +598,28 @@ function JustificacionEconomicaPageContent() {
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.15fr_0.7fr_0.7fr_0.7fr_0.6fr_auto_auto_auto_auto]">
+        <section className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+          <div className="grid gap-2 lg:grid-cols-[1.2fr_0.7fr_0.7fr_0.7fr_0.6fr_auto_auto_auto_auto]">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Entidad, CIF, acción, especialidad, decisión, técnico..."
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado justificación
               </label>
               <select
                 value={estadoFiltro}
                 onChange={(event) => setEstadoFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {estados.map((estado) => (
@@ -550,7 +631,7 @@ function JustificacionEconomicaPageContent() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado operativo
               </label>
               <select
@@ -560,7 +641,7 @@ function JustificacionEconomicaPageContent() {
                   setOperativoFiltro(value);
                   setSoloPendientesJustificar(value === "finalizada_pendiente_justificacion");
                 }}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {operativos.map((operativo) => (
@@ -572,13 +653,13 @@ function JustificacionEconomicaPageContent() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Decisión
               </label>
               <select
                 value={decisionFiltro}
                 onChange={(event) => setDecisionFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {decisiones.map((decision) => (
@@ -590,13 +671,13 @@ function JustificacionEconomicaPageContent() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Prioridad
               </label>
               <select
                 value={prioridadFiltro}
                 onChange={(event) => setPrioridadFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {prioridades.map((prioridad) => (
@@ -619,8 +700,8 @@ function JustificacionEconomicaPageContent() {
                 }}
                 className={
                   soloPendientesJustificar
-                    ? "h-8 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
-                    : "h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    ? "h-7 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+                    : "h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
                 Pend. justificar
@@ -633,8 +714,8 @@ function JustificacionEconomicaPageContent() {
                 onClick={() => setImporteFiltro((prev) => (prev === "ejecutado" ? "todos" : "ejecutado"))}
                 className={
                   importeFiltro === "ejecutado"
-                    ? "h-8 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
-                    : "h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    ? "h-7 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                    : "h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
                 Ejecutado
@@ -647,8 +728,8 @@ function JustificacionEconomicaPageContent() {
                 onClick={() => setRevisionFiltro((prev) => !prev)}
                 className={
                   revisionFiltro
-                    ? "h-8 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-semibold text-red-800 hover:bg-red-100"
-                    : "h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    ? "h-7 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-semibold text-red-800 hover:bg-red-100"
+                    : "h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
                 Revisión
@@ -659,7 +740,7 @@ function JustificacionEconomicaPageContent() {
               <button
                 type="button"
                 onClick={limpiarFiltros}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>

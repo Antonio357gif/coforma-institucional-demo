@@ -95,19 +95,33 @@ function Kpi({
   label,
   value,
   detail,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: string;
   detail: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
+  const cardClass = active
+    ? "border-blue-300 bg-blue-50 ring-1 ring-blue-200"
+    : "border-slate-200 bg-white hover:bg-slate-50";
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm transition ${cardClass}`}
+    >
+      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
-    </div>
+      <p className="mt-0.5 truncate text-lg font-semibold leading-6 text-slate-950">
+        {value}
+      </p>
+      <p className="truncate text-[10px] text-slate-500">{detail}</p>
+    </button>
   );
 }
 
@@ -130,6 +144,7 @@ function AlertasPageContent() {
   const [busqueda, setBusqueda] = useState("");
   const [tipologiaFiltro, setTipologiaFiltro] = useState("todos");
   const [nivelFiltro, setNivelFiltro] = useState("todos");
+  const [soloDocumentales, setSoloDocumentales] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -214,10 +229,11 @@ function AlertasPageContent() {
       const pasaTipologia =
         tipologiaFiltro === "todos" || row.tipologia_codigo === tipologiaFiltro;
       const pasaNivel = nivelFiltro === "todos" || row.nivel_aplicado === nivelFiltro;
+      const pasaDocumental = !soloDocumentales || row.tipologia_codigo?.startsWith("FALTA_");
 
-      return pasaBusqueda && pasaTipologia && pasaNivel;
+      return pasaBusqueda && pasaTipologia && pasaNivel && pasaDocumental;
     });
-  }, [alertasPorEntidad, busqueda, tipologiaFiltro, nivelFiltro]);
+  }, [alertasPorEntidad, busqueda, tipologiaFiltro, nivelFiltro, soloDocumentales]);
 
   const resumen = useMemo(() => {
     return filtradas.reduce(
@@ -251,6 +267,32 @@ function AlertasPageContent() {
     setBusqueda("");
     setTipologiaFiltro("todos");
     setNivelFiltro("todos");
+    setSoloDocumentales(false);
+  }
+
+  function filtrarTodas() {
+    setBusqueda("");
+    setTipologiaFiltro("todos");
+    setNivelFiltro("todos");
+    setSoloDocumentales(false);
+  }
+
+  function filtrarNivel(nivel: string) {
+    setNivelFiltro(nivel);
+    setTipologiaFiltro("todos");
+    setSoloDocumentales(false);
+  }
+
+  function filtrarDocumentales() {
+    setNivelFiltro("todos");
+    setTipologiaFiltro("todos");
+    setSoloDocumentales(true);
+  }
+
+  function filtrarTipologia(codigo: string) {
+    setNivelFiltro("todos");
+    setTipologiaFiltro(codigo);
+    setSoloDocumentales(false);
   }
 
   if (loading) {
@@ -310,16 +352,53 @@ function AlertasPageContent() {
         </div>
 
         <section className="grid gap-2 lg:grid-cols-6">
-          <Kpi label="Alertas" value={num(filtradas.length)} detail="casos tipificados" />
-          <Kpi label="Nivel alto" value={num(resumen.altas)} detail="prioridad inmediata" />
-          <Kpi label="Nivel medio" value={num(resumen.medias)} detail="seguimiento técnico" />
+          <Kpi
+            label="Alertas"
+            value={num(filtradas.length)}
+            detail="casos tipificados"
+            active={
+              tipologiaFiltro === "todos" &&
+              nivelFiltro === "todos" &&
+              !soloDocumentales &&
+              busqueda.trim() === ""
+            }
+            onClick={filtrarTodas}
+          />
+          <Kpi
+            label="Nivel alto"
+            value={num(resumen.altas)}
+            detail="prioridad inmediata"
+            active={nivelFiltro === "alto"}
+            onClick={() => filtrarNivel("alto")}
+          />
+          <Kpi
+            label="Nivel medio"
+            value={num(resumen.medias)}
+            detail="seguimiento técnico"
+            active={nivelFiltro === "medio"}
+            onClick={() => filtrarNivel("medio")}
+          />
           <Kpi
             label="Documentación subsanable"
             value={num(resumen.documentales)}
             detail="pendiente de subsanación"
+            active={soloDocumentales}
+            onClick={filtrarDocumentales}
           />
-          <Kpi label="Pagos anticipados" value={num(resumen.pagos)} detail="riesgo económico previo" />
-          <Kpi label="Discrepancias" value={num(resumen.discrepancias)} detail="calidad/ejecución" />
+          <Kpi
+            label="Pagos anticipados"
+            value={num(resumen.pagos)}
+            detail="riesgo económico previo"
+            active={tipologiaFiltro === "PAGOS_ANTICIPADOS"}
+            onClick={() => filtrarTipologia("PAGOS_ANTICIPADOS")}
+          />
+          <Kpi
+            label="Discrepancias"
+            value={num(resumen.discrepancias)}
+            detail="calidad/ejecución"
+            active={tipologiaFiltro === "DISCREPANCIAS_FORMACION"}
+            onClick={() => filtrarTipologia("DISCREPANCIAS_FORMACION")}
+          />
         </section>
 
         {filtroEntidadActivo ? (
@@ -341,28 +420,31 @@ function AlertasPageContent() {
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.25fr_0.85fr_0.65fr_auto]">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Entidad, CIF, acción, especialidad, caso, evidencia..."
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Tipología
               </label>
               <select
                 value={tipologiaFiltro}
-                onChange={(event) => setTipologiaFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                onChange={(event) => {
+                  setTipologiaFiltro(event.target.value);
+                  setSoloDocumentales(false);
+                }}
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {tipologias.map(([codigo, nombre]) => (
@@ -374,13 +456,13 @@ function AlertasPageContent() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Nivel
               </label>
               <select
                 value={nivelFiltro}
                 onChange={(event) => setNivelFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {niveles.map((nivel) => (
@@ -395,7 +477,7 @@ function AlertasPageContent() {
               <button
                 type="button"
                 onClick={limpiarFiltros}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>

@@ -129,13 +129,13 @@ function Kpi({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl border bg-white px-3 py-3 text-left shadow-sm transition ${toneClass}`}
+      className={`rounded-xl border bg-white px-3 py-2 text-left shadow-sm transition ${toneClass}`}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 text-lg font-semibold leading-6 text-slate-950">{value}</p>
+      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">{detail}</p>
     </button>
   );
 }
@@ -441,28 +441,28 @@ export default function OfertaFormativaPage() {
           />
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.25fr_0.95fr_0.75fr_0.55fr_auto_auto]">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Entidad, CIF, código, especialidad, denominación..."
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Entidad / academia
               </label>
               <select
                 value={entidadFiltro}
                 onChange={(event) => setEntidadFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas las entidades</option>
                 {entidades.map(([id, nombre]) => (
@@ -474,13 +474,13 @@ export default function OfertaFormativaPage() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado
               </label>
               <select
                 value={estadoFiltro}
                 onChange={(event) => setEstadoFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {estados.map((estado) => (
@@ -492,13 +492,13 @@ export default function OfertaFormativaPage() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Tipo
               </label>
               <select
                 value={tipoFiltro}
                 onChange={(event) => setTipoFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 <option value="AF">AF</option>
@@ -512,8 +512,8 @@ export default function OfertaFormativaPage() {
                 onClick={() => setSoloRequerimientos((prev) => !prev)}
                 className={
                   soloRequerimientos
-                    ? "h-8 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-semibold text-red-800 hover:bg-red-100"
-                    : "h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    ? "h-7 rounded-lg border border-red-200 bg-red-50 px-2 text-[10px] font-semibold text-red-800 hover:bg-red-100"
+                    : "h-7 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
                 Con requerimientos
@@ -524,7 +524,7 @@ export default function OfertaFormativaPage() {
               <button
                 type="button"
                 onClick={limpiarFiltros}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>
