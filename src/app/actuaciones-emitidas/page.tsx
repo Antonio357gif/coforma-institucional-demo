@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type ActuacionEmitida = {
@@ -71,6 +72,10 @@ function fechaCorta(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+function normalize(value: string | number | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function canalLabel(value: string | null | undefined) {
   if (value === "bandeja_institucional_demo") return "Bandeja institucional demo";
   if (value === "api_bidireccional") return "API bidireccional";
@@ -126,7 +131,73 @@ function Kpi({
   );
 }
 
-export default function ActuacionesEmitidasPage() {
+function perteneceAEntidad(
+  row: ActuacionEmitida,
+  entidadIdFiltro: number | null,
+  cifFiltro: string,
+  entidadFiltro: string
+) {
+  const sameId =
+    entidadIdFiltro !== null &&
+    row.entidad_id !== null &&
+    Number(row.entidad_id) === Number(entidadIdFiltro);
+
+  const sameCif =
+    cifFiltro !== "" &&
+    normalize(row.cif) !== "" &&
+    normalize(row.cif) === normalize(cifFiltro);
+
+  const sameEntidad =
+    entidadFiltro !== "" &&
+    normalize(row.entidad_nombre) !== "" &&
+    normalize(row.entidad_nombre) === normalize(entidadFiltro);
+
+  return sameId || sameCif || sameEntidad;
+}
+
+function buildEntidadFilterHref(
+  basePath: string,
+  entidadIdFiltro: number | null,
+  cifParam: string,
+  entidadParam: string
+) {
+  const params = new URLSearchParams();
+
+  if (entidadIdFiltro !== null) {
+    params.set("entidadId", String(entidadIdFiltro));
+  }
+
+  if (cifParam.trim() !== "") {
+    params.set("cif", cifParam);
+  }
+
+  if (entidadParam.trim() !== "") {
+    params.set("entidad", entidadParam);
+  }
+
+  const query = params.toString();
+
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+function ActuacionesEmitidasPageContent() {
+  const searchParams = useSearchParams();
+
+  const entidadIdParam = searchParams.get("entidadId");
+  const cifParam = searchParams.get("cif") ?? "";
+  const entidadParam = searchParams.get("entidad") ?? "";
+
+  const entidadIdFiltro = entidadIdParam ? Number(entidadIdParam) : null;
+  const tieneFiltroEntidad =
+    Boolean(entidadIdFiltro) || cifParam.trim() !== "" || entidadParam.trim() !== "";
+
+  const accionesAdministrativasHref = buildEntidadFilterHref(
+    "/acciones",
+    entidadIdFiltro,
+    cifParam,
+    entidadParam
+  );
+
   const [actuaciones, setActuaciones] = useState<ActuacionEmitida[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [canalFiltro, setCanalFiltro] = useState("todos");
@@ -158,18 +229,26 @@ export default function ActuacionesEmitidasPage() {
     loadActuaciones();
   }, []);
 
+  const actuacionesPorEntidad = useMemo(() => {
+    if (!tieneFiltroEntidad) return actuaciones;
+
+    return actuaciones.filter((row) =>
+      perteneceAEntidad(row, entidadIdFiltro, cifParam, entidadParam)
+    );
+  }, [actuaciones, tieneFiltroEntidad, entidadIdFiltro, cifParam, entidadParam]);
+
   const canales = useMemo(() => {
-    return Array.from(new Set(actuaciones.map((row) => row.canal_comunicacion))).filter(Boolean);
-  }, [actuaciones]);
+    return Array.from(new Set(actuacionesPorEntidad.map((row) => row.canal_comunicacion))).filter(Boolean);
+  }, [actuacionesPorEntidad]);
 
   const estadosCanal = useMemo(() => {
-    return Array.from(new Set(actuaciones.map((row) => row.estado_canal))).filter(Boolean);
-  }, [actuaciones]);
+    return Array.from(new Set(actuacionesPorEntidad.map((row) => row.estado_canal))).filter(Boolean);
+  }, [actuacionesPorEntidad]);
 
   const filtradas = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
 
-    return actuaciones.filter((row) => {
+    return actuacionesPorEntidad.filter((row) => {
       const texto = [
         row.tipo_actuacion,
         row.prioridad,
@@ -197,7 +276,7 @@ export default function ActuacionesEmitidasPage() {
 
       return pasaBusqueda && pasaCanal && pasaEstado;
     });
-  }, [actuaciones, busqueda, canalFiltro, estadoFiltro]);
+  }, [actuacionesPorEntidad, busqueda, canalFiltro, estadoFiltro]);
 
   const resumen = useMemo(() => {
     return filtradas.reduce(
@@ -216,6 +295,12 @@ export default function ActuacionesEmitidasPage() {
       }
     );
   }, [filtradas]);
+
+  function limpiarFiltros() {
+    setBusqueda("");
+    setCanalFiltro("todos");
+    setEstadoFiltro("todos");
+  }
 
   if (loading) {
     return (
@@ -266,7 +351,7 @@ export default function ActuacionesEmitidasPage() {
             <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               ← Volver al dashboard
             </Link>
-            <Link href="/acciones" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
+            <Link href={accionesAdministrativasHref} className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               Acciones administrativas
             </Link>
           </div>
@@ -283,6 +368,25 @@ export default function ActuacionesEmitidasPage() {
           <Kpi label="No enviadas" value={num(resumen.registradasNoEnviadas)} detail="pendiente canal oficial" />
           <Kpi label="Riesgo asociado" value={euro(resumen.riesgo)} detail="importe del subexpediente" />
         </section>
+
+        {tieneFiltroEntidad ? (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+            <div>
+              <p className="font-semibold">Filtro activo por entidad beneficiaria</p>
+              <p className="mt-0.5">
+                {entidadParam || "Entidad seleccionada"}
+                {cifParam ? ` · ${cifParam}` : ""}
+              </p>
+            </div>
+
+            <Link
+              href="/actuaciones-emitidas"
+              className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
+            >
+              Ver todas las emitidas
+            </Link>
+          </section>
+        ) : null}
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.25fr_0.8fr_0.8fr_auto]">
@@ -337,11 +441,7 @@ export default function ActuacionesEmitidasPage() {
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={() => {
-                  setBusqueda("");
-                  setCanalFiltro("todos");
-                  setEstadoFiltro("todos");
-                }}
+                onClick={limpiarFiltros}
                 className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
@@ -427,7 +527,7 @@ export default function ActuacionesEmitidasPage() {
                         </Link>
 
                         <Link
-                          href={`/oferta-formativa/${row.oferta_id}`}
+                          href={`/subexpedientes-accion/${row.oferta_id}`}
                           className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           Subexpediente
@@ -520,7 +620,7 @@ export default function ActuacionesEmitidasPage() {
 
               <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
                 <Link
-                  href={`/oferta-formativa/${seleccionada.oferta_id}`}
+                  href={`/subexpedientes-accion/${seleccionada.oferta_id}`}
                   className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Ver subexpediente
@@ -539,5 +639,21 @@ export default function ActuacionesEmitidasPage() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function ActuacionesEmitidasPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
+          <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-600">Cargando actuaciones emitidas...</p>
+          </section>
+        </main>
+      }
+    >
+      <ActuacionesEmitidasPageContent />
+    </Suspense>
   );
 }

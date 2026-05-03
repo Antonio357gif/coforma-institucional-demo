@@ -157,6 +157,38 @@ function mapRowToActuacion(row: AccionPendienteRow): Actuacion {
   };
 }
 
+function entidadQueryHref(basePath: string, actuacion: Actuacion | null) {
+  if (!actuacion?.entidadId) return basePath;
+
+  const params = new URLSearchParams();
+
+  params.set("entidadId", String(actuacion.entidadId));
+
+  if (actuacion.cif && actuacion.cif !== "—") {
+    params.set("cif", actuacion.cif);
+  }
+
+  if (actuacion.entidad && actuacion.entidad !== "Entidad no informada") {
+    params.set("entidad", actuacion.entidad);
+  }
+
+  return `${basePath}?${params.toString()}`;
+}
+
+function subexpedienteHref(actuacion: Actuacion | null, tipologiaParam: string | null) {
+  if (!actuacion?.ofertaId) return "/acciones";
+
+  const tipologia = tipologiaParam ?? actuacion.tipologiaCodigo;
+
+  if (!tipologia) {
+    return actuacion.destino ?? `/subexpedientes-accion/${actuacion.ofertaId}`;
+  }
+
+  return `/subexpedientes-accion/${actuacion.ofertaId}?tipologia=${encodeURIComponent(
+    tipologia
+  )}`;
+}
+
 async function cargarActuacionesAdministrativas() {
   const { data, error } = await supabase
     .from("v_acciones_administrativas_pendientes")
@@ -206,7 +238,20 @@ function NuevaActuacionContent() {
 
   const ofertaIdInicial = ofertaIdParam ? Number(ofertaIdParam) : null;
 
-  const subexpedienteHref = actuacion?.destino ?? "/acciones";
+  const accionesFiltradasHref = useMemo(
+    () => entidadQueryHref("/acciones", actuacion),
+    [actuacion]
+  );
+
+  const actuacionesEmitidasFiltradasHref = useMemo(
+    () => entidadQueryHref("/actuaciones-emitidas", actuacion),
+    [actuacion]
+  );
+
+  const subexpedienteFiltradoHref = useMemo(
+    () => subexpedienteHref(actuacion, tipologiaParam),
+    [actuacion, tipologiaParam]
+  );
 
   useEffect(() => {
     let activo = true;
@@ -387,12 +432,15 @@ function NuevaActuacionContent() {
               ← Volver
             </button>
 
-            <Link href="/acciones" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
+            <Link
+              href={accionesFiltradasHref}
+              className="text-xs font-semibold text-blue-800 hover:text-blue-950"
+            >
               Bandeja de acciones
             </Link>
 
             <Link
-              href="/actuaciones-emitidas"
+              href={actuacionesEmitidasFiltradasHref}
               className="text-xs font-semibold text-blue-800 hover:text-blue-950"
             >
               Actuaciones emitidas
@@ -400,7 +448,7 @@ function NuevaActuacionContent() {
 
             {actuacion.ofertaId ? (
               <Link
-                href={subexpedienteHref}
+                href={subexpedienteFiltradoHref}
                 className="text-xs font-semibold text-blue-800 hover:text-blue-950"
               >
                 Ver subexpediente
@@ -553,7 +601,7 @@ function NuevaActuacionContent() {
           <div className="flex flex-wrap justify-end gap-2">
             {actuacion.ofertaId ? (
               <Link
-                href={subexpedienteHref}
+                href={subexpedienteFiltradoHref}
                 className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Ver subexpediente
@@ -561,14 +609,14 @@ function NuevaActuacionContent() {
             ) : null}
 
             <Link
-              href="/acciones"
+              href={accionesFiltradasHref}
               className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               Volver a acciones
             </Link>
 
             <Link
-              href="/actuaciones-emitidas"
+              href={actuacionesEmitidasFiltradasHref}
               className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               Ver actuaciones emitidas

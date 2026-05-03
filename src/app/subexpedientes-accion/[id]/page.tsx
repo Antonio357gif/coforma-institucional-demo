@@ -115,7 +115,9 @@ export default function SubexpedienteAccionPage() {
       const { data, error: supabaseError } = await supabase
         .from("v_fiscalizacion_trazabilidad_accion")
         .select("*")
-        .eq("oferta_id", ofertaId).limit(1).maybeSingle();
+        .eq("oferta_id", ofertaId)
+        .limit(1)
+        .maybeSingle();
 
       if (supabaseError) {
         setError(supabaseError.message);
@@ -205,7 +207,9 @@ export default function SubexpedienteAccionPage() {
           <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(alertaTipificada?.nivel_aplicado ?? accion.prioridad_operativa)}`}>
             {alertaTipificada ? `Prioridad ${alertaTipificada.nivel_aplicado}` : accion.prioridad_operativa}
           </span>
-        </div>        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
+        </div>
+
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-3 lg:grid-cols-[1.4fr_0.45fr_0.9fr] lg:items-center">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
@@ -254,7 +258,9 @@ export default function SubexpedienteAccionPage() {
             value={num(accion.bajas)}
             detail={pct(accion.porcentaje_bajas)}
           />
-        </section>        <section className="grid gap-2 lg:grid-cols-[0.9fr_1.1fr]">
+        </section>
+
+        <section className="grid gap-2 lg:grid-cols-[0.9fr_1.1fr]">
           <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
             <div className="grid gap-2">
               <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
@@ -272,8 +278,12 @@ export default function SubexpedienteAccionPage() {
               </div>
 
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase text-slate-500">Alerta</p>
-                <p className="mt-0.5 text-xs leading-5 text-slate-800">{alertaTipificada?.tipologia_nombre ?? accion.alerta}</p>
+                <p className="text-[10px] font-semibold uppercase text-slate-500">
+                  {alertaTipificada ? "Alerta tipificada" : "Lectura de riesgo"}
+                </p>
+                <p className="mt-0.5 text-xs leading-5 text-slate-800">
+                  {alertaTipificada?.tipologia_nombre ?? accion.alerta}
+                </p>
               </div>
             </div>
           </section>
@@ -319,8 +329,3 @@ export default function SubexpedienteAccionPage() {
     </main>
   );
 }
-
-
-
-
-

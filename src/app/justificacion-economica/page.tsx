@@ -1,7 +1,8 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type JustificacionRow = {
@@ -152,7 +153,14 @@ function Kpi({
   );
 }
 
-export default function JustificacionEconomicaPage() {
+function JustificacionEconomicaPageContent() {
+  const searchParams = useSearchParams();
+
+  const ofertaIdParam = searchParams.get("ofertaId");
+  const ofertaIdFiltro = ofertaIdParam ? Number(ofertaIdParam) : null;
+  const tieneFiltroOferta =
+    ofertaIdFiltro !== null && !Number.isNaN(ofertaIdFiltro);
+
   const [rows, setRows] = useState<JustificacionRow[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
@@ -200,11 +208,10 @@ export default function JustificacionEconomicaPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const pendienteJustificar = params.get("pendiente_justificar");
-    const operativo = params.get("operativo");
-    const importe = params.get("importe");
-    const revision = params.get("revision");
+    const pendienteJustificar = searchParams.get("pendiente_justificar");
+    const operativo = searchParams.get("operativo");
+    const importe = searchParams.get("importe");
+    const revision = searchParams.get("revision");
 
     if (pendienteJustificar === "1" || pendienteJustificar === "true") {
       setSoloPendientesJustificar(true);
@@ -225,36 +232,46 @@ export default function JustificacionEconomicaPage() {
     if (revision === "1" || revision === "true") {
       setRevisionFiltro(true);
     }
-  }, []);
+  }, [searchParams]);
+
+  const rowsPorOferta = useMemo(() => {
+    if (!tieneFiltroOferta) return rows;
+
+    return rows.filter((row) => Number(row.oferta_id) === Number(ofertaIdFiltro));
+  }, [rows, tieneFiltroOferta, ofertaIdFiltro]);
+
+  const ofertaActiva = useMemo(() => {
+    return rowsPorOferta[0] ?? null;
+  }, [rowsPorOferta]);
 
   const estados = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.estado_justificacion)))
+    return Array.from(new Set(rowsPorOferta.map((row) => row.estado_justificacion)))
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rows]);
+  }, [rowsPorOferta]);
 
   const operativos = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.estado_operativo_administrativo)))
+    return Array.from(new Set(rowsPorOferta.map((row) => row.estado_operativo_administrativo)))
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rows]);
+  }, [rowsPorOferta]);
 
   const decisiones = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.decision_recomendada)))
+    return Array.from(new Set(rowsPorOferta.map((row) => row.decision_recomendada)))
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rows]);
+  }, [rowsPorOferta]);
 
   const prioridades = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.prioridad_decision)))
+    return Array.from(new Set(rowsPorOferta.map((row) => row.prioridad_decision)))
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rows]);
+  }, [rowsPorOferta]);
 
   const filtradas = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
 
-    return rows.filter((row) => {
+    return rowsPorOferta.filter((row) => {
       const texto = [
         row.entidad_nombre,
         row.cif,
@@ -306,7 +323,7 @@ export default function JustificacionEconomicaPage() {
       );
     });
   }, [
-    rows,
+    rowsPorOferta,
     busqueda,
     estadoFiltro,
     operativoFiltro,
@@ -329,6 +346,7 @@ export default function JustificacionEconomicaPage() {
     importeFiltro,
     revisionFiltro,
     pageSize,
+    ofertaIdFiltro,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
@@ -474,6 +492,30 @@ export default function JustificacionEconomicaPage() {
           <Kpi labelText="En riesgo" value={euro(resumen.riesgo)} detail={`${num(resumen.reintegro)} posibles reintegros`} />
           <Kpi labelText="Prioridad alta" value={num(resumen.alta)} detail={`${num(resumen.enRevision)} en revisión`} />
         </section>
+
+        {tieneFiltroOferta ? (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+            <div>
+              <p className="font-semibold">Filtro activo por subexpediente</p>
+              <p className="mt-0.5">
+                {ofertaActiva
+                  ? `${ofertaActiva.entidad_nombre ?? "Entidad no informada"} · ${
+                      ofertaActiva.cif ?? "CIF no informado"
+                    } · ${ofertaActiva.codigo_accion ?? "Acción no informada"} · ${
+                      ofertaActiva.codigo_especialidad ?? "Especialidad no informada"
+                    }`
+                  : `Oferta ${ofertaIdFiltro}`}
+              </p>
+            </div>
+
+            <Link
+              href="/justificacion-economica"
+              className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
+            >
+              Ver toda la justificación
+            </Link>
+          </section>
+        ) : null}
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.15fr_0.7fr_0.7fr_0.7fr_0.6fr_auto_auto_auto_auto]">
@@ -738,11 +780,11 @@ export default function JustificacionEconomicaPage() {
                     <td className="px-2 py-1.5">
                       <div className="flex flex-col gap-1">
                         <Link
-  href={`/decisiones-economicas/${row.id}`}
-  className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
->
-  Ver decisión
-</Link>
+                          href={`/decisiones-economicas/${row.id}`}
+                          className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                        >
+                          Ver decisión
+                        </Link>
 
                         <Link
                           href={`/subexpedientes-accion/${row.oferta_id}`}
@@ -870,5 +912,21 @@ export default function JustificacionEconomicaPage() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function JustificacionEconomicaPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
+          <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-600">Cargando justificación económica...</p>
+          </section>
+        </main>
+      }
+    >
+      <JustificacionEconomicaPageContent />
+    </Suspense>
   );
 }

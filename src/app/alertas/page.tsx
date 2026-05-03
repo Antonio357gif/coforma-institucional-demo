@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type AlertaTipificada = {
@@ -55,17 +55,32 @@ function pct(part: number | null | undefined, total: number | null | undefined) 
   const p = Number(part ?? 0);
   const t = Number(total ?? 0);
   if (!t) return "—";
-  return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format((p / t) * 100)} %`;
+  return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format(
+    (p / t) * 100
+  )} %`;
+}
+
+function normalize(value: string | number | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
 }
 
 function badgeClass(value: string) {
   const normalizado = (value ?? "").toLowerCase();
 
-  if (normalizado.includes("alto") || normalizado.includes("alta") || normalizado.includes("anticipado") || normalizado.includes("suplant")) {
+  if (
+    normalizado.includes("alto") ||
+    normalizado.includes("alta") ||
+    normalizado.includes("anticipado") ||
+    normalizado.includes("suplant")
+  ) {
     return "border-red-200 bg-red-50 text-red-800";
   }
 
-  if (normalizado.includes("medio") || normalizado.includes("media") || normalizado.includes("discrepancia")) {
+  if (
+    normalizado.includes("medio") ||
+    normalizado.includes("media") ||
+    normalizado.includes("discrepancia")
+  ) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
 
@@ -96,8 +111,20 @@ function Kpi({
   );
 }
 
-export default function AlertasPage() {
+function AlertasPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const entidadIdParam = searchParams.get("entidadId");
+  const cifParam = searchParams.get("cif");
+  const entidadParam = searchParams.get("entidad");
+
+  const entidadIdInicial = entidadIdParam ? Number(entidadIdParam) : null;
+  const cifInicial = cifParam ?? "";
+  const entidadInicial = entidadParam ?? "";
+
+  const filtroEntidadActivo =
+    Boolean(entidadIdInicial) || Boolean(cifInicial) || Boolean(entidadInicial);
 
   const [alertas, setAlertas] = useState<AlertaTipificada[]>([]);
   const [busqueda, setBusqueda] = useState("");
@@ -129,24 +156,46 @@ export default function AlertasPage() {
     loadAlertas();
   }, []);
 
+  const alertasPorEntidad = useMemo(() => {
+    if (!filtroEntidadActivo) return alertas;
+
+    return alertas.filter((row) => {
+      const pasaEntidadId =
+        entidadIdInicial !== null && Number(row.entidad_id) === Number(entidadIdInicial);
+
+      const pasaCif =
+        normalize(cifInicial) !== "" && normalize(row.cif) === normalize(cifInicial);
+
+      const pasaNombre =
+        normalize(entidadInicial) !== "" &&
+        normalize(row.entidad_nombre) === normalize(entidadInicial);
+
+      return pasaEntidadId || pasaCif || pasaNombre;
+    });
+  }, [alertas, filtroEntidadActivo, entidadIdInicial, cifInicial, entidadInicial]);
+
   const tipologias = useMemo(() => {
     const mapa = new Map<string, string>();
-    alertas.forEach((row) => {
+
+    alertasPorEntidad.forEach((row) => {
       mapa.set(row.tipologia_codigo, row.tipologia_nombre);
     });
+
     return Array.from(mapa.entries()).sort((a, b) => a[1].localeCompare(b[1], "es"));
-  }, [alertas]);
+  }, [alertasPorEntidad]);
 
   const niveles = useMemo(() => {
     const set = new Set<string>();
-    alertas.forEach((row) => set.add(row.nivel_aplicado));
+
+    alertasPorEntidad.forEach((row) => set.add(row.nivel_aplicado));
+
     return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
-  }, [alertas]);
+  }, [alertasPorEntidad]);
 
   const filtradas = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
 
-    return alertas.filter((row) => {
+    return alertasPorEntidad.filter((row) => {
       const texto = [
         row.entidad_nombre,
         row.cif,
@@ -162,12 +211,13 @@ export default function AlertasPage() {
         .toLowerCase();
 
       const pasaBusqueda = term === "" || texto.includes(term);
-      const pasaTipologia = tipologiaFiltro === "todos" || row.tipologia_codigo === tipologiaFiltro;
+      const pasaTipologia =
+        tipologiaFiltro === "todos" || row.tipologia_codigo === tipologiaFiltro;
       const pasaNivel = nivelFiltro === "todos" || row.nivel_aplicado === nivelFiltro;
 
       return pasaBusqueda && pasaTipologia && pasaNivel;
     });
-  }, [alertas, busqueda, tipologiaFiltro, nivelFiltro]);
+  }, [alertasPorEntidad, busqueda, tipologiaFiltro, nivelFiltro]);
 
   const resumen = useMemo(() => {
     return filtradas.reduce(
@@ -217,7 +267,9 @@ export default function AlertasPage() {
     return (
       <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
         <section className="mx-auto max-w-7xl rounded-xl border border-red-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-semibold text-red-700">Error cargando alertas institucionales</p>
+          <p className="text-sm font-semibold text-red-700">
+            Error cargando alertas institucionales
+          </p>
           <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-red-50 p-4 text-xs text-red-800">
             {error}
           </pre>
@@ -261,10 +313,33 @@ export default function AlertasPage() {
           <Kpi label="Alertas" value={num(filtradas.length)} detail="casos tipificados" />
           <Kpi label="Nivel alto" value={num(resumen.altas)} detail="prioridad inmediata" />
           <Kpi label="Nivel medio" value={num(resumen.medias)} detail="seguimiento técnico" />
-          <Kpi label="Documentación subsanable" value={num(resumen.documentales)} detail="pendiente de subsanación" />
+          <Kpi
+            label="Documentación subsanable"
+            value={num(resumen.documentales)}
+            detail="pendiente de subsanación"
+          />
           <Kpi label="Pagos anticipados" value={num(resumen.pagos)} detail="riesgo económico previo" />
           <Kpi label="Discrepancias" value={num(resumen.discrepancias)} detail="calidad/ejecución" />
         </section>
+
+        {filtroEntidadActivo ? (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+            <div>
+              <p className="font-semibold">Filtro activo por entidad beneficiaria</p>
+              <p className="mt-0.5">
+                {entidadInicial || "Entidad seleccionada"}
+                {cifInicial ? ` · ${cifInicial}` : ""}
+              </p>
+            </div>
+
+            <Link
+              href="/alertas"
+              className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
+            >
+              Ver todas las alertas
+            </Link>
+          </section>
+        ) : null}
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.25fr_0.85fr_0.65fr_auto]">
@@ -355,11 +430,21 @@ export default function AlertasPage() {
                 {filtradas.map((row) => (
                   <tr
                     key={`${row.oferta_id}-${row.tipologia_codigo}`}
-                    onClick={() => router.push(`/subexpedientes-accion/${row.oferta_id}?tipologia=${encodeURIComponent(row.tipologia_codigo)}`)}
+                    onClick={() =>
+                      router.push(
+                        `/subexpedientes-accion/${row.oferta_id}?tipologia=${encodeURIComponent(
+                          row.tipologia_codigo
+                        )}`
+                      )
+                    }
                     className="cursor-pointer border-t border-slate-100 hover:bg-blue-50"
                   >
                     <td className="px-2 py-1.5">
-                      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.nivel_aplicado)}`}>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
+                          row.nivel_aplicado
+                        )}`}
+                      >
                         {row.nivel_aplicado}
                       </span>
                     </td>
@@ -409,5 +494,21 @@ export default function AlertasPage() {
         </section>
       </section>
     </main>
+  );
+}
+
+export default function AlertasPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
+          <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-600">Cargando alertas institucionales...</p>
+          </section>
+        </main>
+      }
+    >
+      <AlertasPageContent />
+    </Suspense>
   );
 }

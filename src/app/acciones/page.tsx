@@ -67,8 +67,12 @@ function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
 }
 
+function normalizarTexto(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function normalizarPrioridad(value: string | null | undefined): PrioridadActuacion {
-  const normalizada = String(value ?? "").trim().toLowerCase();
+  const normalizada = normalizarTexto(value);
 
   if (normalizada === "alta") return "alta";
   if (normalizada === "media") return "media";
@@ -148,6 +152,15 @@ function mapRowToActuacion(row: AccionPendienteRow): Actuacion {
 
 function AccionesPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const ofertaIdParam = searchParams.get("ofertaId");
+  const entidadIdParam = searchParams.get("entidadId");
+  const cifParam = searchParams.get("cif");
+
+  const ofertaIdInicial = ofertaIdParam ? Number(ofertaIdParam) : null;
+  const entidadIdInicial = entidadIdParam ? Number(entidadIdParam) : null;
+  const cifInicial = cifParam ? cifParam.trim() : "";
 
   const [actuaciones, setActuaciones] = useState<Actuacion[]>([]);
   const [busqueda, setBusqueda] = useState("");
@@ -155,10 +168,6 @@ function AccionesPageContent() {
   const [prioridadFiltro, setPrioridadFiltro] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const searchParams = useSearchParams();
-  const ofertaIdParam = searchParams.get("ofertaId");
-  const ofertaIdInicial = ofertaIdParam ? Number(ofertaIdParam) : null;
 
   const [seleccionada, setSeleccionada] = useState<Actuacion | null>(null);
   const [asunto, setAsunto] = useState("");
@@ -190,9 +199,22 @@ function AccionesPageContent() {
 
       mapped.sort((a, b) => {
         const prioridadA =
-          a.prioridad === "alta" ? 1 : a.prioridad === "media" ? 2 : a.prioridad === "baja" ? 3 : 4;
+          a.prioridad === "alta"
+            ? 1
+            : a.prioridad === "media"
+              ? 2
+              : a.prioridad === "baja"
+                ? 3
+                : 4;
+
         const prioridadB =
-          b.prioridad === "alta" ? 1 : b.prioridad === "media" ? 2 : b.prioridad === "baja" ? 3 : 4;
+          b.prioridad === "alta"
+            ? 1
+            : b.prioridad === "media"
+              ? 2
+              : b.prioridad === "baja"
+                ? 3
+                : 4;
 
         if (prioridadA !== prioridadB) return prioridadA - prioridadB;
         return b.importeRiesgo - a.importeRiesgo;
@@ -205,6 +227,23 @@ function AccionesPageContent() {
     loadAccionesAdministrativas();
   }, []);
 
+  const entidadFiltradaPorUrl = useMemo(() => {
+    if (!entidadIdInicial && !cifInicial) return null;
+
+    return (
+      actuaciones.find((item) => {
+        const coincideEntidadId =
+          entidadIdInicial !== null && item.entidadId === entidadIdInicial;
+
+        const coincideCif =
+          cifInicial !== "" &&
+          normalizarTexto(item.cif) === normalizarTexto(cifInicial);
+
+        return coincideEntidadId || coincideCif;
+      }) ?? null
+    );
+  }, [actuaciones, entidadIdInicial, cifInicial]);
+
   const tipos = useMemo(() => {
     return Array.from(new Set(actuaciones.map((item) => item.tipo))).sort((a, b) =>
       a.localeCompare(b, "es")
@@ -215,8 +254,13 @@ function AccionesPageContent() {
     const term = busqueda.trim().toLowerCase();
 
     return actuaciones.filter((item) => {
-      const pasaOfertaInicial =
-        !ofertaIdInicial || item.ofertaId === ofertaIdInicial;
+      const pasaOfertaInicial = !ofertaIdInicial || item.ofertaId === ofertaIdInicial;
+
+      const pasaEntidadInicial =
+        !entidadIdInicial || item.entidadId === entidadIdInicial;
+
+      const pasaCifInicial =
+        !cifInicial || normalizarTexto(item.cif) === normalizarTexto(cifInicial);
 
       const texto = [
         item.tipo,
@@ -237,11 +281,27 @@ function AccionesPageContent() {
 
       const pasaBusqueda = term === "" || texto.includes(term);
       const pasaTipo = tipoFiltro === "todos" || item.tipo === tipoFiltro;
-      const pasaPrioridad = prioridadFiltro === "todos" || item.prioridad === prioridadFiltro;
+      const pasaPrioridad =
+        prioridadFiltro === "todos" || item.prioridad === prioridadFiltro;
 
-      return pasaOfertaInicial && pasaBusqueda && pasaTipo && pasaPrioridad;
+      return (
+        pasaOfertaInicial &&
+        pasaEntidadInicial &&
+        pasaCifInicial &&
+        pasaBusqueda &&
+        pasaTipo &&
+        pasaPrioridad
+      );
     });
-  }, [actuaciones, busqueda, tipoFiltro, prioridadFiltro, ofertaIdInicial]);
+  }, [
+    actuaciones,
+    busqueda,
+    tipoFiltro,
+    prioridadFiltro,
+    ofertaIdInicial,
+    entidadIdInicial,
+    cifInicial,
+  ]);
 
   const resumen = useMemo(() => {
     return filtradas.reduce(
@@ -293,6 +353,14 @@ function AccionesPageContent() {
       params.set("ofertaId", String(item.ofertaId));
     }
 
+    if (item.entidadId) {
+      params.set("entidadId", String(item.entidadId));
+    }
+
+    if (item.cif && item.cif !== "—") {
+      params.set("cif", item.cif);
+    }
+
     params.set("tipo", item.tipo);
     params.set("origen", item.origen);
 
@@ -312,20 +380,22 @@ function AccionesPageContent() {
     setGuardando(true);
     setResultado(null);
 
-    const { error: insertError } = await supabase.from("actuaciones_administrativas").insert({
-      oferta_id: seleccionada.ofertaId,
-      entidad_id: seleccionada.entidadId,
-      tipo_actuacion: seleccionada.tipo,
-      prioridad: seleccionada.prioridad,
-      asunto,
-      mensaje,
-      evidencia_requerida: evidencia,
-      estado: "emitida",
-      fecha_emision: new Date().toISOString(),
-      fecha_limite_respuesta: fechaLimite || null,
-      fuente_origen: seleccionada.origen,
-      tipo_dato: "simulacion_controlada_demo_institucional",
-    });
+    const { error: insertError } = await supabase
+      .from("actuaciones_administrativas")
+      .insert({
+        oferta_id: seleccionada.ofertaId,
+        entidad_id: seleccionada.entidadId,
+        tipo_actuacion: seleccionada.tipo,
+        prioridad: seleccionada.prioridad,
+        asunto,
+        mensaje,
+        evidencia_requerida: evidencia,
+        estado: "emitida",
+        fecha_emision: new Date().toISOString(),
+        fecha_limite_respuesta: fechaLimite || null,
+        fuente_origen: seleccionada.origen,
+        tipo_dato: "simulacion_controlada_demo_institucional",
+      });
 
     setGuardando(false);
 
@@ -370,9 +440,12 @@ function AccionesPageContent() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
-            <h1 className="mt-1 text-xl font-semibold">Acciones administrativas pendientes</h1>
+            <h1 className="mt-1 text-xl font-semibold">
+              Acciones administrativas pendientes
+            </h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Bandeja calculada desde backend: requerir, subsanar, revisar riesgo, validar cierre y controlar inicio.
+              Bandeja calculada desde backend: requerir, subsanar, revisar riesgo,
+              validar cierre y controlar inicio.
             </p>
           </div>
 
@@ -384,7 +457,10 @@ function AccionesPageContent() {
 
       <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
+          <Link
+            href="/dashboard"
+            className="text-xs font-semibold text-blue-800 hover:text-blue-950"
+          >
             ← Volver al dashboard
           </Link>
 
@@ -408,6 +484,28 @@ function AccionesPageContent() {
             <p className="mt-0.5">
               Mostrando solo actuaciones vinculadas a la oferta seleccionada.
             </p>
+          </section>
+        ) : null}
+
+        {entidadIdInicial || cifInicial ? (
+          <section className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-semibold">Filtro activo por entidad beneficiaria</p>
+                <p className="mt-0.5">
+                  {entidadFiltradaPorUrl
+                    ? `${entidadFiltradaPorUrl.entidad} · ${entidadFiltradaPorUrl.cif}`
+                    : `EntidadId ${entidadIdInicial ?? "—"} · CIF ${cifInicial || "—"}`}
+                </p>
+              </div>
+
+              <Link
+                href="/acciones"
+                className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
+              >
+                Ver todas las acciones
+              </Link>
+            </div>
           </section>
         ) : null}
 
@@ -502,7 +600,11 @@ function AccionesPageContent() {
                 {filtradas.map((item) => (
                   <tr key={item.id} className="border-t border-slate-100 hover:bg-blue-50">
                     <td className="px-2 py-1.5">
-                      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${priorityClass(item.prioridad)}`}>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${priorityClass(
+                          item.prioridad
+                        )}`}
+                      >
                         {item.prioridad}
                       </span>
                     </td>
@@ -510,7 +612,9 @@ function AccionesPageContent() {
                       <p className="font-semibold text-slate-950">{item.tipo}</p>
                       <p className="text-[10px] text-slate-500">{item.origen}</p>
                       {item.tipologiaCodigo ? (
-                        <p className="text-[10px] text-slate-400">{item.tipologiaCodigo}</p>
+                        <p className="text-[10px] text-slate-400">
+                          {item.tipologiaCodigo}
+                        </p>
                       ) : null}
                     </td>
                     <td className="px-2 py-1.5">
@@ -572,22 +676,31 @@ function AccionesPageContent() {
               </p>
               <h2 className="mt-1 text-lg font-semibold">{seleccionada.tipo}</h2>
               <p className="mt-0.5 text-xs text-blue-100">
-                {seleccionada.entidad} · {seleccionada.codigoAccion} · {seleccionada.especialidad}
+                {seleccionada.entidad} · {seleccionada.codigoAccion} ·{" "}
+                {seleccionada.especialidad}
               </p>
             </div>
 
             <div className="space-y-3 p-5">
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Prioridad</p>
+                  <p className="text-[10px] font-semibold uppercase text-slate-500">
+                    Prioridad
+                  </p>
                   <p className="mt-1 text-sm font-semibold">{seleccionada.prioridad}</p>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Importe en riesgo</p>
-                  <p className="mt-1 text-sm font-semibold text-red-700">{euro(seleccionada.importeRiesgo)}</p>
+                  <p className="text-[10px] font-semibold uppercase text-slate-500">
+                    Importe en riesgo
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-red-700">
+                    {euro(seleccionada.importeRiesgo)}
+                  </p>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Origen</p>
+                  <p className="text-[10px] font-semibold uppercase text-slate-500">
+                    Origen
+                  </p>
                   <p className="mt-1 text-sm font-semibold">{seleccionada.origen}</p>
                 </div>
               </div>
@@ -685,7 +798,9 @@ export default function AccionesPage() {
       fallback={
         <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
           <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-600">Cargando acciones administrativas...</p>
+            <p className="text-sm text-slate-600">
+              Cargando acciones administrativas...
+            </p>
           </section>
         </main>
       }

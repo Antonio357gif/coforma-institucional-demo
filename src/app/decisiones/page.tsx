@@ -1,7 +1,8 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type DecisionMesaRow = {
@@ -134,7 +135,12 @@ function Kpi({
   );
 }
 
-export default function DecisionesPage() {
+function DecisionesPageContent() {
+  const searchParams = useSearchParams();
+  const ofertaIdParam = searchParams.get("ofertaId");
+  const ofertaIdFiltro = ofertaIdParam ? Number(ofertaIdParam) : null;
+  const tieneFiltroOferta = ofertaIdFiltro !== null && !Number.isNaN(ofertaIdFiltro);
+
   const [rows, setRows] = useState<DecisionMesaRow[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [decisionFiltro, setDecisionFiltro] = useState("todos");
@@ -177,28 +183,40 @@ export default function DecisionesPage() {
     };
   }, []);
 
+  const rowsPorOferta = useMemo(() => {
+    if (!tieneFiltroOferta) return rows;
+
+    return rows.filter((row) => Number(row.oferta_id) === Number(ofertaIdFiltro));
+  }, [rows, tieneFiltroOferta, ofertaIdFiltro]);
+
+  const ofertaFiltrada = useMemo(() => {
+    if (!tieneFiltroOferta) return null;
+
+    return rows.find((row) => Number(row.oferta_id) === Number(ofertaIdFiltro)) ?? null;
+  }, [rows, tieneFiltroOferta, ofertaIdFiltro]);
+
   const decisiones = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.decision_recomendada)))
+    return Array.from(new Set(rowsPorOferta.map((row) => row.decision_recomendada)))
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rows]);
+  }, [rowsPorOferta]);
 
   const prioridades = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.prioridad_decision)))
+    return Array.from(new Set(rowsPorOferta.map((row) => row.prioridad_decision)))
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rows]);
+  }, [rowsPorOferta]);
 
   const estados = useMemo(() => {
-    return Array.from(new Set(rows.map((row) => row.estado_justificacion)))
+    return Array.from(new Set(rowsPorOferta.map((row) => row.estado_justificacion)))
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rows]);
+  }, [rowsPorOferta]);
 
   const filtradas = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
 
-    return rows.filter((row) => {
+    return rowsPorOferta.filter((row) => {
       const texto = [
         row.entidad_nombre,
         row.cif,
@@ -223,11 +241,11 @@ export default function DecisionesPage() {
 
       return pasaBusqueda && pasaDecision && pasaPrioridad && pasaEstado;
     });
-  }, [rows, busqueda, decisionFiltro, prioridadFiltro, estadoFiltro]);
+  }, [rowsPorOferta, busqueda, decisionFiltro, prioridadFiltro, estadoFiltro]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [busqueda, decisionFiltro, prioridadFiltro, estadoFiltro, pageSize]);
+  }, [busqueda, decisionFiltro, prioridadFiltro, estadoFiltro, pageSize, ofertaIdParam]);
 
   const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -338,6 +356,27 @@ export default function DecisionesPage() {
           <Kpi labelText="Pendiente justificar" value={euro(resumen.pendiente)} detail="importe acumulado" />
           <Kpi labelText="Riesgo económico" value={euro(resumen.importeRiesgo)} detail={`${num(resumen.enRevision)} en revisión`} />
         </section>
+
+        {tieneFiltroOferta ? (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+            <div>
+              <p className="font-semibold">Filtro activo por subexpediente</p>
+              <p className="mt-0.5">
+                {ofertaFiltrada?.entidad_nombre ?? "Subexpediente seleccionado"}
+                {ofertaFiltrada?.cif ? ` · ${ofertaFiltrada.cif}` : ""}
+                {ofertaFiltrada?.codigo_accion ? ` · ${ofertaFiltrada.codigo_accion}` : ""}
+                {ofertaFiltrada?.codigo_especialidad ? ` · ${ofertaFiltrada.codigo_especialidad}` : ""}
+              </p>
+            </div>
+
+            <Link
+              href="/decisiones"
+              className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
+            >
+              Ver todas las decisiones
+            </Link>
+          </section>
+        ) : null}
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.15fr_0.8fr_0.65fr_0.75fr_auto]">
@@ -538,11 +577,11 @@ export default function DecisionesPage() {
                     <td className="px-2 py-1.5">
                       <div className="flex flex-col gap-1">
                         <Link
-  href={`/decisiones-economicas/${row.id}`}
-  className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
->
-  Ver decisión
-</Link>
+                          href={`/decisiones-economicas/${row.id}`}
+                          className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                        >
+                          Ver decisión
+                        </Link>
 
                         <Link
                           href={`/subexpedientes-accion/${row.oferta_id}`}
@@ -552,7 +591,7 @@ export default function DecisionesPage() {
                         </Link>
 
                         <Link
-                          href="/acciones"
+                          href={`/acciones/nueva?ofertaId=${row.oferta_id}`}
                           className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           Emitir actuación
@@ -656,14 +695,14 @@ export default function DecisionesPage() {
                 </Link>
 
                 <Link
-                  href="/justificacion-economica"
+                  href={`/justificacion-economica?ofertaId=${seleccionada.oferta_id}`}
                   className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Ver justificación
                 </Link>
 
                 <Link
-                  href={`/acciones?ofertaId=${seleccionada.oferta_id}`}
+                  href={`/acciones/nueva?ofertaId=${seleccionada.oferta_id}`}
                   className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Emitir actuación
@@ -682,5 +721,21 @@ export default function DecisionesPage() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function DecisionesPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
+          <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-600">Cargando mesa de toma de decisiones...</p>
+          </section>
+        </main>
+      }
+    >
+      <DecisionesPageContent />
+    </Suspense>
   );
 }
