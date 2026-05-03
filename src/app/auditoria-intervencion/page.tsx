@@ -40,6 +40,17 @@ type AuditoriaIntervencion = {
   estado_operativo_administrativo: string | null;
 };
 
+type HistorialActuacion = {
+  id: number;
+  actuacion_id: number;
+  campo: string;
+  valor_anterior: string | null;
+  valor_nuevo: string | null;
+  motivo_edicion: string | null;
+  editado_por: string | null;
+  editado_en: string;
+};
+
 function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
 }
@@ -80,6 +91,13 @@ function estadoCanalLabel(value: string | null | undefined) {
   return value ?? "—";
 }
 
+function nombreCampoHistorial(value: string) {
+  if (value === "mensaje") return "Mensaje / fundamento operativo";
+  if (value === "evidencia_requerida") return "Evidencia requerida";
+  if (value === "observacion_canal") return "Observación de canal";
+  return value;
+}
+
 function badgeClass(value: string | null | undefined) {
   const normalizado = String(value ?? "").toLowerCase();
 
@@ -108,12 +126,16 @@ function Kpi({
   detail: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+      <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
+        {detail}
+      </p>
     </div>
   );
 }
@@ -124,8 +146,191 @@ export default function AuditoriaIntervencionPage() {
   const [prioridadFiltro, setPrioridadFiltro] = useState("todos");
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const [seleccionada, setSeleccionada] = useState<AuditoriaIntervencion | null>(null);
+  const [historial, setHistorial] = useState<HistorialActuacion[]>([]);
+  const [historialLoading, setHistorialLoading] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [mensajeEdit, setMensajeEdit] = useState("");
+  const [evidenciaEdit, setEvidenciaEdit] = useState("");
+  const [observacionEdit, setObservacionEdit] = useState("");
+  const [motivoEdicion, setMotivoEdicion] = useState("");
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [resultadoEdicion, setResultadoEdicion] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  async function cargarHistorial(actuacionId: number) {
+    setHistorialLoading(true);
+
+    const { data, error: historialError } = await supabase
+      .from("actuaciones_administrativas_historial")
+      .select("*")
+      .eq("actuacion_id", actuacionId)
+      .order("editado_en", { ascending: false })
+      .limit(8);
+
+    if (historialError) {
+      setHistorial([]);
+      setHistorialLoading(false);
+      return;
+    }
+
+    setHistorial((data ?? []) as HistorialActuacion[]);
+    setHistorialLoading(false);
+  }
+
+  function abrirAuditoria(row: AuditoriaIntervencion) {
+    setSeleccionada(row);
+    setHistorial([]);
+    setEditando(false);
+    setResultadoEdicion(null);
+    setMensajeEdit(row.mensaje ?? "");
+    setEvidenciaEdit(row.evidencia_requerida ?? "");
+    setObservacionEdit(row.observacion_canal ?? "");
+    setMotivoEdicion("");
+    cargarHistorial(row.id);
+  }
+
+  function cerrarAuditoria() {
+    setSeleccionada(null);
+    setHistorial([]);
+    setEditando(false);
+    setResultadoEdicion(null);
+    setMensajeEdit("");
+    setEvidenciaEdit("");
+    setObservacionEdit("");
+    setMotivoEdicion("");
+  }
+
+  function iniciarEdicion() {
+    if (!seleccionada) return;
+
+    setMensajeEdit(seleccionada.mensaje ?? "");
+    setEvidenciaEdit(seleccionada.evidencia_requerida ?? "");
+    setObservacionEdit(seleccionada.observacion_canal ?? "");
+    setMotivoEdicion("");
+    setResultadoEdicion(null);
+    setEditando(true);
+  }
+
+  function cancelarEdicion() {
+    if (!seleccionada) return;
+
+    setMensajeEdit(seleccionada.mensaje ?? "");
+    setEvidenciaEdit(seleccionada.evidencia_requerida ?? "");
+    setObservacionEdit(seleccionada.observacion_canal ?? "");
+    setMotivoEdicion("");
+    setResultadoEdicion(null);
+    setEditando(false);
+  }
+
+  async function guardarEdicion() {
+    if (!seleccionada) return;
+
+    const cambios: Array<{
+      campo: "mensaje" | "evidencia_requerida" | "observacion_canal";
+      anterior: string;
+      nuevo: string;
+    }> = [];
+
+    const mensajeAnterior = seleccionada.mensaje ?? "";
+    const evidenciaAnterior = seleccionada.evidencia_requerida ?? "";
+    const observacionAnterior = seleccionada.observacion_canal ?? "";
+
+    if (mensajeEdit.trim() !== mensajeAnterior.trim()) {
+      cambios.push({
+        campo: "mensaje",
+        anterior: mensajeAnterior,
+        nuevo: mensajeEdit,
+      });
+    }
+
+    if (evidenciaEdit.trim() !== evidenciaAnterior.trim()) {
+      cambios.push({
+        campo: "evidencia_requerida",
+        anterior: evidenciaAnterior,
+        nuevo: evidenciaEdit,
+      });
+    }
+
+    if (observacionEdit.trim() !== observacionAnterior.trim()) {
+      cambios.push({
+        campo: "observacion_canal",
+        anterior: observacionAnterior,
+        nuevo: observacionEdit,
+      });
+    }
+
+    if (cambios.length === 0) {
+      setResultadoEdicion("No hay cambios para guardar.");
+      return;
+    }
+
+    setGuardandoEdicion(true);
+    setResultadoEdicion(null);
+
+    const { data: authData } = await supabase.auth.getUser();
+    const editadoPor =
+      authData?.user?.email ??
+      authData?.user?.id ??
+      "usuario_demo_institucional";
+
+    const { error: updateError } = await supabase
+      .from("actuaciones_administrativas")
+      .update({
+        mensaje: mensajeEdit,
+        evidencia_requerida: evidenciaEdit || null,
+        observacion_canal: observacionEdit || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", seleccionada.id);
+
+    if (updateError) {
+      setResultadoEdicion(`No se pudo guardar la edición: ${updateError.message}`);
+      setGuardandoEdicion(false);
+      return;
+    }
+
+    const historialRows = cambios.map((cambio) => ({
+      actuacion_id: seleccionada.id,
+      campo: cambio.campo,
+      valor_anterior: cambio.anterior,
+      valor_nuevo: cambio.nuevo,
+      motivo_edicion: motivoEdicion.trim() || "Edición manual desde auditoría de intervención.",
+      editado_por: editadoPor,
+    }));
+
+    const { error: historialError } = await supabase
+      .from("actuaciones_administrativas_historial")
+      .insert(historialRows);
+
+    if (historialError) {
+      setResultadoEdicion(
+        `La actuación se actualizó, pero no se pudo registrar el historial: ${historialError.message}`
+      );
+      setGuardandoEdicion(false);
+      return;
+    }
+
+    const actualizada: AuditoriaIntervencion = {
+      ...seleccionada,
+      mensaje: mensajeEdit,
+      evidencia_requerida: evidenciaEdit || null,
+      observacion_canal: observacionEdit || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    setSeleccionada(actualizada);
+    setRegistros((prev) =>
+      prev.map((row) => (row.id === actualizada.id ? actualizada : row))
+    );
+
+    await cargarHistorial(seleccionada.id);
+
+    setResultadoEdicion("Cambios guardados y trazabilidad registrada en backend.");
+    setEditando(false);
+    setGuardandoEdicion(false);
+    setMotivoEdicion("");
+  }
 
   useEffect(() => {
     async function loadAuditoria() {
@@ -248,8 +453,8 @@ export default function AuditoriaIntervencionPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               ← Volver al dashboard
@@ -265,7 +470,7 @@ export default function AuditoriaIntervencionPage() {
             </Link>
           </div>
 
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">
             Control institucional · intervención trazada
           </span>
         </div>
@@ -279,28 +484,28 @@ export default function AuditoriaIntervencionPage() {
           <Kpi label="Riesgo" value={euro(resumen.riesgo)} detail="importe asociado" />
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.3fr_0.7fr_0.7fr_auto]">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Técnico, entidad, CIF, acción, intervención, canal, fuente..."
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Prioridad
               </label>
               <select
                 value={prioridadFiltro}
                 onChange={(event) => setPrioridadFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {prioridades.map((prioridad) => (
@@ -312,13 +517,13 @@ export default function AuditoriaIntervencionPage() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado
               </label>
               <select
                 value={estadoFiltro}
                 onChange={(event) => setEstadoFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {estados.map((estado) => (
@@ -337,7 +542,7 @@ export default function AuditoriaIntervencionPage() {
                   setPrioridadFiltro("todos");
                   setEstadoFiltro("todos");
                 }}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>
@@ -345,35 +550,35 @@ export default function AuditoriaIntervencionPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-3 py-2">
-            <h2 className="text-sm font-semibold">Registro de auditoría de intervención</h2>
-            <p className="text-[11px] text-slate-500">
-              Vista de control para justificar qué intervención se realizó, por quién, sobre qué expediente y con qué soporte técnico.
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-3 py-1.5">
+            <h2 className="text-[14px] font-semibold leading-5">Registro de auditoría de intervención</h2>
+            <p className="text-[10.5px] leading-4 text-slate-500">
+              Control de intervención realizada, técnico actuante, expediente y soporte técnico.
             </p>
           </div>
 
-          <div className="max-h-[610px] overflow-auto">
+          <div className="max-h-[620px] overflow-auto">
             <table className="w-full border-collapse text-left text-[11px]">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-2 py-2">Intervención</th>
-                  <th className="px-2 py-2">Técnico</th>
-                  <th className="px-2 py-2">Entidad</th>
-                  <th className="px-2 py-2">Subexpediente</th>
-                  <th className="px-2 py-2">Canal / estado</th>
-                  <th className="px-2 py-2">Fuente</th>
-                  <th className="px-2 py-2 text-right">Riesgo</th>
-                  <th className="px-2 py-2">Opciones</th>
+                  <th className="px-2 py-1.5">Intervención</th>
+                  <th className="px-2 py-1.5">Técnico</th>
+                  <th className="px-2 py-1.5">Entidad</th>
+                  <th className="px-2 py-1.5">Subexpediente</th>
+                  <th className="px-2 py-1.5">Canal / estado</th>
+                  <th className="px-2 py-1.5">Fuente</th>
+                  <th className="px-2 py-1.5 text-right">Riesgo</th>
+                  <th className="px-2 py-1.5">Opciones</th>
                 </tr>
               </thead>
 
               <tbody>
                 {filtradas.map((row) => (
                   <tr key={row.id} className="border-t border-slate-100 hover:bg-blue-50">
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.tipo_actuacion}</p>
-                      <p className="text-[10px] text-slate-500">{row.asunto}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.tipo_actuacion}</p>
+                      <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{row.asunto}</p>
                       <div className="mt-1 flex flex-wrap gap-1">
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.prioridad)}`}>
                           {row.prioridad}
@@ -384,50 +589,52 @@ export default function AuditoriaIntervencionPage() {
                       </div>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.tecnico_nombre ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.tecnico_unidad ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{fecha(row.fecha_emision)}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.tecnico_nombre ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.tecnico_unidad ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{fecha(row.fecha_emision)}</p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.entidad_nombre ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.cif ?? "—"}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.entidad_nombre ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.cif ?? "—"}</p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold">{row.codigo_accion ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.codigo_especialidad ?? "—"} · {row.tipo_oferta ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.denominacion ?? "—"}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4">{row.codigo_accion ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">
+                        {row.codigo_especialidad ?? "—"} · {row.tipo_oferta ?? "—"}
+                      </p>
+                      <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{row.denominacion ?? "—"}</p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold">{canalLabel(row.canal_comunicacion)}</p>
-                      <p className="text-[10px] text-slate-500">{estadoCanalLabel(row.estado_canal)}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4">{canalLabel(row.canal_comunicacion)}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{estadoCanalLabel(row.estado_canal)}</p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold">{row.fuente_origen ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.tipo_dato ?? "—"}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4">{row.fuente_origen ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.tipo_dato ?? "—"}</p>
                     </td>
 
-                    <td className="px-2 py-1.5 text-right font-semibold text-red-700">
+                    <td className="px-2 py-1 text-right font-semibold text-red-700">
                       {euro(row.importe_en_riesgo)}
                     </td>
 
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1">
                       <div className="flex flex-col gap-1">
                         <button
                           type="button"
-                          onClick={() => setSeleccionada(row)}
-                          className="rounded-lg bg-[#183B63] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                          onClick={() => abrirAuditoria(row)}
+                          className="rounded-md bg-[#183B63] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#122f4f]"
                         >
                           Ver auditoría
                         </button>
 
                         <Link
                           href={`/oferta-formativa/${row.oferta_id}`}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           Subexpediente
                         </Link>
@@ -451,70 +658,242 @@ export default function AuditoriaIntervencionPage() {
 
       {seleccionada ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-4 text-white">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+          <section className="max-h-[92vh] w-full max-w-5xl overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
                 Detalle de auditoría de intervención
               </p>
-              <h2 className="mt-1 text-lg font-semibold">{seleccionada.tipo_actuacion}</h2>
-              <p className="mt-0.5 text-xs text-blue-100">
+              <h2 className="mt-0.5 text-base font-semibold">{seleccionada.tipo_actuacion}</h2>
+              <p className="mt-0.5 text-[11px] text-blue-100">
                 {seleccionada.entidad_nombre} · {seleccionada.codigo_accion} · {seleccionada.codigo_especialidad}
               </p>
             </div>
 
-            <div className="space-y-3 p-5">
-              <section className="grid gap-3 md:grid-cols-4">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Técnico actuante</p>
-                  <p className="mt-1 text-sm font-semibold">{seleccionada.tecnico_nombre ?? "—"}</p>
+            <div className="space-y-2 p-3">
+              <section className="grid gap-2 md:grid-cols-4">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Técnico actuante</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.tecnico_nombre ?? "—"}</p>
                   <p className="text-[10px] text-slate-500">{seleccionada.tecnico_unidad ?? "—"}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Fecha intervención</p>
-                  <p className="mt-1 text-sm font-semibold">{fecha(seleccionada.fecha_emision)}</p>
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Fecha intervención</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{fecha(seleccionada.fecha_emision)}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Canal</p>
-                  <p className="mt-1 text-sm font-semibold">{canalLabel(seleccionada.canal_comunicacion)}</p>
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Canal</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{canalLabel(seleccionada.canal_comunicacion)}</p>
                   <p className="text-[10px] text-slate-500">{estadoCanalLabel(seleccionada.estado_canal)}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Riesgo</p>
-                  <p className="mt-1 text-sm font-semibold text-red-700">{euro(seleccionada.importe_en_riesgo)}</p>
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Riesgo</p>
+                  <p className="mt-0.5 text-[13px] font-semibold text-red-700">{euro(seleccionada.importe_en_riesgo)}</p>
                 </div>
               </section>
 
-              <section className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-950">
+              <section className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] leading-5 text-blue-950">
                 <p className="font-semibold">Lectura de auditoría</p>
-                <p className="mt-1">
+                <p className="mt-0.5">
                   Este registro permite justificar la intervención administrativa realizada, su origen, el técnico actuante,
                   la entidad beneficiaria afectada, el subexpediente intervenido y el canal por el que queda preparada la comunicación.
                 </p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mensaje / fundamento operativo</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{seleccionada.mensaje}</p>
+              {editando ? (
+                <section className="grid gap-2 lg:grid-cols-[1fr_1fr]">
+                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                      Mensaje / fundamento operativo
+                    </label>
+                    <textarea
+                      value={mensajeEdit}
+                      onChange={(event) => setMensajeEdit(event.target.value)}
+                      rows={7}
+                      className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] leading-5 outline-none focus:border-blue-400 focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                        Evidencia requerida
+                      </label>
+                      <textarea
+                        value={evidenciaEdit}
+                        onChange={(event) => setEvidenciaEdit(event.target.value)}
+                        rows={3}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] leading-5 outline-none focus:border-blue-400 focus:bg-white"
+                      />
+                    </div>
+
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                        Observación de canal
+                      </label>
+                      <textarea
+                        value={observacionEdit}
+                        onChange={(event) => setObservacionEdit(event.target.value)}
+                        rows={3}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] leading-5 outline-none focus:border-blue-400 focus:bg-white"
+                      />
+                    </div>
+
+                    <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+                      <label className="text-[9px] font-semibold uppercase tracking-wide text-amber-700">
+                        Motivo de edición
+                      </label>
+                      <input
+                        value={motivoEdicion}
+                        onChange={(event) => setMotivoEdicion(event.target.value)}
+                        placeholder="Ej.: Se actualiza la evidencia solicitada para concretar semana de asistencia."
+                        className="mt-1 h-8 w-full rounded-lg border border-amber-200 bg-white px-3 text-[12px] outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                <>
+                  <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                      Mensaje / fundamento operativo
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">
+                      {seleccionada.mensaje}
+                    </p>
+                  </section>
+
+                  <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                      Evidencia requerida
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">
+                      {seleccionada.evidencia_requerida ?? "—"}
+                    </p>
+                  </section>
+
+                  <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                      Observación de canal
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">
+                      {seleccionada.observacion_canal ?? "—"}
+                    </p>
+                  </section>
+                </>
+              )}
+
+              <section className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                      Historial de cambios
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Trazabilidad registrada en backend para esta actuación.
+                    </p>
+                  </div>
+
+                  {historialLoading ? (
+                    <span className="text-[10px] font-semibold text-slate-500">
+                      Cargando historial...
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {num(historial.length)} cambios visibles
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-2 max-h-32 overflow-auto rounded-lg border border-slate-200 bg-white">
+                  {historial.length > 0 ? (
+                    historial.map((item) => (
+                      <div key={item.id} className="border-b border-slate-100 px-3 py-2 last:border-b-0">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[11px] font-semibold text-slate-950">
+                            {nombreCampoHistorial(item.campo)}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            {fecha(item.editado_en)} · {item.editado_por ?? "—"}
+                          </p>
+                        </div>
+
+                        <p className="mt-0.5 text-[10px] text-slate-500">
+                          Motivo: {item.motivo_edicion ?? "—"}
+                        </p>
+
+                        <div className="mt-1 grid gap-1 md:grid-cols-2">
+                          <p className="line-clamp-2 rounded-md bg-slate-50 px-2 py-1 text-[10px] text-slate-600">
+                            Antes: {item.valor_anterior || "—"}
+                          </p>
+                          <p className="line-clamp-2 rounded-md bg-blue-50 px-2 py-1 text-[10px] text-blue-900">
+                            Después: {item.valor_nuevo || "—"}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="px-3 py-3 text-[11px] text-slate-500">
+                      Todavía no hay ediciones registradas para esta actuación.
+                    </p>
+                  )}
+                </div>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Evidencia requerida</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                  {seleccionada.evidencia_requerida ?? "—"}
-                </p>
-              </section>
-
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setSeleccionada(null)}
-                  className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
+              {resultadoEdicion ? (
+                <div
+                  className={
+                    resultadoEdicion.includes("guardados") || resultadoEdicion.includes("registrada")
+                      ? "rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900"
+                      : "rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900"
+                  }
                 >
-                  Cerrar
-                </button>
+                  {resultadoEdicion}
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+                {editando ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={cancelarEdicion}
+                      disabled={guardandoEdicion}
+                      className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={guardarEdicion}
+                      disabled={guardandoEdicion}
+                      className="rounded-md bg-[#183B63] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f] disabled:opacity-50"
+                    >
+                      {guardandoEdicion ? "Guardando..." : "Guardar cambios"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={iniciarEdicion}
+                      className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Editar auditoría
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={cerrarAuditoria}
+                      className="rounded-md bg-[#183B63] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
+                    >
+                      Cerrar
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </section>

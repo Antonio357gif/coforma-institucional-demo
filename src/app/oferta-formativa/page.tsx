@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
-import InstitutionalBrandBadge from "../components/InstitutionalBrandBadge";
 
 type OfertaRow = Record<string, any>;
 
@@ -129,13 +128,15 @@ function Kpi({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl border bg-white px-3 py-2 text-left shadow-sm transition ${toneClass}`}
+      className={`min-h-[62px] rounded-xl border bg-white px-3 py-1.5 text-left shadow-sm transition ${toneClass}`}
     >
-      <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+      <p className="truncate text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-0.5 text-lg font-semibold leading-6 text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[15px] font-semibold leading-5 text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">{detail}</p>
     </button>
   );
 }
@@ -358,20 +359,20 @@ export default function OfertaFormativaPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-2 px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
             ← Volver al dashboard
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
             {soloRequerimientos ? (
-              <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-800 shadow-sm">
+              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-semibold text-red-800 shadow-sm">
                 Filtro activo: requerimientos pendientes
               </span>
             ) : null}
 
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
               Clic en una fila para abrir subexpediente
             </span>
           </div>
@@ -441,10 +442,10 @@ export default function OfertaFormativaPage() {
           />
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.25fr_0.95fr_0.75fr_0.55fr_auto_auto]">
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
@@ -456,7 +457,7 @@ export default function OfertaFormativaPage() {
             </div>
 
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Entidad / academia
               </label>
               <select
@@ -474,7 +475,7 @@ export default function OfertaFormativaPage() {
             </div>
 
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado
               </label>
               <select
@@ -492,7 +493,7 @@ export default function OfertaFormativaPage() {
             </div>
 
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Tipo
               </label>
               <select
@@ -533,15 +534,15 @@ export default function OfertaFormativaPage() {
         </section>
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
             <div>
-              <h2 className="text-sm font-semibold">Acciones concedidas</h2>
-              <p className="text-[11px] text-slate-500">
+              <h2 className="text-[14px] font-semibold leading-5">Acciones concedidas</h2>
+              <p className="text-[10.5px] leading-4 text-slate-500">
                 Cada fila es un subexpediente fiscalizable. Clic para abrir detalle.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+            <div className="flex flex-wrap items-center gap-2 text-[10.5px] text-slate-600">
               <span>
                 Página {num(paginaSegura)} de {num(totalPaginas)}
               </span>
@@ -549,7 +550,7 @@ export default function OfertaFormativaPage() {
               <select
                 value={pageSize}
                 onChange={(event) => setPageSize(Number(event.target.value))}
-                className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-[11px]"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-[10.5px]"
               >
                 <option value={25}>25 filas</option>
                 <option value={50}>50 filas</option>
@@ -576,20 +577,20 @@ export default function OfertaFormativaPage() {
             </div>
           </div>
 
-          <div className="max-h-[560px] overflow-auto">
+          <div className="max-h-[590px] overflow-auto">
             <table className="w-full border-collapse text-left text-[11px]">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-2 py-2">Código</th>
-                  <th className="px-2 py-2">Entidad</th>
-                  <th className="px-2 py-2">Tipo</th>
-                  <th className="px-2 py-2">Especialidad</th>
-                  <th className="px-2 py-2">Denominación</th>
-                  <th className="px-2 py-2">Estado</th>
-                  <th className="px-2 py-2 text-right">Concedido</th>
-                  <th className="px-2 py-2 text-right">Riesgo</th>
-                  <th className="px-2 py-2 text-right">Inc.</th>
-                  <th className="px-2 py-2 text-right">Req.</th>
+                  <th className="px-2 py-1.5">Código</th>
+                  <th className="px-2 py-1.5">Entidad</th>
+                  <th className="px-2 py-1.5">Tipo</th>
+                  <th className="px-2 py-1.5">Especialidad</th>
+                  <th className="px-2 py-1.5">Denominación</th>
+                  <th className="px-2 py-1.5">Estado</th>
+                  <th className="px-2 py-1.5 text-right">Concedido</th>
+                  <th className="px-2 py-1.5 text-right">Riesgo</th>
+                  <th className="px-2 py-1.5 text-right">Inc.</th>
+                  <th className="px-2 py-1.5 text-right">Req.</th>
                 </tr>
               </thead>
 
@@ -609,50 +610,50 @@ export default function OfertaFormativaPage() {
                       onClick={() => abrirSubexpediente(row)}
                       className="cursor-pointer border-t border-slate-100 hover:bg-blue-50"
                     >
-                      <td className="px-2 py-1.5 font-semibold text-slate-950">
+                      <td className="px-2 py-1 font-semibold text-slate-950">
                         {text(row, ["codigo_accion", "codigo_administrativo"])}
                       </td>
 
-                      <td className="px-2 py-1.5">
-                        <p className="font-medium text-slate-900">
+                      <td className="px-2 py-1">
+                        <p className="font-medium leading-4 text-slate-900">
                           {text(row, ["entidad_nombre", "entidad", "nombre_entidad"])}
                         </p>
-                        <p className="text-[10px] text-slate-500">{text(row, ["cif"])}</p>
+                        <p className="text-[10px] leading-4 text-slate-500">{text(row, ["cif"])}</p>
                       </td>
 
-                      <td className="px-2 py-1.5">
+                      <td className="px-2 py-1">
                         {text(row, ["tipo_oferta", "tipo", "tipo_accion"])}
                       </td>
 
-                      <td className="px-2 py-1.5 font-medium">
+                      <td className="px-2 py-1 font-medium">
                         {text(row, ["codigo_especialidad", "especialidad"])}
                       </td>
 
-                      <td className="max-w-[260px] px-2 py-1.5">
-                        <p className="line-clamp-2 text-slate-700">
+                      <td className="max-w-[280px] px-2 py-1">
+                        <p className="line-clamp-1 text-slate-700">
                           {text(row, ["denominacion", "nombre_accion", "nombre"])}
                         </p>
                       </td>
 
-                      <td className="px-2 py-1.5">
+                      <td className="px-2 py-1">
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estadoClass(estado)}`}>
                           {estado}
                         </span>
                       </td>
 
-                      <td className="px-2 py-1.5 text-right font-medium">
+                      <td className="px-2 py-1 text-right font-medium">
                         {euro(numberValue(row, ["importe_concedido", "importe_total_concedido"]))}
                       </td>
 
-                      <td className="px-2 py-1.5 text-right font-medium text-red-700">
+                      <td className="px-2 py-1 text-right font-medium text-red-700">
                         {euro(numberValue(row, ["importe_en_riesgo", "riesgo_economico"]))}
                       </td>
 
-                      <td className="px-2 py-1.5 text-right">
+                      <td className="px-2 py-1 text-right">
                         {num(numberValue(row, ["incidencias_abiertas"]))}
                       </td>
 
-                      <td className="px-2 py-1.5 text-right">
+                      <td className="px-2 py-1 text-right">
                         {num(numberValue(row, ["requerimientos_pendientes"]))}
                       </td>
                     </tr>

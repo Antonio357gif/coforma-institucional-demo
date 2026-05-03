@@ -122,12 +122,14 @@ function Kpi({
           : "border-slate-200";
 
   return (
-    <div className={`rounded-xl border ${toneClass} bg-white px-3 py-3 shadow-sm`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className={`rounded-lg border ${toneClass} bg-white px-3 py-1.5 shadow-sm`}>
+      <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">{detail}</p>
     </div>
   );
 }
@@ -421,8 +423,8 @@ function NuevaActuacionContent() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
@@ -457,7 +459,7 @@ function NuevaActuacionContent() {
           </div>
 
           <span
-            className={`rounded-full border px-3 py-1 text-[11px] font-semibold shadow-sm ${priorityClass(
+            className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold shadow-sm ${priorityClass(
               actuacion.prioridad
             )}`}
           >
@@ -465,31 +467,33 @@ function NuevaActuacionContent() {
           </span>
         </div>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[1.1fr_0.7fr_1fr]">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+          <div className="grid gap-2 lg:grid-cols-[1.1fr_0.7fr_1fr] lg:items-center">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Entidad beneficiaria
               </p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-950">{actuacion.entidad}</h2>
-              <p className="mt-0.5 text-xs text-slate-500">{actuacion.cif}</p>
+              <h2 className="mt-0.5 truncate text-[15px] font-semibold leading-5 text-slate-950">
+                {actuacion.entidad}
+              </h2>
+              <p className="text-[10.5px] text-slate-500">{actuacion.cif}</p>
             </div>
 
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Subexpediente
               </p>
-              <p className="mt-1 text-base font-semibold text-slate-950">
+              <p className="mt-0.5 text-[15px] font-semibold leading-5 text-slate-950">
                 {actuacion.codigoAccion}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">{actuacion.especialidad}</p>
+              <p className="text-[10.5px] text-slate-500">{actuacion.especialidad}</p>
             </div>
 
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Especialidad
               </p>
-              <p className="mt-1 text-sm font-semibold text-slate-950">
+              <p className="mt-0.5 line-clamp-1 text-[13px] font-semibold leading-4 text-slate-950">
                 {actuacion.denominacion}
               </p>
             </div>
@@ -508,78 +512,82 @@ function NuevaActuacionContent() {
           <Kpi label="Estado origen" value={actuacion.estado} detail="situación detectada" tone="amber" />
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-[0.85fr_1.35fr]">
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <section className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm leading-6 text-blue-950">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+        <section className="grid gap-2 lg:grid-cols-[0.62fr_1.38fr]">
+          <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+            <section className="rounded-md border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] leading-4 text-blue-950">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-blue-700">
                 Lectura administrativa
               </p>
-              <p className="mt-1">
+              <p className="mt-0.5">
                 Esta pantalla prepara una actuación administrativa desde la vista backend de pendientes,
                 manteniendo trazabilidad entre alerta, oferta, entidad beneficiaria y registro emitido.
               </p>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Motivo detectado
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">{actuacion.motivo}</p>
+              <p className="mt-0.5 line-clamp-5 text-[11px] leading-4 text-slate-700">
+                {actuacion.motivo}
+              </p>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Evidencia base
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">{actuacion.evidencia}</p>
+              <p className="mt-0.5 line-clamp-5 text-[11px] leading-4 text-slate-700">
+                {actuacion.evidencia}
+              </p>
             </section>
           </div>
 
-          <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <section className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Asunto
               </label>
               <input
                 value={asunto}
                 onChange={(event) => setAsunto(event.target.value)}
-                className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Mensaje a la entidad beneficiaria
               </label>
               <textarea
                 value={mensaje}
                 onChange={(event) => setMensaje(event.target.value)}
-                rows={8}
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 outline-none focus:border-blue-400 focus:bg-white"
+                rows={5}
+                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] leading-4 outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Evidencia requerida
               </label>
               <textarea
                 value={evidencia}
                 onChange={(event) => setEvidencia(event.target.value)}
-                rows={4}
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 outline-none focus:border-blue-400 focus:bg-white"
+                rows={2}
+                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] leading-4 outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div className="max-w-xs">
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Fecha límite de respuesta
               </label>
               <input
                 type="date"
                 value={fechaLimite}
                 onChange={(event) => setFechaLimite(event.target.value)}
-                className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
@@ -587,8 +595,8 @@ function NuevaActuacionContent() {
               <div
                 className={
                   emitida
-                    ? "rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-semibold text-emerald-900"
-                    : "rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs font-semibold text-blue-900"
+                    ? "rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-900"
+                    : "rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-900"
                 }
               >
                 {resultado}
@@ -597,12 +605,12 @@ function NuevaActuacionContent() {
           </section>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
           <div className="flex flex-wrap justify-end gap-2">
             {actuacion.ofertaId ? (
               <Link
                 href={subexpedienteFiltradoHref}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Ver subexpediente
               </Link>
@@ -610,14 +618,14 @@ function NuevaActuacionContent() {
 
             <Link
               href={accionesFiltradasHref}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
             >
               Volver a acciones
             </Link>
 
             <Link
               href={actuacionesEmitidasFiltradasHref}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
             >
               Ver actuaciones emitidas
             </Link>
@@ -626,7 +634,7 @@ function NuevaActuacionContent() {
               type="button"
               onClick={emitirActuacion}
               disabled={guardando || emitida || !puedeEmitir}
-              className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f] disabled:opacity-50"
+              className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f] disabled:opacity-50"
             >
               {guardando ? "Emitiendo..." : emitida ? "Actuación emitida" : "Emitir y registrar actuación"}
             </button>

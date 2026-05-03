@@ -128,12 +128,14 @@ function Kpi({
           : "border-slate-200";
 
   return (
-    <div className={`rounded-xl border ${toneClass} bg-white px-3 py-3 shadow-sm`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className={`rounded-lg border ${toneClass} bg-white px-3 py-1.5 shadow-sm`}>
+      <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">{detail}</p>
     </div>
   );
 }
@@ -243,7 +245,7 @@ export default function ActuacionEmitidaDetallePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-5 py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-blue-800">
             <Link href="/actuaciones-emitidas" className="hover:text-blue-950">
@@ -261,7 +263,7 @@ export default function ActuacionEmitidaDetallePage() {
           </div>
 
           <span
-            className={`rounded-full border px-3 py-1 text-[11px] font-semibold shadow-sm ${badgeClass(
+            className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold shadow-sm ${badgeClass(
               actuacion.prioridad
             )}`}
           >
@@ -269,37 +271,37 @@ export default function ActuacionEmitidaDetallePage() {
           </span>
         </div>
 
-        <section className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.3fr_0.8fr_1fr]">
+        <section className="grid gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm lg:grid-cols-[1.35fr_0.65fr_1fr] lg:items-center">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
               Entidad beneficiaria
             </p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-950">
+            <h2 className="mt-0.5 truncate text-[15px] font-semibold leading-5 text-slate-950">
               {actuacion.entidad_nombre ?? "—"}
             </h2>
-            <p className="mt-1 text-xs text-slate-500">{actuacion.cif ?? "—"}</p>
+            <p className="text-[10.5px] text-slate-500">{actuacion.cif ?? "—"}</p>
           </div>
 
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
               Subexpediente
             </p>
-            <p className="mt-2 text-lg font-semibold text-slate-950">
+            <p className="mt-0.5 text-[15px] font-semibold leading-5 text-slate-950">
               {actuacion.codigo_accion ?? "—"}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="text-[10.5px] text-slate-500">
               {actuacion.tipo_oferta ?? "—"}
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+            <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
               Especialidad
             </p>
-            <p className="mt-2 text-lg font-semibold text-slate-950">
+            <p className="mt-0.5 text-[14px] font-semibold leading-4 text-slate-950">
               {actuacion.codigo_especialidad ?? "—"}
             </p>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-0.5 line-clamp-1 text-[10.5px] leading-4 text-slate-600">
               {actuacion.denominacion ?? "—"}
             </p>
           </div>
@@ -336,31 +338,31 @@ export default function ActuacionEmitidaDetallePage() {
           />
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-[0.75fr_1.25fr]">
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        <section className="grid gap-2 lg:grid-cols-[0.62fr_1.38fr]">
+          <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Técnico asignado
               </p>
-              <p className="mt-2 text-sm font-semibold text-slate-950">
+              <p className="mt-0.5 text-[12px] font-semibold leading-4 text-slate-950">
                 {actuacion.tecnico_nombre ?? "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="text-[10px] leading-4 text-slate-500">
                 {actuacion.tecnico_unidad ?? "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="text-[10px] leading-4 text-slate-500">
                 {actuacion.tecnico_email ?? "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="text-[10px] leading-4 text-slate-500">
                 {actuacion.tecnico_rol ?? "—"}
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Fechas
               </p>
-              <div className="mt-2 grid gap-2 text-xs">
+              <div className="mt-1 grid gap-1 text-[10.5px]">
                 <div className="flex justify-between gap-3">
                   <span className="text-slate-500">Emisión</span>
                   <span className="font-semibold text-slate-950">
@@ -376,98 +378,99 @@ export default function ActuacionEmitidaDetallePage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Origen del dato
               </p>
-              <p className="mt-2 text-sm font-semibold text-slate-950">
+              <p className="mt-0.5 line-clamp-1 text-[12px] font-semibold leading-4 text-slate-950">
                 {actuacion.fuente_origen ?? "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="text-[10px] leading-4 text-slate-500">
                 {actuacion.tipo_dato ?? "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="text-[10px] leading-4 text-slate-500">
                 Estado operativo: {actuacion.estado_operativo_administrativo ?? "—"}
               </p>
             </div>
           </div>
 
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <section className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-950">
+          <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+            <section className="rounded-md border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] leading-4 text-blue-950">
               <p className="font-semibold">Lectura de canal institucional</p>
-              <p className="mt-1 leading-6">
-                Esta actuación está registrada en la bandeja institucional demo. En fase
-                real, este registro puede actuar como origen de comunicación mediante API
-                bidireccional, sede electrónica, carpeta de entidad o canal oficial que
-                determine la Administración.
+              <p className="mt-0.5">
+                Esta actuación está registrada en la bandeja institucional demo. En fase real, este registro puede actuar como origen de comunicación mediante API bidireccional, sede electrónica, carpeta de entidad o canal oficial que determine la Administración.
               </p>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Tipo de actuación
-              </p>
-              <p className="mt-1 text-base font-semibold text-slate-950">
-                {actuacion.tipo_actuacion}
-              </p>
-            </section>
+            <div className="grid gap-1.5 lg:grid-cols-[0.8fr_1.2fr]">
+              <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+                <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                  Tipo de actuación
+                </p>
+                <p className="mt-0.5 truncate text-[12px] font-semibold leading-4 text-slate-950">
+                  {actuacion.tipo_actuacion}
+                </p>
+              </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Asunto
-              </p>
-              <p className="mt-1 text-sm font-semibold text-slate-950">
-                {actuacion.asunto}
-              </p>
-            </section>
+              <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+                <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                  Asunto
+                </p>
+                <p className="mt-0.5 truncate text-[12px] font-semibold leading-4 text-slate-950">
+                  {actuacion.asunto}
+                </p>
+              </section>
+            </div>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Mensaje emitido
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+              <p className="mt-0.5 line-clamp-4 whitespace-pre-wrap text-[11px] leading-4 text-slate-700">
                 {actuacion.mensaje}
               </p>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Evidencia requerida
-              </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                {actuacion.evidencia_requerida ?? "—"}
-              </p>
-            </section>
+            <div className="grid gap-1.5 lg:grid-cols-2">
+              <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+                <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                  Evidencia requerida
+                </p>
+                <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[11px] leading-4 text-slate-700">
+                  {actuacion.evidencia_requerida ?? "—"}
+                </p>
+              </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Observación de canal
-              </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                {actuacion.observacion_canal ?? "—"}
-              </p>
-            </section>
+              <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+                <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                  Observación de canal
+                </p>
+                <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[11px] leading-4 text-slate-700">
+                  {actuacion.observacion_canal ?? "—"}
+                </p>
+              </section>
+            </div>
           </div>
         </section>
 
-        <section className="flex flex-wrap justify-end gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="flex flex-wrap justify-end gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
           <Link
             href={`/subexpedientes-accion/${actuacion.oferta_id}`}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
           >
             Ver subexpediente
           </Link>
 
           <Link
             href="/actuaciones-emitidas"
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
           >
             Volver a actuaciones emitidas
           </Link>
 
           <Link
             href="/acciones"
-            className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
+            className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f]"
           >
             Ir a acciones administrativas
           </Link>

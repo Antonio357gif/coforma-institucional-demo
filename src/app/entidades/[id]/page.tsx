@@ -103,12 +103,18 @@ function DataCard({
   detail?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+      <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      {detail ? <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p> : null}
+      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
+        {value}
+      </p>
+      {detail ? (
+        <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
+          {detail}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -223,33 +229,33 @@ export default function ExpedienteEntidadPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link href="/entidades" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
             ← Volver a entidades
           </Link>
 
-          <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${badgeClass(entidad.nivel_riesgo_global)}`}>
+          <span className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${badgeClass(entidad.nivel_riesgo_global)}`}>
             Riesgo global: {entidad.nivel_riesgo_global}
           </span>
         </div>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+          <div className="grid gap-2 lg:grid-cols-[1fr_1.25fr] lg:items-center">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Entidad beneficiaria
               </p>
-              <h2 className="mt-1 text-xl font-semibold text-slate-950">
+              <h2 className="mt-0.5 truncate text-[15px] font-semibold leading-5 text-slate-950">
                 {entidad.entidad_nombre}
               </h2>
-              <p className="mt-1 text-sm text-slate-600">{entidad.cif}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                {entidad.entidad_isla ?? "Canarias"} · {entidad.entidad_municipio ?? "Varios municipios"}
+              <p className="text-[10.5px] text-slate-500">
+                {entidad.cif} · {entidad.entidad_isla ?? "Canarias"} ·{" "}
+                {entidad.entidad_municipio ?? "Varios municipios"}
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm leading-6 text-slate-700 lg:max-w-xl">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5 text-[11px] leading-4 text-slate-700">
               {entidad.resumen_operativo}
             </div>
           </div>
@@ -279,52 +285,58 @@ export default function ExpedienteEntidadPage() {
           />
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-[0.75fr_1.25fr]">
-          <div className="space-y-3">
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold">Decisión principal</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-700">
+        <section className="grid gap-2 lg:grid-cols-[0.55fr_1.45fr]">
+          <div className="space-y-1.5">
+            <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+              <h3 className="text-[13px] font-semibold leading-5">Decisión principal</h3>
+              <p className="mt-1 line-clamp-4 text-[11px] leading-4 text-slate-700">
                 {entidad.decision_principal}
               </p>
 
-              <div className="mt-4 grid gap-2">
-                <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Alertas altas</p>
-                  <p className="mt-1 text-lg font-semibold text-red-700">{num(entidad.alertas_altas)}</p>
+              <div className="mt-2 grid gap-1.5">
+                <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Alertas altas</p>
+                  <p className="mt-0.5 text-[14px] font-semibold leading-4 text-red-700">
+                    {num(entidad.alertas_altas)}
+                  </p>
                 </div>
 
-                <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Alertas medias</p>
-                  <p className="mt-1 text-lg font-semibold text-amber-700">{num(entidad.alertas_medias)}</p>
+                <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Alertas medias</p>
+                  <p className="mt-0.5 text-[14px] font-semibold leading-4 text-amber-700">
+                    {num(entidad.alertas_medias)}
+                  </p>
                 </div>
 
-                <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Acciones prioritarias</p>
-                  <p className="mt-1 text-lg font-semibold">{num(accionesPrioritarias.length)}</p>
+                <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Acciones prioritarias</p>
+                  <p className="mt-0.5 text-[14px] font-semibold leading-4">
+                    {num(accionesPrioritarias.length)}
+                  </p>
                 </div>
               </div>
             </section>
           </div>
 
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-3 py-2">
-              <h3 className="text-sm font-semibold">Subexpedientes de acción asociados</h3>
-              <p className="text-[11px] text-slate-500">
+          <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-3 py-1.5">
+              <h3 className="text-[14px] font-semibold leading-5">Subexpedientes de acción asociados</h3>
+              <p className="text-[10.5px] leading-4 text-slate-500">
                 Clic en una acción para abrir su subexpediente individual.
               </p>
             </div>
 
-            <div className="max-h-[520px] overflow-auto">
+            <div className="max-h-[640px] overflow-auto">
               <table className="w-full border-collapse text-left text-[11px]">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-2 py-2">Código</th>
-                    <th className="px-2 py-2">Tipo</th>
-                    <th className="px-2 py-2">Especialidad</th>
-                    <th className="px-2 py-2">Denominación</th>
-                    <th className="px-2 py-2">Estado</th>
-                    <th className="px-2 py-2 text-right">Concedido</th>
-                    <th className="px-2 py-2 text-right">Riesgo</th>
+                    <th className="px-2 py-1.5">Código</th>
+                    <th className="px-2 py-1.5">Tipo</th>
+                    <th className="px-2 py-1.5">Especialidad</th>
+                    <th className="px-2 py-1.5">Denominación</th>
+                    <th className="px-2 py-1.5">Estado</th>
+                    <th className="px-2 py-1.5 text-right">Concedido</th>
+                    <th className="px-2 py-1.5 text-right">Riesgo</th>
                   </tr>
                 </thead>
 
@@ -341,21 +353,29 @@ export default function ExpedienteEntidadPage() {
                           if (ofertaId) window.location.href = `/oferta-formativa/${ofertaId}`;
                         }}
                       >
-                        <td className="px-2 py-1.5 font-semibold">{text(row, ["codigo_accion", "codigo_administrativo"])}</td>
-                        <td className="px-2 py-1.5">{text(row, ["tipo_oferta", "tipo", "tipo_accion"])}</td>
-                        <td className="px-2 py-1.5 font-medium">{text(row, ["codigo_especialidad", "especialidad"])}</td>
-                        <td className="max-w-[260px] px-2 py-1.5">
-                          <p className="line-clamp-2">{text(row, ["denominacion", "nombre_accion", "nombre"])}</p>
+                        <td className="px-2 py-1 font-semibold leading-4">
+                          {text(row, ["codigo_accion", "codigo_administrativo"])}
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className="px-2 py-1 leading-4">
+                          {text(row, ["tipo_oferta", "tipo", "tipo_accion"])}
+                        </td>
+                        <td className="px-2 py-1 font-medium leading-4">
+                          {text(row, ["codigo_especialidad", "especialidad"])}
+                        </td>
+                        <td className="max-w-[260px] px-2 py-1">
+                          <p className="line-clamp-1 leading-4">
+                            {text(row, ["denominacion", "nombre_accion", "nombre"])}
+                          </p>
+                        </td>
+                        <td className="px-2 py-1">
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(estado)}`}>
                             {estado}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-right font-medium">
+                        <td className="px-2 py-1 text-right font-medium">
                           {euro(numberValue(row, ["importe_concedido", "importe_total_concedido"]))}
                         </td>
-                        <td className="px-2 py-1.5 text-right font-medium text-red-700">
+                        <td className="px-2 py-1 text-right font-medium text-red-700">
                           {euro(numberValue(row, ["importe_en_riesgo", "riesgo_economico"]))}
                         </td>
                       </tr>

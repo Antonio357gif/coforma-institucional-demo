@@ -124,12 +124,16 @@ function Kpi({
       : "border-slate-200";
 
   return (
-    <div className={`rounded-xl border ${toneClass} bg-white px-3 py-3 shadow-sm`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className={`rounded-lg border ${toneClass} bg-white px-3 py-1.5 shadow-sm`}>
+      <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {labelText}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
+        {detail}
+      </p>
     </div>
   );
 }
@@ -248,8 +252,8 @@ export default function DecisionEconomicaDetallePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
@@ -282,47 +286,13 @@ export default function DecisionEconomicaDetallePage() {
           </div>
 
           <span
-            className={`rounded-full border px-3 py-1 text-[11px] font-semibold shadow-sm ${badgeClass(
+            className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold shadow-sm ${badgeClass(
               decision.prioridad_decision
             )}`}
           >
             Prioridad: {label(decision.prioridad_decision)}
           </span>
         </div>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[1.15fr_0.65fr_1.1fr]">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Entidad beneficiaria
-              </p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-950">
-                {decision.entidad_nombre ?? "—"}
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-500">{decision.cif ?? "—"}</p>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Acción
-              </p>
-              <p className="mt-1 text-base font-semibold text-slate-950">
-                {decision.codigo_accion ?? "—"}
-              </p>
-              <p className="mt-0.5 text-xs text-slate-500">{decision.tipo_oferta ?? "—"}</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Especialidad
-              </p>
-              <p className="mt-1 text-base font-semibold text-slate-950">
-                {decision.codigo_especialidad ?? "—"}
-              </p>
-              <p className="mt-0.5 text-xs text-slate-600">{decision.denominacion ?? "—"}</p>
-            </div>
-          </div>
-        </section>
 
         <section className="grid gap-2 lg:grid-cols-6">
           <Kpi
@@ -367,10 +337,46 @@ export default function DecisionEconomicaDetallePage() {
           />
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-[0.95fr_1.35fr]">
-          <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+          <div className="grid gap-2 lg:grid-cols-[1.05fr_0.55fr_1.05fr] lg:items-center">
+            <div>
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                Entidad beneficiaria
+              </p>
+              <h2 className="mt-0.5 truncate text-[15px] font-semibold leading-5 text-slate-950">
+                {decision.entidad_nombre ?? "—"}
+              </h2>
+              <p className="text-[10.5px] text-slate-500">{decision.cif ?? "—"}</p>
+            </div>
+
+            <div>
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                Acción
+              </p>
+              <p className="mt-0.5 text-[15px] font-semibold leading-5 text-slate-950">
+                {decision.codigo_accion ?? "—"}
+              </p>
+              <p className="text-[10.5px] text-slate-500">{decision.tipo_oferta ?? "—"}</p>
+            </div>
+
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                Especialidad
+              </p>
+              <p className="mt-0.5 text-[14px] font-semibold leading-4 text-slate-950">
+                {decision.codigo_especialidad ?? "—"}
+              </p>
+              <p className="mt-0.5 line-clamp-1 text-[10.5px] leading-4 text-slate-600">
+                {decision.denominacion ?? "—"}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-2 lg:grid-cols-[0.68fr_1.32fr]">
+          <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+            <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado justificación
               </p>
               <span
@@ -382,8 +388,8 @@ export default function DecisionEconomicaDetallePage() {
               </span>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado operativo
               </p>
               <span
@@ -395,8 +401,8 @@ export default function DecisionEconomicaDetallePage() {
               </span>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Nivel de riesgo
               </p>
               <span
@@ -408,22 +414,22 @@ export default function DecisionEconomicaDetallePage() {
               </span>
             </div>
 
-            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Técnico asignado
               </p>
-              <p className="mt-1 text-sm font-semibold text-slate-950">
+              <p className="mt-0.5 text-[12.5px] font-semibold leading-4 text-slate-950">
                 {decision.tecnico_nombre ?? "—"}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">{decision.tecnico_unidad ?? "—"}</p>
+              <p className="text-[10.5px] text-slate-500">{decision.tecnico_unidad ?? "—"}</p>
             </div>
 
-            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Datos de ejecución
               </p>
 
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10.5px] leading-4">
                 <p>
                   Inicio: <strong>{num(decision.alumnos_inicio)}</strong>
                 </p>
@@ -440,93 +446,99 @@ export default function DecisionEconomicaDetallePage() {
             </div>
           </div>
 
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <section className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm leading-6 text-blue-950">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+          <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+            <section className="rounded-md border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] leading-4 text-blue-950">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-blue-700">
                 Lectura para toma de decisiones
               </p>
-              <p className="mt-1">
+              <p className="mt-0.5">
                 Esta ficha concentra la justificación económica del subexpediente, el importe pendiente,
                 el posible riesgo de reintegro, el estado de ejecución, la evidencia documental pendiente
                 y la actuación administrativa sugerida.
               </p>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Decisión recomendada
               </p>
-              <p className="mt-1 text-base font-semibold text-slate-950">
+              <p className="mt-0.5 text-[13px] font-semibold leading-4 text-slate-950">
                 {label(decision.decision_recomendada)}
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
+              <p className="mt-1 line-clamp-3 text-[11px] leading-4 text-slate-700">
                 {decision.motivo_decision ?? "Sin motivo específico registrado."}
               </p>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Actuación sugerida
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
+              <p className="mt-0.5 line-clamp-3 text-[11px] leading-4 text-slate-700">
                 {decision.actuacion_sugerida ?? "Sin actuación sugerida registrada."}
               </p>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+              <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Evidencia administrativa
               </p>
 
-              <div className="mt-2 grid gap-2 md:grid-cols-3">
-                <div className="rounded-lg border border-slate-100 bg-slate-50 p-2">
-                  <p className="text-[10px] text-slate-500">Incidencias abiertas</p>
-                  <p className="text-sm font-semibold">{num(decision.incidencias_abiertas)}</p>
+              <div className="mt-1 grid gap-2 md:grid-cols-3">
+                <div className="rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                  <p className="text-[9.5px] text-slate-500">Incidencias abiertas</p>
+                  <p className="text-[12px] font-semibold leading-4">
+                    {num(decision.incidencias_abiertas)}
+                  </p>
                 </div>
 
-                <div className="rounded-lg border border-slate-100 bg-slate-50 p-2">
-                  <p className="text-[10px] text-slate-500">Requerimientos</p>
-                  <p className="text-sm font-semibold">{num(decision.requerimientos_pendientes)}</p>
+                <div className="rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                  <p className="text-[9.5px] text-slate-500">Requerimientos</p>
+                  <p className="text-[12px] font-semibold leading-4">
+                    {num(decision.requerimientos_pendientes)}
+                  </p>
                 </div>
 
-                <div className="rounded-lg border border-slate-100 bg-slate-50 p-2">
-                  <p className="text-[10px] text-slate-500">Alerta</p>
-                  <p className="text-sm font-semibold">{label(decision.alerta)}</p>
+                <div className="rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                  <p className="text-[9.5px] text-slate-500">Alerta</p>
+                  <p className="truncate text-[12px] font-semibold leading-4">
+                    {label(decision.alerta)}
+                  </p>
                 </div>
               </div>
             </section>
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Link
               href={`/subexpedientes-accion/${decision.oferta_id}`}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
             >
               Ver subexpediente
             </Link>
 
             <Link
               href="/justificacion-economica"
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
             >
               Ver justificación económica
             </Link>
 
             <Link
               href="/decisiones"
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
             >
               Volver a decisiones
             </Link>
 
             <Link
-  href="/acciones"
-  className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
->
-  Ir a acciones administrativas
-</Link>
+              href="/acciones"
+              className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f]"
+            >
+              Ir a acciones administrativas
+            </Link>
           </div>
         </section>
       </section>

@@ -86,12 +86,12 @@ function DataCard({
   detail?: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className="min-h-[68px] rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-0.5 text-sm font-semibold text-slate-950">{value}</p>
-      {detail ? <p className="mt-1 text-xs text-slate-500">{detail}</p> : null}
+      <p className="mt-0.5 text-[15px] font-semibold leading-5 text-slate-950">{value}</p>
+      {detail ? <p className="mt-0.5 text-[10px] leading-3 text-slate-500">{detail}</p> : null}
     </div>
   );
 }
@@ -198,45 +198,47 @@ export default function SubexpedienteAccionPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-2 px-4 py-2">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-4 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link href="/oferta-formativa" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
             ← Volver a oferta formativa
           </Link>
 
-          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(alertaTipificada?.nivel_aplicado ?? accion.prioridad_operativa)}`}>
+          <span className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${badgeClass(alertaTipificada?.nivel_aplicado ?? accion.prioridad_operativa)}`}>
             {alertaTipificada ? `Prioridad ${alertaTipificada.nivel_aplicado}` : accion.prioridad_operativa}
           </span>
         </div>
 
-        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[1.4fr_0.45fr_0.9fr] lg:items-center">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+          <div className="grid gap-2 lg:grid-cols-[1.4fr_0.45fr_0.9fr] lg:items-center">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Entidad beneficiaria
               </p>
               <h2 className="mt-0.5 text-[15px] font-semibold leading-5 text-slate-950">
                 {accion.entidad_nombre}
               </h2>
-              <p className="text-[11px] text-slate-500">{accion.cif}</p>
+              <p className="text-[10px] text-slate-500">{accion.cif}</p>
             </div>
 
             <div className="lg:text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Acción
               </p>
-              <p className="mt-0.5 text-sm font-semibold text-slate-950">{accion.codigo_accion}</p>
-              <p className="text-[11px] text-slate-500">{accion.tipo_oferta}</p>
+              <p className="mt-0.5 text-[13px] font-semibold leading-5 text-slate-950">
+                {accion.codigo_accion}
+              </p>
+              <p className="text-[10px] text-slate-500">{accion.tipo_oferta}</p>
             </div>
 
-            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Especialidad
               </p>
-              <p className="mt-0.5 text-sm font-semibold text-slate-950">
+              <p className="mt-0.5 text-[13px] font-semibold leading-5 text-slate-950">
                 {accion.codigo_especialidad}
               </p>
-              <p className="truncate text-[11px] text-slate-600">{accion.denominacion}</p>
+              <p className="truncate text-[10px] text-slate-600">{accion.denominacion}</p>
             </div>
           </div>
         </section>
@@ -262,14 +264,14 @@ export default function SubexpedienteAccionPage() {
 
         <section className="grid gap-2 lg:grid-cols-[0.9fr_1.1fr]">
           <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <span className="text-[10px] font-semibold uppercase text-slate-500">Estado ejecución</span>
-                <span className="text-sm font-semibold">{accion.estado_ejecucion}</span>
+            <div className="grid gap-1.5">
+              <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+                <span className="text-[9px] font-semibold uppercase text-slate-500">Estado ejecución</span>
+                <span className="text-[13px] font-semibold">{accion.estado_ejecucion}</span>
               </div>
 
-              <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <span className="text-[10px] font-semibold uppercase text-slate-500">
+              <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+                <span className="text-[9px] font-semibold uppercase text-slate-500">
                   {alertaTipificada ? "Nivel de alerta" : "Nivel de riesgo"}
                 </span>
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(alertaTipificada?.nivel_aplicado ?? accion.nivel_riesgo)}`}>
@@ -277,11 +279,11 @@ export default function SubexpedienteAccionPage() {
                 </span>
               </div>
 
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase text-slate-500">
+              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+                <p className="text-[9px] font-semibold uppercase text-slate-500">
                   {alertaTipificada ? "Alerta tipificada" : "Lectura de riesgo"}
                 </p>
-                <p className="mt-0.5 text-xs leading-5 text-slate-800">
+                <p className="mt-0.5 text-[11px] leading-4 text-slate-800">
                   {alertaTipificada?.tipologia_nombre ?? accion.alerta}
                 </p>
               </div>
@@ -289,18 +291,20 @@ export default function SubexpedienteAccionPage() {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-            <div className="grid gap-2">
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase text-slate-500">Evidencia a revisar</p>
-                <p className="mt-0.5 text-xs leading-5 text-slate-800">{alertaTipificada?.evidencia_requerida ?? accion.evidencia_a_revisar}</p>
+            <div className="grid gap-1.5">
+              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+                <p className="text-[9px] font-semibold uppercase text-slate-500">Evidencia a revisar</p>
+                <p className="mt-0.5 text-[11px] leading-4 text-slate-800">
+                  {alertaTipificada?.evidencia_requerida ?? accion.evidencia_a_revisar}
+                </p>
               </div>
 
-              <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase text-blue-900">Decisión recomendada</p>
-                <p className="mt-0.5 text-xs leading-5 text-blue-950">{accion.decision_recomendada}</p>
+              <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-1.5">
+                <p className="text-[9px] font-semibold uppercase text-blue-900">Decisión recomendada</p>
+                <p className="mt-0.5 text-[11px] leading-4 text-blue-950">{accion.decision_recomendada}</p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 pt-0.5">
                 <Link
                   href="/justificacion-economica"
                   className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f]"

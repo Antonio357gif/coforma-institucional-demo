@@ -121,12 +121,12 @@ function Kpi({
   detail: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className="min-h-[74px] rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 text-[18px] font-semibold leading-5 text-slate-950">{value}</p>
+      <p className="mt-0.5 text-[10px] leading-3 text-slate-500">{detail}</p>
     </div>
   );
 }
@@ -203,6 +203,8 @@ function ActuacionesEmitidasPageContent() {
   const [canalFiltro, setCanalFiltro] = useState("todos");
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const [seleccionada, setSeleccionada] = useState<ActuacionEmitida | null>(null);
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -278,6 +280,16 @@ function ActuacionesEmitidasPageContent() {
     });
   }, [actuacionesPorEntidad, busqueda, canalFiltro, estadoFiltro]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [busqueda, canalFiltro, estadoFiltro, pageSize, entidadIdParam, cifParam, entidadParam]);
+
+  const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginadas = filtradas.slice(startIndex, endIndex);
+
   const resumen = useMemo(() => {
     return filtradas.reduce(
       (acc, row) => {
@@ -300,6 +312,7 @@ function ActuacionesEmitidasPageContent() {
     setBusqueda("");
     setCanalFiltro("todos");
     setEstadoFiltro("todos");
+    setCurrentPage(1);
   }
 
   if (loading) {
@@ -345,8 +358,8 @@ function ActuacionesEmitidasPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-2 px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               ← Volver al dashboard
@@ -370,7 +383,7 @@ function ActuacionesEmitidasPageContent() {
         </section>
 
         {tieneFiltroEntidad ? (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+          <section className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
             <div>
               <p className="font-semibold">Filtro activo por entidad beneficiaria</p>
               <p className="mt-0.5">
@@ -388,28 +401,28 @@ function ActuacionesEmitidasPageContent() {
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.25fr_0.8fr_0.8fr_auto]">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Entidad, CIF, actuación, acción, técnico, canal, estado..."
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Canal
               </label>
               <select
                 value={canalFiltro}
                 onChange={(event) => setCanalFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {canales.map((canal) => (
@@ -421,13 +434,13 @@ function ActuacionesEmitidasPageContent() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado canal
               </label>
               <select
                 value={estadoFiltro}
                 onChange={(event) => setEstadoFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {estadosCanal.map((estado) => (
@@ -442,7 +455,7 @@ function ActuacionesEmitidasPageContent() {
               <button
                 type="button"
                 onClick={limpiarFiltros}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>
@@ -451,11 +464,47 @@ function ActuacionesEmitidasPageContent() {
         </section>
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-3 py-2">
-            <h2 className="text-sm font-semibold">Registro técnico de actuaciones emitidas</h2>
-            <p className="text-[11px] text-slate-500">
-              Cada registro representa una actuación administrativa emitida por un técnico y preparada para canal institucional.
-            </p>
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Registro técnico de actuaciones emitidas</h2>
+              <p className="text-[11px] text-slate-500">
+                Cada registro representa una actuación administrativa emitida por un técnico y preparada para canal institucional.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+              <span className="font-semibold">
+                Página {num(safeCurrentPage)} de {num(totalPages)}
+              </span>
+
+              <select
+                value={pageSize}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+                className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none"
+              >
+                <option value={25}>25 filas</option>
+                <option value={50}>50 filas</option>
+                <option value={100}>100 filas</option>
+              </select>
+
+              <button
+                type="button"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Anterior
+              </button>
+
+              <button
+                type="button"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Siguiente
+              </button>
+            </div>
           </div>
 
           <div className="max-h-[610px] overflow-auto">
@@ -475,49 +524,49 @@ function ActuacionesEmitidasPageContent() {
               </thead>
 
               <tbody>
-                {filtradas.map((row) => (
+                {paginadas.map((row) => (
                   <tr key={row.id} className="border-t border-slate-100 hover:bg-blue-50">
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.tipo_actuacion}</p>
-                      <p className="text-[10px] text-slate-500">{row.asunto}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.tipo_actuacion}</p>
+                      <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{row.asunto}</p>
                       <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.prioridad)}`}>
                         {row.prioridad}
                       </span>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.entidad_nombre ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.cif ?? "—"}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-500">
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.entidad_nombre ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.cif ?? "—"}</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
                         {row.codigo_accion ?? "—"} · {row.codigo_especialidad ?? "—"} · {row.tipo_oferta ?? "—"}
                       </p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.tecnico_nombre ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.tecnico_unidad ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.tecnico_email ?? "—"}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.tecnico_nombre ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.tecnico_unidad ?? "—"}</p>
+                      <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{row.tecnico_email ?? "—"}</p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold">{canalLabel(row.canal_comunicacion)}</p>
-                      <p className="text-[10px] text-slate-500">API bidireccional prevista</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4">{canalLabel(row.canal_comunicacion)}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">API bidireccional prevista</p>
                     </td>
 
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1">
                       <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.estado_canal)}`}>
                         {estadoCanalLabel(row.estado_canal)}
                       </span>
                     </td>
 
-                    <td className="px-2 py-1.5">{fecha(row.fecha_emision)}</td>
-                    <td className="px-2 py-1.5">{fechaCorta(row.fecha_limite_respuesta)}</td>
+                    <td className="px-2 py-1 text-[10px] leading-4">{fecha(row.fecha_emision)}</td>
+                    <td className="px-2 py-1 text-[10px] leading-4">{fechaCorta(row.fecha_limite_respuesta)}</td>
 
-                    <td className="px-2 py-1.5 text-right font-semibold text-red-700">
+                    <td className="px-2 py-1 text-right font-semibold text-red-700">
                       {euro(row.importe_en_riesgo)}
                     </td>
 
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1">
                       <div className="flex flex-col gap-1">
                         <Link
                           href={`/actuaciones-emitidas/${row.id}`}
@@ -537,7 +586,7 @@ function ActuacionesEmitidasPageContent() {
                   </tr>
                 ))}
 
-                {filtradas.length === 0 ? (
+                {paginadas.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-3 py-8 text-center text-xs text-slate-500">
                       No hay actuaciones emitidas que coincidan con los filtros aplicados.
@@ -553,72 +602,72 @@ function ActuacionesEmitidasPageContent() {
       {seleccionada ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
           <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-4 text-white">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
                 Detalle de actuación emitida
               </p>
-              <h2 className="mt-1 text-lg font-semibold">{seleccionada.tipo_actuacion}</h2>
-              <p className="mt-0.5 text-xs text-blue-100">
+              <h2 className="mt-0.5 text-base font-semibold">{seleccionada.tipo_actuacion}</h2>
+              <p className="mt-0.5 text-[11px] text-blue-100">
                 {seleccionada.entidad_nombre} · {seleccionada.codigo_accion} · {seleccionada.codigo_especialidad}
               </p>
             </div>
 
-            <div className="space-y-3 p-5">
-              <div className="grid gap-3 md:grid-cols-5">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Estado</p>
-                  <p className="mt-1 text-sm font-semibold">{seleccionada.estado}</p>
+            <div className="space-y-2 p-3">
+              <div className="grid gap-2 md:grid-cols-5">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Estado</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.estado}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Técnico</p>
-                  <p className="mt-1 text-sm font-semibold">{seleccionada.tecnico_nombre ?? "—"}</p>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Técnico</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.tecnico_nombre ?? "—"}</p>
                   <p className="text-[10px] text-slate-500">{seleccionada.tecnico_unidad ?? "—"}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Canal</p>
-                  <p className="mt-1 text-sm font-semibold">{canalLabel(seleccionada.canal_comunicacion)}</p>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Canal</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{canalLabel(seleccionada.canal_comunicacion)}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Estado canal</p>
-                  <p className="mt-1 text-sm font-semibold">{estadoCanalLabel(seleccionada.estado_canal)}</p>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Estado canal</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{estadoCanalLabel(seleccionada.estado_canal)}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Referencia externa</p>
-                  <p className="mt-1 text-sm font-semibold">{seleccionada.referencia_externa ?? "Pendiente"}</p>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Referencia externa</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.referencia_externa ?? "Pendiente"}</p>
                 </div>
               </div>
 
-              <section className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-950">
+              <section className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] leading-5 text-blue-950">
                 <p className="font-semibold">Lectura de canal institucional</p>
-                <p className="mt-1">
+                <p className="mt-0.5">
                   Esta actuación está registrada en bandeja institucional demo. En fase real, este registro puede actuar
                   como origen de comunicación mediante API bidireccional, sede electrónica, carpeta de entidad o canal oficial
                   que determine la Administración.
                 </p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Asunto</p>
-                <p className="mt-1 text-sm font-semibold">{seleccionada.asunto}</p>
+              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Asunto</p>
+                <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.asunto}</p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mensaje emitido</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{seleccionada.mensaje}</p>
+              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Mensaje emitido</p>
+                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">{seleccionada.mensaje}</p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Evidencia requerida</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Evidencia requerida</p>
+                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">
                   {seleccionada.evidencia_requerida ?? "—"}
                 </p>
               </section>
 
-              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
                 <Link
                   href={`/subexpedientes-accion/${seleccionada.oferta_id}`}
                   className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"

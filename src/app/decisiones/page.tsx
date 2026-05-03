@@ -125,12 +125,16 @@ function Kpi({
   detail: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+      <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {labelText}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
+        {detail}
+      </p>
     </div>
   );
 }
@@ -329,8 +333,8 @@ function DecisionesPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               ← Volver al dashboard
@@ -343,7 +347,7 @@ function DecisionesPageContent() {
             </Link>
           </div>
 
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">
             Decisión basada en justificación económica
           </span>
         </div>
@@ -358,10 +362,10 @@ function DecisionesPageContent() {
         </section>
 
         {tieneFiltroOferta ? (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+          <section className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs text-blue-950 shadow-sm">
             <div>
-              <p className="font-semibold">Filtro activo por subexpediente</p>
-              <p className="mt-0.5">
+              <p className="font-semibold leading-4">Filtro activo por subexpediente</p>
+              <p className="mt-0.5 leading-4">
                 {ofertaFiltrada?.entidad_nombre ?? "Subexpediente seleccionado"}
                 {ofertaFiltrada?.cif ? ` · ${ofertaFiltrada.cif}` : ""}
                 {ofertaFiltrada?.codigo_accion ? ` · ${ofertaFiltrada.codigo_accion}` : ""}
@@ -371,35 +375,35 @@ function DecisionesPageContent() {
 
             <Link
               href="/decisiones"
-              className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
+              className="rounded-md border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
             >
-              Ver todas las decisiones
+              Ver todas
             </Link>
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.15fr_0.8fr_0.65fr_0.75fr_auto]">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Entidad, CIF, acción, decisión, motivo, técnico..."
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Decisión
               </label>
               <select
                 value={decisionFiltro}
                 onChange={(event) => setDecisionFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {decisiones.map((decision) => (
@@ -411,13 +415,13 @@ function DecisionesPageContent() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Prioridad
               </label>
               <select
                 value={prioridadFiltro}
                 onChange={(event) => setPrioridadFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {prioridades.map((prioridad) => (
@@ -429,13 +433,13 @@ function DecisionesPageContent() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado
               </label>
               <select
                 value={estadoFiltro}
                 onChange={(event) => setEstadoFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {estados.map((estado) => (
@@ -450,7 +454,7 @@ function DecisionesPageContent() {
               <button
                 type="button"
                 onClick={limpiarFiltros}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>
@@ -458,16 +462,16 @@ function DecisionesPageContent() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-1.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-sm font-semibold">Mesa de decisiones por subexpediente</h2>
-              <p className="text-[11px] text-slate-500">
-                La decisión se apoya en justificación económica, riesgo, estado del subexpediente y documentación pendiente.
+              <h2 className="text-[14px] font-semibold leading-5">Mesa de decisiones por subexpediente</h2>
+              <p className="text-[10.5px] leading-4 text-slate-500">
+                Decisión apoyada en justificación económica, riesgo, estado del subexpediente y documentación pendiente.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+            <div className="flex flex-wrap items-center gap-2 text-[10.5px] text-slate-600">
               <span className="font-semibold">
                 Página {safeCurrentPage} de {totalPages}
               </span>
@@ -475,7 +479,7 @@ function DecisionesPageContent() {
               <select
                 value={pageSize}
                 onChange={(event) => setPageSize(Number(event.target.value))}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-[10.5px] font-semibold outline-none"
               >
                 <option value={25}>25 filas</option>
                 <option value={50}>50 filas</option>
@@ -486,7 +490,7 @@ function DecisionesPageContent() {
                 type="button"
                 disabled={safeCurrentPage <= 1}
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 disabled:opacity-40"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10.5px] font-semibold text-slate-700 disabled:opacity-40"
               >
                 Anterior
               </button>
@@ -495,31 +499,31 @@ function DecisionesPageContent() {
                 type="button"
                 disabled={safeCurrentPage >= totalPages}
                 onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 disabled:opacity-40"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10.5px] font-semibold text-slate-700 disabled:opacity-40"
               >
                 Siguiente
               </button>
             </div>
           </div>
 
-          <div className="max-h-[500px] overflow-auto">
+          <div className="max-h-[620px] overflow-auto">
             <table className="w-full border-collapse text-left text-[11px]">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-2 py-2">Prioridad</th>
-                  <th className="px-2 py-2">Entidad / acción</th>
-                  <th className="px-2 py-2">Base económica</th>
-                  <th className="px-2 py-2">Decisión</th>
-                  <th className="px-2 py-2">Motivo</th>
-                  <th className="px-2 py-2">Técnico</th>
-                  <th className="px-2 py-2">Opciones</th>
+                  <th className="px-2 py-1.5">Prioridad</th>
+                  <th className="px-2 py-1.5">Entidad / acción</th>
+                  <th className="px-2 py-1.5">Base económica</th>
+                  <th className="px-2 py-1.5">Decisión</th>
+                  <th className="px-2 py-1.5">Motivo</th>
+                  <th className="px-2 py-1.5">Técnico</th>
+                  <th className="px-2 py-1.5">Opciones</th>
                 </tr>
               </thead>
 
               <tbody>
                 {paginadas.map((row) => (
                   <tr key={row.id} className="border-t border-slate-100 hover:bg-blue-50">
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1">
                       <span
                         className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
                           row.prioridad_decision
@@ -527,72 +531,72 @@ function DecisionesPageContent() {
                       >
                         {label(row.prioridad_decision)}
                       </span>
-                      <p className="mt-1 text-[10px] text-slate-500">
+                      <p className="mt-1 text-[10px] leading-4 text-slate-500">
                         {label(row.estado_justificacion)}
                       </p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.entidad_nombre ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.cif ?? "—"}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-500">
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.entidad_nombre ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.cif ?? "—"}</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
                         {row.codigo_accion ?? "—"} · {row.codigo_especialidad ?? "—"} · {row.tipo_oferta ?? "—"}
                       </p>
-                      <p className="mt-0.5 max-w-[320px] truncate text-[10px] text-slate-500">
+                      <p className="mt-0.5 max-w-[300px] truncate text-[10px] leading-4 text-slate-500">
                         {row.denominacion ?? "—"}
                       </p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="text-[10px] text-slate-500">
+                    <td className="px-2 py-1">
+                      <p className="text-[10px] leading-4 text-slate-500">
                         Concedido: <strong>{euro(row.importe_concedido)}</strong>
                       </p>
-                      <p className="text-[10px] text-emerald-700">
+                      <p className="text-[10px] leading-4 text-emerald-700">
                         Justificado: <strong>{euro(row.importe_justificado)}</strong>
                       </p>
-                      <p className="text-[10px] text-amber-700">
+                      <p className="text-[10px] leading-4 text-amber-700">
                         Pendiente: <strong>{euro(row.importe_pendiente_justificar)}</strong>
                       </p>
-                      <p className="text-[10px] text-red-700">
+                      <p className="text-[10px] leading-4 text-red-700">
                         Riesgo: <strong>{euro(row.importe_en_riesgo)}</strong>
                       </p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{label(row.decision_recomendada)}</p>
-                      <p className="text-[10px] text-slate-500">{row.estado_ejecucion ?? "—"}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{label(row.decision_recomendada)}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.estado_ejecucion ?? "—"}</p>
                     </td>
 
-                    <td className="max-w-[240px] px-2 py-1.5">
-                      <p className="line-clamp-3 text-xs leading-5 text-slate-700">
+                    <td className="max-w-[240px] px-2 py-1">
+                      <p className="line-clamp-2 text-[11px] leading-4 text-slate-700">
                         {row.motivo_decision ?? "Sin motivo específico registrado."}
                       </p>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.tecnico_nombre ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.tecnico_unidad ?? "—"}</p>
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.tecnico_nombre ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.tecnico_unidad ?? "—"}</p>
                     </td>
 
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1">
                       <div className="flex flex-col gap-1">
                         <Link
                           href={`/decisiones-economicas/${row.id}`}
-                          className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                          className="rounded-md bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
                         >
                           Ver decisión
                         </Link>
 
                         <Link
                           href={`/subexpedientes-accion/${row.oferta_id}`}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           Subexpediente
                         </Link>
 
                         <Link
                           href={`/acciones/nueva?ofertaId=${row.oferta_id}`}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           Emitir actuación
                         </Link>
@@ -616,94 +620,94 @@ function DecisionesPageContent() {
 
       {seleccionada ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-4 text-white">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
                 Decisión administrativa
               </p>
-              <h2 className="mt-1 text-lg font-semibold">{label(seleccionada.decision_recomendada)}</h2>
-              <p className="mt-0.5 text-xs text-blue-100">
+              <h2 className="mt-0.5 text-base font-semibold">{label(seleccionada.decision_recomendada)}</h2>
+              <p className="mt-0.5 text-[11px] text-blue-100">
                 {seleccionada.entidad_nombre} · {seleccionada.codigo_accion} · {seleccionada.codigo_especialidad}
               </p>
             </div>
 
-            <div className="space-y-3 p-5">
-              <section className="grid gap-3 md:grid-cols-4">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Prioridad</p>
-                  <p className="mt-1 text-sm font-semibold">{label(seleccionada.prioridad_decision)}</p>
+            <div className="space-y-2 p-3">
+              <section className="grid gap-2 md:grid-cols-4">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Prioridad</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{label(seleccionada.prioridad_decision)}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Pendiente justificar</p>
-                  <p className="mt-1 text-sm font-semibold text-amber-700">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Pendiente justificar</p>
+                  <p className="mt-0.5 text-[13px] font-semibold text-amber-700">
                     {euro(seleccionada.importe_pendiente_justificar)}
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Riesgo</p>
-                  <p className="mt-1 text-sm font-semibold text-red-700">{euro(seleccionada.importe_en_riesgo)}</p>
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Riesgo</p>
+                  <p className="mt-0.5 text-[13px] font-semibold text-red-700">{euro(seleccionada.importe_en_riesgo)}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Técnico</p>
-                  <p className="mt-1 text-sm font-semibold">{seleccionada.tecnico_nombre ?? "—"}</p>
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Técnico</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.tecnico_nombre ?? "—"}</p>
                   <p className="text-[10px] text-slate-500">{seleccionada.tecnico_unidad ?? "—"}</p>
                 </div>
               </section>
 
-              <section className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-950">
+              <section className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] leading-5 text-blue-950">
                 <p className="font-semibold">Base para la toma de decisiones</p>
-                <p className="mt-1">
+                <p className="mt-0.5">
                   Esta decisión se apoya en la justificación económica del subexpediente, el importe pendiente,
                   el posible riesgo de reintegro, el estado de ejecución y la evidencia documental pendiente.
                 </p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Motivo de decisión</p>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
+              <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Motivo de decisión</p>
+                <p className="mt-1 text-[12px] leading-5 text-slate-700">
                   {seleccionada.motivo_decision ?? "Sin motivo específico registrado."}
                 </p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Datos de ejecución</p>
-                <div className="mt-2 grid gap-2 md:grid-cols-4">
-                  <p className="text-sm">
+              <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Datos de ejecución</p>
+                <div className="mt-1 grid gap-2 md:grid-cols-4">
+                  <p className="text-[12px]">
                     Inicio: <strong>{num(seleccionada.alumnos_inicio)}</strong>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-[12px]">
                     Activos: <strong>{num(seleccionada.alumnos_activos)}</strong>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-[12px]">
                     Bajas: <strong>{num(seleccionada.bajas)}</strong>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-[12px]">
                     Aptos: <strong>{num(seleccionada.aptos)}</strong>
                   </p>
                 </div>
               </section>
 
-              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
                 <Link
                   href={`/subexpedientes-accion/${seleccionada.oferta_id}`}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Ver subexpediente
                 </Link>
 
                 <Link
                   href={`/justificacion-economica?ofertaId=${seleccionada.oferta_id}`}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Ver justificación
                 </Link>
 
                 <Link
                   href={`/acciones/nueva?ofertaId=${seleccionada.oferta_id}`}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Emitir actuación
                 </Link>
@@ -711,7 +715,7 @@ function DecisionesPageContent() {
                 <button
                   type="button"
                   onClick={() => setSeleccionada(null)}
-                  className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
+                  className="rounded-md bg-[#183B63] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
                 >
                   Cerrar
                 </button>

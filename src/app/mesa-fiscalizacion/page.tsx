@@ -310,14 +310,16 @@ function KpiMini({
         : "text-slate-950";
 
   const card = (
-    <div className={`rounded-lg border ${border} bg-white px-3 py-2 shadow-sm`}>
-      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className={`rounded-lg border ${border} bg-white px-3 py-1.5 shadow-sm`}>
+      <p className="truncate text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className={`mt-0.5 truncate text-[15px] font-semibold leading-5 ${color}`}>
+      <p className={`mt-0.5 truncate text-[14px] font-semibold leading-4 ${color}`}>
         {value}
       </p>
-      <p className="truncate text-[10px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
+        {detail}
+      </p>
     </div>
   );
 
@@ -345,8 +347,8 @@ function ButtonLink({
       onClick={(event) => event.stopPropagation()}
       className={
         variant === "primary"
-          ? "rounded-md bg-[#183B63] px-2.5 py-1.5 text-center text-[11px] font-semibold text-white hover:bg-[#122f4f]"
-          : "rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-center text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+          ? "rounded-md bg-[#183B63] px-2.5 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+          : "rounded-md border border-slate-200 bg-white px-2.5 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
       }
     >
       {children}
@@ -563,8 +565,8 @@ export default function MesaFiscalizacionPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-2 px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               ← Dashboard
@@ -583,7 +585,7 @@ export default function MesaFiscalizacionPage() {
             </Link>
           </div>
 
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
             Entidad → acción → decisión
           </span>
         </div>
@@ -629,37 +631,37 @@ export default function MesaFiscalizacionPage() {
           />
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-[0.82fr_0.86fr_1.32fr]">
+        <section className="grid gap-2 lg:grid-cols-[0.82fr_0.86fr_1.32fr]">
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-3 py-2">
-              <h2 className="text-sm font-semibold">Entidades beneficiarias</h2>
-              <p className="text-[11px] text-slate-500">
+            <div className="border-b border-slate-100 px-3 py-1.5">
+              <h2 className="text-[14px] font-semibold leading-5">Entidades beneficiarias</h2>
+              <p className="text-[10.5px] leading-4 text-slate-500">
                 {num(entidadesFiltradas.length)} de {num(entidades.length)} entidades · revisión institucional
               </p>
               <input
                 value={entitySearch}
                 onChange={(event) => setEntitySearch(event.target.value)}
                 placeholder="Buscar entidad, CIF, isla..."
-                className="mt-2 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-1.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
-            <div className="max-h-[430px] overflow-y-auto overflow-x-hidden">
+            <div className="max-h-[398px] overflow-y-auto overflow-x-hidden">
               {entidadesFiltradas.map((entidad) => (
                 <button
                   key={entidad.entidad_id}
                   type="button"
                   onClick={() => selectEntidad(entidad.entidad_id)}
-                  className={`w-full border-b border-slate-100 px-3 py-2 text-left hover:bg-blue-50 ${
+                  className={`w-full border-b border-slate-100 px-3 py-1.5 text-left hover:bg-blue-50 ${
                     selectedEntidadId === entidad.entidad_id ? "bg-blue-50" : "bg-white"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-[11px] font-semibold text-slate-950">
+                      <p className="truncate text-[11px] font-semibold leading-4 text-slate-950">
                         {entidad.entidad_nombre}
                       </p>
-                      <p className="text-[10px] text-slate-500">{entidad.cif}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{entidad.cif}</p>
                     </div>
 
                     <span
@@ -671,7 +673,7 @@ export default function MesaFiscalizacionPage() {
                     </span>
                   </div>
 
-                  <div className="mt-1 grid grid-cols-[50px_1fr_60px] gap-2 text-[10px]">
+                  <div className="mt-1 grid grid-cols-[48px_1fr_56px] gap-2 text-[10px] leading-4">
                     <div>
                       <span className="text-slate-500">Acc.</span>{" "}
                       <span className="font-semibold">{num(entidad.acciones_concedidas)}</span>
@@ -697,16 +699,16 @@ export default function MesaFiscalizacionPage() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <section className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                   Entidad activa
                 </p>
-                <h2 className="mt-0.5 truncate text-base font-semibold text-slate-950">
+                <h2 className="mt-0.5 truncate text-[15px] font-semibold leading-5 text-slate-950">
                   {selectedEntidad?.entidad_nombre ?? "—"}
                 </h2>
-                <p className="truncate text-[11px] text-slate-500">
+                <p className="truncate text-[10.5px] leading-4 text-slate-500">
                   {selectedEntidad?.cif ?? "—"} · {selectedEntidad?.entidad_isla ?? "Canarias"} ·{" "}
                   {selectedEntidad?.entidad_municipio ?? "varios municipios"}
                 </p>
@@ -721,61 +723,61 @@ export default function MesaFiscalizacionPage() {
               </span>
             </div>
 
-            <p className="mt-2 line-clamp-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-700">
+            <p className="mt-2 line-clamp-3 rounded-lg bg-slate-50 px-3 py-1.5 text-[11px] leading-4 text-slate-700">
               {selectedEntidad?.resumen_operativo ?? "Selecciona una entidad para revisar su situación."}
             </p>
 
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="rounded-lg border border-slate-100 px-3 py-2">
-                <p className="text-[10px] uppercase text-slate-500">Concedido</p>
-                <p className="truncate text-xs font-semibold">
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <div className="rounded-lg border border-slate-100 px-3 py-1.5">
+                <p className="text-[9px] uppercase text-slate-500">Concedido</p>
+                <p className="truncate text-[11px] font-semibold leading-4">
                   {euro(selectedEntidad?.importe_concedido)}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-100 px-3 py-2">
-                <p className="text-[10px] uppercase text-slate-500">Ejecutado</p>
-                <p className="truncate text-xs font-semibold">
+              <div className="rounded-lg border border-slate-100 px-3 py-1.5">
+                <p className="text-[9px] uppercase text-slate-500">Ejecutado</p>
+                <p className="truncate text-[11px] font-semibold leading-4">
                   {euro(selectedEntidad?.importe_ejecutado)}
                 </p>
               </div>
-              <div className="rounded-lg border border-red-100 px-3 py-2">
-                <p className="text-[10px] uppercase text-slate-500">Riesgo</p>
-                <p className="truncate text-xs font-semibold text-red-700">
+              <div className="rounded-lg border border-red-100 px-3 py-1.5">
+                <p className="text-[9px] uppercase text-slate-500">Riesgo</p>
+                <p className="truncate text-[11px] font-semibold leading-4 text-red-700">
                   {euro(selectedEntidad?.importe_en_riesgo)}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-100 px-3 py-2">
-                <p className="text-[10px] uppercase text-slate-500">Alumnado</p>
-                <p className="truncate text-xs font-semibold">
+              <div className="rounded-lg border border-slate-100 px-3 py-1.5">
+                <p className="text-[9px] uppercase text-slate-500">Alumnado</p>
+                <p className="truncate text-[11px] font-semibold leading-4">
                   {num(selectedEntidad?.alumnos_activos)} · {pct(selectedEntidad?.porcentaje_alumnos_activos)}
                 </p>
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {selectedEntidad ? (
                 <Link
                   href={`/entidades/${selectedEntidad.entidad_id}`}
-                  className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Ficha entidad
                 </Link>
               ) : null}
               <Link
                 href={entidadContextHref("/acciones", selectedEntidad)}
-                className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#122f4f]"
+                className="rounded-md bg-[#183B63] px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-[#122f4f]"
               >
                 Acciones
               </Link>
               <Link
                 href={entidadContextHref("/alertas", selectedEntidad)}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Alertas
               </Link>
               <Link
                 href={entidadContextHref("/actuaciones-emitidas", selectedEntidad)}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Emitidas
               </Link>
@@ -783,23 +785,23 @@ export default function MesaFiscalizacionPage() {
           </section>
 
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-2">
+            <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
               <div>
-                <h2 className="text-sm font-semibold">Acciones de la entidad</h2>
-                <p className="text-[11px] text-slate-500">
+                <h2 className="text-[14px] font-semibold leading-5">Acciones de la entidad</h2>
+                <p className="text-[10.5px] leading-4 text-slate-500">
                   {num(accionesEntidad.length)} visibles · alta {num(resumenPrioridadesEntidad.alta)} · media{" "}
                   {num(resumenPrioridadesEntidad.media)} · baja {num(resumenPrioridadesEntidad.baja)} · normal{" "}
                   {num(resumenPrioridadesEntidad.normal)}
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1">
                 {(["todas", "alta", "media", "baja", "normal"] as const).map((filter) => (
                   <button
                     key={filter}
                     type="button"
                     onClick={() => setPriorityFilter(filter)}
-                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
                       priorityFilter === filter
                         ? "border-blue-400 bg-blue-50 text-blue-800"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -811,15 +813,15 @@ export default function MesaFiscalizacionPage() {
               </div>
             </div>
 
-            <div className="max-h-[430px] overflow-auto">
+            <div className="max-h-[398px] overflow-auto">
               <table className="w-full border-collapse text-left text-[11px]">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="w-[105px] px-2 py-2">Acción</th>
-                    <th className="px-2 py-2">Especialidad</th>
-                    <th className="w-[95px] px-2 py-2 text-right">Riesgo</th>
-                    <th className="w-[70px] px-2 py-2">Prior.</th>
-                    <th className="w-[86px] px-2 py-2">Operar</th>
+                    <th className="w-[100px] px-2 py-1.5">Acción</th>
+                    <th className="px-2 py-1.5">Especialidad</th>
+                    <th className="w-[92px] px-2 py-1.5 text-right">Riesgo</th>
+                    <th className="w-[66px] px-2 py-1.5">Prior.</th>
+                    <th className="w-[82px] px-2 py-1.5">Operar</th>
                   </tr>
                 </thead>
 
@@ -832,18 +834,18 @@ export default function MesaFiscalizacionPage() {
                         selectedOfertaId === accion.oferta_id ? "bg-blue-50" : ""
                       }`}
                     >
-                      <td className="px-2 py-1.5 align-top">
-                        <p className="font-semibold text-slate-950">{accion.codigo_accion}</p>
-                        <p className="text-[10px] text-slate-500">{accion.tipo_oferta}</p>
+                      <td className="px-2 py-1 align-top">
+                        <p className="font-semibold leading-4 text-slate-950">{accion.codigo_accion}</p>
+                        <p className="text-[10px] leading-4 text-slate-500">{accion.tipo_oferta}</p>
                       </td>
-                      <td className="px-2 py-1.5 align-top">
-                        <p className="font-medium">{accion.codigo_especialidad}</p>
-                        <p className="line-clamp-1 text-[10px] text-slate-500">{accion.denominacion}</p>
+                      <td className="px-2 py-1 align-top">
+                        <p className="font-medium leading-4">{accion.codigo_especialidad}</p>
+                        <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{accion.denominacion}</p>
                       </td>
-                      <td className="px-2 py-1.5 text-right align-top font-semibold text-red-700">
+                      <td className="px-2 py-1 text-right align-top font-semibold text-red-700">
                         {euro(accion.importe_en_riesgo)}
                       </td>
-                      <td className="px-2 py-1.5 align-top">
+                      <td className="px-2 py-1 align-top">
                         <span
                           className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${priorityClass(
                             accion.prioridad_operativa
@@ -852,7 +854,7 @@ export default function MesaFiscalizacionPage() {
                           {priorityLabel(accion.prioridad_operativa)}
                         </span>
                       </td>
-                      <td className="px-2 py-1.5 align-top">
+                      <td className="px-2 py-1 align-top">
                         <div className="flex flex-col gap-1">
                           <ButtonLink href={subexpedienteHref(accion.oferta_id)} variant="primary">
                             Subexp.
@@ -878,25 +880,25 @@ export default function MesaFiscalizacionPage() {
           </section>
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="grid gap-2 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                   Panel de decisión de la acción seleccionada
                 </p>
-                <h2 className="mt-0.5 truncate text-base font-semibold">
+                <h2 className="mt-0.5 truncate text-[15px] font-semibold leading-5">
                   {selectedAccion
                     ? `${selectedAccion.codigo_accion} · ${selectedAccion.codigo_especialidad}`
                     : "Sin acción seleccionada"}
                 </h2>
-                <p className="line-clamp-2 text-xs text-slate-600">
+                <p className="line-clamp-1 text-[11px] leading-4 text-slate-600">
                   {selectedAccion?.denominacion ?? "Selecciona una acción para revisar trazabilidad."}
                 </p>
               </div>
 
               <span
-                className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${priorityClass(
+                className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${priorityClass(
                   selectedAccion?.prioridad_operativa
                 )}`}
               >
@@ -904,57 +906,57 @@ export default function MesaFiscalizacionPage() {
               </span>
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-4">
-              <div className="rounded-lg border border-slate-100 px-3 py-2">
-                <p className="text-[10px] uppercase text-slate-500">Concedido</p>
-                <p className="truncate text-xs font-semibold">{euro(selectedAccion?.importe_concedido)}</p>
+            <div className="mt-2 grid gap-1.5 sm:grid-cols-4">
+              <div className="rounded-lg border border-slate-100 px-3 py-1.5">
+                <p className="text-[9px] uppercase text-slate-500">Concedido</p>
+                <p className="truncate text-[11px] font-semibold leading-4">{euro(selectedAccion?.importe_concedido)}</p>
               </div>
-              <div className="rounded-lg border border-red-100 px-3 py-2">
-                <p className="text-[10px] uppercase text-slate-500">Riesgo</p>
-                <p className="truncate text-xs font-semibold text-red-700">
+              <div className="rounded-lg border border-red-100 px-3 py-1.5">
+                <p className="text-[9px] uppercase text-slate-500">Riesgo</p>
+                <p className="truncate text-[11px] font-semibold leading-4 text-red-700">
                   {euro(selectedAccion?.importe_en_riesgo)}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-100 px-3 py-2">
-                <p className="text-[10px] uppercase text-slate-500">Bajas</p>
-                <p className="truncate text-xs font-semibold">
+              <div className="rounded-lg border border-slate-100 px-3 py-1.5">
+                <p className="text-[9px] uppercase text-slate-500">Bajas</p>
+                <p className="truncate text-[11px] font-semibold leading-4">
                   {num(selectedAccion?.bajas)} · {pct(selectedAccion?.porcentaje_bajas)}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-100 px-3 py-2">
-                <p className="text-[10px] uppercase text-slate-500">Estado</p>
-                <p className="truncate text-xs font-semibold">{selectedAccion?.estado_ejecucion ?? "—"}</p>
+              <div className="rounded-lg border border-slate-100 px-3 py-1.5">
+                <p className="text-[9px] uppercase text-slate-500">Estado</p>
+                <p className="truncate text-[11px] font-semibold leading-4">{selectedAccion?.estado_ejecucion ?? "—"}</p>
               </div>
             </div>
 
-            <div className="mt-3 grid gap-2 lg:grid-cols-3">
+            <div className="mt-2 grid gap-1.5 lg:grid-cols-3">
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase text-slate-500">
+                <p className="text-[9px] font-semibold uppercase text-slate-500">
                   Decisión recomendada
                 </p>
-                <p className="mt-1 line-clamp-4 text-xs leading-5 text-slate-700">
+                <p className="mt-1 line-clamp-3 text-[11px] leading-4 text-slate-700">
                   {selectedAccion?.decision_recomendada ?? "—"}
                 </p>
               </div>
 
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase text-slate-500">
+                <p className="text-[9px] font-semibold uppercase text-slate-500">
                   Evidencia a revisar
                 </p>
-                <p className="mt-1 line-clamp-4 text-xs leading-5 text-slate-700">
+                <p className="mt-1 line-clamp-3 text-[11px] leading-4 text-slate-700">
                   {selectedAccion?.evidencia_a_revisar ?? "—"}
                 </p>
               </div>
 
               <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-900">
-                <p className="text-[10px] font-semibold uppercase">Trazabilidad</p>
-                <p className="mt-1 line-clamp-4 text-xs leading-5">
+                <p className="text-[9px] font-semibold uppercase">Trazabilidad</p>
+                <p className="mt-1 line-clamp-3 text-[11px] leading-4">
                   {selectedAccion?.lectura_institucional ?? "—"}
                 </p>
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap justify-end gap-2">
+            <div className="mt-2 flex flex-wrap justify-end gap-1.5">
               <ButtonLink href={justificacionHref(selectedAccion?.oferta_id)}>
                 Justificación
               </ButtonLink>
@@ -971,39 +973,39 @@ export default function MesaFiscalizacionPage() {
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-2">
+            <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
               <div>
-                <h2 className="text-sm font-semibold">Carga administrativa global por decisión</h2>
-                <p className="text-[11px] text-slate-500">
+                <h2 className="text-[14px] font-semibold leading-5">Carga administrativa global por decisión</h2>
+                <p className="text-[10.5px] leading-4 text-slate-500">
                   Resumen global de decisiones de toda la resolución.
                 </p>
               </div>
 
               <Link
                 href={decisionesHref(selectedAccion?.oferta_id)}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Ver decisión seleccionada
               </Link>
             </div>
 
-            <div className="grid gap-2 p-3 sm:grid-cols-2">
+            <div className="grid gap-1.5 p-2.5 sm:grid-cols-2">
               {decisiones.map((decision) => (
                 <div
                   key={`${decision.decision_recomendada}-${decision.prioridad_operativa}`}
                   className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
                 >
-                  <p className="line-clamp-2 text-xs font-semibold text-slate-900">
+                  <p className="line-clamp-2 text-[11px] font-semibold leading-4 text-slate-900">
                     {decision.decision_recomendada}
                   </p>
-                  <div className="mt-2 flex items-end justify-between gap-2">
+                  <div className="mt-1.5 flex items-end justify-between gap-2">
                     <div>
-                      <p className="text-lg font-semibold leading-6">{num(decision.acciones)}</p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[16px] font-semibold leading-5">{num(decision.acciones)}</p>
+                      <p className="text-[10.5px] leading-4 text-slate-500">
                         {num(decision.entidades_afectadas)} entidades
                       </p>
                     </div>
-                    <p className="text-right text-[11px] font-semibold text-red-700">
+                    <p className="text-right text-[10.5px] font-semibold leading-4 text-red-700">
                       {euro(decision.importe_en_riesgo)}
                     </p>
                   </div>
@@ -1013,7 +1015,7 @@ export default function MesaFiscalizacionPage() {
           </section>
         </section>
 
-        <footer className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 shadow-sm">
+        <footer className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] leading-4 text-slate-600 shadow-sm">
           <p className="font-semibold text-slate-800">Trazabilidad general</p>
           <p className="mt-0.5">{resumen.nota_trazabilidad}</p>
         </footer>

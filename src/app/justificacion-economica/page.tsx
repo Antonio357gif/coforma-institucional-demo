@@ -145,14 +145,16 @@ function Kpi({
   href?: string;
 }) {
   const card = (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
-      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
+      <p className="truncate text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {labelText}
       </p>
-      <p className="mt-0.5 truncate text-lg font-semibold leading-6 text-slate-950">
+      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
         {value}
       </p>
-      <p className="truncate text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
+        {detail}
+      </p>
     </div>
   );
 
@@ -478,8 +480,8 @@ function JustificacionEconomicaPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               ← Volver al dashboard
@@ -492,45 +494,45 @@ function JustificacionEconomicaPageContent() {
             </Link>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {soloPendientesJustificar ? (
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800 shadow-sm">
-                Filtro activo: finalizadas pendientes de justificación
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-800 shadow-sm">
+                Pendiente justificar
               </span>
             ) : null}
 
             {operativoFiltro !== "todos" && !soloPendientesJustificar ? (
-              <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-800 shadow-sm">
-                Filtro operativo: {label(operativoFiltro)}
+              <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-800 shadow-sm">
+                {label(operativoFiltro)}
               </span>
             ) : null}
 
             {importeFiltro === "ejecutado" ? (
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm">
-                Filtro activo: importe ejecutado mayor que cero
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm">
+                Ejecutado &gt; 0
               </span>
             ) : null}
 
             {importeFiltro === "justificado" ? (
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm">
-                Filtro activo: importe justificado mayor que cero
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm">
+                Justificado &gt; 0
               </span>
             ) : null}
 
             {revisionFiltro ? (
-              <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-800 shadow-sm">
-                Filtro activo: sujeto a revisión
+              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-semibold text-red-800 shadow-sm">
+                Sujeto a revisión
               </span>
             ) : null}
 
             {prioridadFiltro !== "todos" ? (
-              <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-800 shadow-sm">
+              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-semibold text-red-800 shadow-sm">
                 Prioridad: {label(prioridadFiltro)}
               </span>
             ) : null}
 
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-              Justificación económica · toma de decisiones
+            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
+              Justificación económica
             </span>
           </div>
         </div>
@@ -575,10 +577,10 @@ function JustificacionEconomicaPageContent() {
         </section>
 
         {tieneFiltroOferta ? (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+          <section className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] text-blue-950 shadow-sm">
             <div>
-              <p className="font-semibold">Filtro activo por subexpediente</p>
-              <p className="mt-0.5">
+              <p className="font-semibold leading-4">Filtro activo por subexpediente</p>
+              <p className="mt-0.5 leading-4">
                 {ofertaActiva
                   ? `${ofertaActiva.entidad_nombre ?? "Entidad no informada"} · ${
                       ofertaActiva.cif ?? "CIF no informado"
@@ -591,35 +593,35 @@ function JustificacionEconomicaPageContent() {
 
             <Link
               href="/justificacion-economica"
-              className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
+              className="rounded-md border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
             >
               Ver toda la justificación
             </Link>
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.2fr_0.7fr_0.7fr_0.7fr_0.6fr_auto_auto_auto_auto]">
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Entidad, CIF, acción, especialidad, decisión, técnico..."
-                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado justificación
               </label>
               <select
                 value={estadoFiltro}
                 onChange={(event) => setEstadoFiltro(event.target.value)}
-                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {estados.map((estado) => (
@@ -631,7 +633,7 @@ function JustificacionEconomicaPageContent() {
             </div>
 
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Estado operativo
               </label>
               <select
@@ -641,7 +643,7 @@ function JustificacionEconomicaPageContent() {
                   setOperativoFiltro(value);
                   setSoloPendientesJustificar(value === "finalizada_pendiente_justificacion");
                 }}
-                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
                 {operativos.map((operativo) => (
@@ -653,13 +655,13 @@ function JustificacionEconomicaPageContent() {
             </div>
 
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Decisión
               </label>
               <select
                 value={decisionFiltro}
                 onChange={(event) => setDecisionFiltro(event.target.value)}
-                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {decisiones.map((decision) => (
@@ -671,13 +673,13 @@ function JustificacionEconomicaPageContent() {
             </div>
 
             <div>
-              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Prioridad
               </label>
               <select
                 value={prioridadFiltro}
                 onChange={(event) => setPrioridadFiltro(event.target.value)}
-                className="mt-1 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {prioridades.map((prioridad) => (
@@ -700,8 +702,8 @@ function JustificacionEconomicaPageContent() {
                 }}
                 className={
                   soloPendientesJustificar
-                    ? "h-7 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
-                    : "h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    ? "h-7 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-100"
+                    : "h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
                 Pend. justificar
@@ -714,8 +716,8 @@ function JustificacionEconomicaPageContent() {
                 onClick={() => setImporteFiltro((prev) => (prev === "ejecutado" ? "todos" : "ejecutado"))}
                 className={
                   importeFiltro === "ejecutado"
-                    ? "h-7 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
-                    : "h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    ? "h-7 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                    : "h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
                 Ejecutado
@@ -728,8 +730,8 @@ function JustificacionEconomicaPageContent() {
                 onClick={() => setRevisionFiltro((prev) => !prev)}
                 className={
                   revisionFiltro
-                    ? "h-7 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-semibold text-red-800 hover:bg-red-100"
-                    : "h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    ? "h-7 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[10px] font-semibold text-red-800 hover:bg-red-100"
+                    : "h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
                 Revisión
@@ -740,7 +742,7 @@ function JustificacionEconomicaPageContent() {
               <button
                 type="button"
                 onClick={limpiarFiltros}
-                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>
@@ -748,16 +750,16 @@ function JustificacionEconomicaPageContent() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-1.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-sm font-semibold">Control de justificación por subexpediente</h2>
-              <p className="text-[11px] text-slate-500">
-                Cada fila permite ver el dinero concedido, ejecutado, justificado, pendiente, riesgo y decisión recomendada.
+              <h2 className="text-[14px] font-semibold leading-5">Control de justificación por subexpediente</h2>
+              <p className="text-[10.5px] leading-4 text-slate-500">
+                Dinero concedido, ejecutado, justificado, pendiente, riesgo y decisión recomendada.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+            <div className="flex flex-wrap items-center gap-2 text-[10.5px] text-slate-600">
               <span className="font-semibold">
                 Página {safeCurrentPage} de {totalPages}
               </span>
@@ -765,7 +767,7 @@ function JustificacionEconomicaPageContent() {
               <select
                 value={pageSize}
                 onChange={(event) => setPageSize(Number(event.target.value))}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-[10.5px] font-semibold outline-none"
               >
                 <option value={25}>25 filas</option>
                 <option value={50}>50 filas</option>
@@ -776,7 +778,7 @@ function JustificacionEconomicaPageContent() {
                 type="button"
                 disabled={safeCurrentPage <= 1}
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 disabled:opacity-40"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10.5px] font-semibold text-slate-700 disabled:opacity-40"
               >
                 Anterior
               </button>
@@ -785,50 +787,50 @@ function JustificacionEconomicaPageContent() {
                 type="button"
                 disabled={safeCurrentPage >= totalPages}
                 onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 disabled:opacity-40"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10.5px] font-semibold text-slate-700 disabled:opacity-40"
               >
                 Siguiente
               </button>
             </div>
           </div>
 
-          <div className="max-h-[500px] overflow-auto">
+          <div className="max-h-[620px] overflow-auto">
             <table className="w-full border-collapse text-left text-[11px]">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-2 py-2">Entidad / acción</th>
-                  <th className="px-2 py-2 text-right">Concedido</th>
-                  <th className="px-2 py-2 text-right">Ejecutado</th>
-                  <th className="px-2 py-2 text-right">Justificado</th>
-                  <th className="px-2 py-2 text-right">Pendiente</th>
-                  <th className="px-2 py-2 text-right">Riesgo</th>
-                  <th className="px-2 py-2">Estado</th>
-                  <th className="px-2 py-2">Decisión</th>
-                  <th className="px-2 py-2">Opciones</th>
+                  <th className="px-2 py-1.5">Entidad / acción</th>
+                  <th className="px-2 py-1.5 text-right">Concedido</th>
+                  <th className="px-2 py-1.5 text-right">Ejecutado</th>
+                  <th className="px-2 py-1.5 text-right">Justificado</th>
+                  <th className="px-2 py-1.5 text-right">Pendiente</th>
+                  <th className="px-2 py-1.5 text-right">Riesgo</th>
+                  <th className="px-2 py-1.5">Estado</th>
+                  <th className="px-2 py-1.5">Decisión</th>
+                  <th className="px-2 py-1.5">Opciones</th>
                 </tr>
               </thead>
 
               <tbody>
                 {paginadas.map((row) => (
                   <tr key={row.id} className="border-t border-slate-100 hover:bg-blue-50">
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{row.entidad_nombre ?? "—"}</p>
-                      <p className="text-[10px] text-slate-500">{row.cif ?? "—"}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-500">
+                    <td className="px-2 py-1">
+                      <p className="font-semibold leading-4 text-slate-950">{row.entidad_nombre ?? "—"}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{row.cif ?? "—"}</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
                         {row.codigo_accion ?? "—"} · {row.codigo_especialidad ?? "—"} · {row.tipo_oferta ?? "—"}
                       </p>
-                      <p className="mt-0.5 max-w-[360px] truncate text-[10px] text-slate-500">
+                      <p className="mt-0.5 max-w-[360px] truncate text-[10px] leading-4 text-slate-500">
                         {row.denominacion ?? "—"}
                       </p>
                     </td>
 
-                    <td className="px-2 py-1.5 text-right font-semibold">{euro(row.importe_concedido)}</td>
-                    <td className="px-2 py-1.5 text-right">{euro(row.importe_ejecutado)}</td>
-                    <td className="px-2 py-1.5 text-right text-emerald-700">{euro(row.importe_justificado)}</td>
-                    <td className="px-2 py-1.5 text-right text-amber-700">{euro(row.importe_pendiente_justificar)}</td>
-                    <td className="px-2 py-1.5 text-right font-semibold text-red-700">{euro(row.importe_en_riesgo)}</td>
+                    <td className="px-2 py-1 text-right font-semibold">{euro(row.importe_concedido)}</td>
+                    <td className="px-2 py-1 text-right">{euro(row.importe_ejecutado)}</td>
+                    <td className="px-2 py-1 text-right text-emerald-700">{euro(row.importe_justificado)}</td>
+                    <td className="px-2 py-1 text-right text-amber-700">{euro(row.importe_pendiente_justificar)}</td>
+                    <td className="px-2 py-1 text-right font-semibold text-red-700">{euro(row.importe_en_riesgo)}</td>
 
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1">
                       <div className="flex flex-col gap-1">
                         <span
                           className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
@@ -847,8 +849,10 @@ function JustificacionEconomicaPageContent() {
                       </div>
                     </td>
 
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{label(row.decision_recomendada)}</p>
+                    <td className="px-2 py-1">
+                      <p className="line-clamp-2 font-semibold leading-4 text-slate-950">
+                        {label(row.decision_recomendada)}
+                      </p>
                       <span
                         className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
                           row.prioridad_decision
@@ -858,7 +862,7 @@ function JustificacionEconomicaPageContent() {
                       </span>
                     </td>
 
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1">
                       <div className="flex flex-col gap-1">
                         <Link
                           href={`/decisiones-economicas/${row.id}`}
@@ -893,79 +897,81 @@ function JustificacionEconomicaPageContent() {
 
       {seleccionada ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-4 text-white">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+          <section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
+            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
                 Decisión sobre justificación económica
               </p>
-              <h2 className="mt-1 text-lg font-semibold">{seleccionada.entidad_nombre}</h2>
-              <p className="mt-0.5 text-xs text-blue-100">
+              <h2 className="mt-0.5 text-base font-semibold">{seleccionada.entidad_nombre}</h2>
+              <p className="mt-0.5 text-[11px] text-blue-100">
                 {seleccionada.codigo_accion} · {seleccionada.codigo_especialidad} · {seleccionada.tipo_oferta}
               </p>
             </div>
 
-            <div className="space-y-3 p-5">
-              <section className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Importe concedido</p>
-                  <p className="mt-1 text-lg font-semibold">{euro(seleccionada.importe_concedido)}</p>
+            <div className="space-y-2 p-3">
+              <section className="grid gap-2 md:grid-cols-3">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Importe concedido</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{euro(seleccionada.importe_concedido)}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">Pendiente justificar</p>
-                  <p className="mt-1 text-lg font-semibold text-amber-700">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">Pendiente justificar</p>
+                  <p className="mt-0.5 text-[13px] font-semibold text-amber-700">
                     {euro(seleccionada.importe_pendiente_justificar)}
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">En riesgo</p>
-                  <p className="mt-1 text-lg font-semibold text-red-700">{euro(seleccionada.importe_en_riesgo)}</p>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">En riesgo</p>
+                  <p className="mt-0.5 text-[13px] font-semibold text-red-700">
+                    {euro(seleccionada.importe_en_riesgo)}
+                  </p>
                 </div>
               </section>
 
-              <section className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-950">
+              <section className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] leading-5 text-blue-950">
                 <p className="font-semibold">Lectura para toma de decisiones</p>
-                <p className="mt-1">
+                <p className="mt-0.5">
                   La actuación recomendada se calcula desde el estado económico del subexpediente: importe concedido,
                   ejecución, justificación, pendiente documental/económico e importe en riesgo.
                 </p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Decisión recomendada</p>
-                <p className="mt-1 text-sm font-semibold">{label(seleccionada.decision_recomendada)}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
+              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Decisión recomendada</p>
+                <p className="mt-0.5 text-[13px] font-semibold">{label(seleccionada.decision_recomendada)}</p>
+                <p className="mt-1 text-[12px] leading-5 text-slate-700">
                   {seleccionada.motivo_decision ?? "Sin motivo específico registrado."}
                 </p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Actuación sugerida</p>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
+              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Actuación sugerida</p>
+                <p className="mt-1 text-[12px] leading-5 text-slate-700">
                   {seleccionada.actuacion_sugerida ?? "Sin actuación sugerida registrada."}
                 </p>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Datos de ejecución</p>
-                <div className="mt-2 grid gap-2 md:grid-cols-4">
-                  <p className="text-sm">
+              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Datos de ejecución</p>
+                <div className="mt-1 grid gap-2 md:grid-cols-4">
+                  <p className="text-[12px]">
                     Inicio: <strong>{num(seleccionada.alumnos_inicio)}</strong>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-[12px]">
                     Activos: <strong>{num(seleccionada.alumnos_activos)}</strong>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-[12px]">
                     Bajas: <strong>{num(seleccionada.bajas)}</strong>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-[12px]">
                     Aptos: <strong>{num(seleccionada.aptos)}</strong>
                   </p>
                 </div>
               </section>
 
-              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
                 <Link
                   href={`/subexpedientes-accion/${seleccionada.oferta_id}`}
                   className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"

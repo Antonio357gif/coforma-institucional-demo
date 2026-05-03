@@ -99,12 +99,16 @@ function Kpi({
   detail: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+      <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
+      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
+        {detail}
+      </p>
     </div>
   );
 }
@@ -455,8 +459,8 @@ function AccionesPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-7xl space-y-1.5 px-5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
             href="/dashboard"
             className="text-xs font-semibold text-blue-800 hover:text-blue-950"
@@ -464,7 +468,7 @@ function AccionesPageContent() {
             ← Volver al dashboard
           </Link>
 
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">
             Prioridad operativa calculada en Supabase
           </span>
         </div>
@@ -479,7 +483,7 @@ function AccionesPageContent() {
         </section>
 
         {ofertaIdInicial ? (
-          <section className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+          <section className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] leading-4 text-blue-950 shadow-sm">
             <p className="font-semibold">Filtro activo por subexpediente</p>
             <p className="mt-0.5">
               Mostrando solo actuaciones vinculadas a la oferta seleccionada.
@@ -488,7 +492,7 @@ function AccionesPageContent() {
         ) : null}
 
         {entidadIdInicial || cifInicial ? (
-          <section className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
+          <section className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] leading-4 text-blue-950 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-semibold">Filtro activo por entidad beneficiaria</p>
@@ -501,7 +505,7 @@ function AccionesPageContent() {
 
               <Link
                 href="/acciones"
-                className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
+                className="rounded-md border border-blue-200 bg-white px-3 py-1 text-[10px] font-semibold text-blue-800 hover:bg-blue-50"
               >
                 Ver todas las acciones
               </Link>
@@ -509,28 +513,28 @@ function AccionesPageContent() {
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <div className="grid gap-2 lg:grid-cols-[1.2fr_0.9fr_0.65fr_auto]">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
               </label>
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Entidad, CIF, acción, motivo, evidencia, actuación..."
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Tipo de actuación
               </label>
               <select
                 value={tipoFiltro}
                 onChange={(event) => setTipoFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 {tipos.map((tipo) => (
@@ -542,13 +546,13 @@ function AccionesPageContent() {
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Prioridad
               </label>
               <select
                 value={prioridadFiltro}
                 onChange={(event) => setPrioridadFiltro(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todas</option>
                 <option value="alta">Alta</option>
@@ -566,7 +570,7 @@ function AccionesPageContent() {
                   setTipoFiltro("todos");
                   setPrioridadFiltro("todos");
                 }}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
               </button>
@@ -574,32 +578,34 @@ function AccionesPageContent() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-3 py-2">
-            <h2 className="text-sm font-semibold">Bandeja de actuación administrativa</h2>
-            <p className="text-[11px] text-slate-500">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-3 py-1.5">
+            <h2 className="text-[13px] font-semibold leading-5">
+              Bandeja de actuación administrativa
+            </h2>
+            <p className="text-[10.5px] leading-4 text-slate-500">
               Actuaciones derivadas de la vista backend de pendientes administrativos.
             </p>
           </div>
 
-          <div className="max-h-[610px] overflow-auto">
+          <div className="max-h-[640px] overflow-auto">
             <table className="w-full border-collapse text-left text-[11px]">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-2 py-2">Prioridad</th>
-                  <th className="px-2 py-2">Actuación</th>
-                  <th className="px-2 py-2">Entidad / acción</th>
-                  <th className="px-2 py-2">Motivo</th>
-                  <th className="px-2 py-2">Evidencia requerida</th>
-                  <th className="px-2 py-2 text-right">Riesgo</th>
-                  <th className="px-2 py-2">Acción</th>
+                  <th className="px-2 py-1.5">Prioridad</th>
+                  <th className="px-2 py-1.5">Actuación</th>
+                  <th className="px-2 py-1.5">Entidad / acción</th>
+                  <th className="px-2 py-1.5">Motivo</th>
+                  <th className="px-2 py-1.5">Evidencia requerida</th>
+                  <th className="px-2 py-1.5 text-right">Riesgo</th>
+                  <th className="px-2 py-1.5">Acción</th>
                 </tr>
               </thead>
 
               <tbody>
                 {filtradas.map((item) => (
                   <tr key={item.id} className="border-t border-slate-100 hover:bg-blue-50">
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1 align-top">
                       <span
                         className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${priorityClass(
                           item.prioridad
@@ -608,36 +614,48 @@ function AccionesPageContent() {
                         {item.prioridad}
                       </span>
                     </td>
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{item.tipo}</p>
-                      <p className="text-[10px] text-slate-500">{item.origen}</p>
+
+                    <td className="px-2 py-1 align-top">
+                      <p className="font-semibold leading-4 text-slate-950">{item.tipo}</p>
+                      <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">
+                        {item.origen}
+                      </p>
                       {item.tipologiaCodigo ? (
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] leading-4 text-slate-400">
                           {item.tipologiaCodigo}
                         </p>
                       ) : null}
                     </td>
-                    <td className="px-2 py-1.5">
-                      <p className="font-semibold text-slate-950">{item.entidad}</p>
-                      <p className="text-[10px] text-slate-500">{item.cif}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-500">
+
+                    <td className="px-2 py-1 align-top">
+                      <p className="font-semibold leading-4 text-slate-950">{item.entidad}</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{item.cif}</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
                         {item.codigoAccion} · {item.especialidad}
                       </p>
                     </td>
-                    <td className="max-w-[250px] px-2 py-1.5">
-                      <p className="line-clamp-3">{item.motivo}</p>
+
+                    <td className="max-w-[250px] px-2 py-1 align-top">
+                      <p className="line-clamp-2 text-[10.5px] leading-4 text-slate-700">
+                        {item.motivo}
+                      </p>
                     </td>
-                    <td className="max-w-[260px] px-2 py-1.5">
-                      <p className="line-clamp-3">{item.evidencia}</p>
+
+                    <td className="max-w-[260px] px-2 py-1 align-top">
+                      <p className="line-clamp-2 text-[10.5px] leading-4 text-slate-700">
+                        {item.evidencia}
+                      </p>
                     </td>
-                    <td className="px-2 py-1.5 text-right font-semibold text-red-700">
+
+                    <td className="px-2 py-1 text-right align-top font-semibold text-red-700">
                       {euro(item.importeRiesgo)}
                     </td>
-                    <td className="px-2 py-1.5">
+
+                    <td className="px-2 py-1 align-top">
                       <div className="flex flex-col gap-1">
                         <Link
                           href={accionNuevaHref(item)}
-                          className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                          className="rounded-md bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
                         >
                           Emitir
                         </Link>
@@ -645,7 +663,7 @@ function AccionesPageContent() {
                         <button
                           type="button"
                           onClick={() => router.push(item.destino)}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           Ver expediente
                         </button>
@@ -669,100 +687,102 @@ function AccionesPageContent() {
 
       {seleccionada ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-4 text-white">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
                 Emisión de actuación administrativa
               </p>
-              <h2 className="mt-1 text-lg font-semibold">{seleccionada.tipo}</h2>
-              <p className="mt-0.5 text-xs text-blue-100">
+              <h2 className="mt-0.5 text-base font-semibold">{seleccionada.tipo}</h2>
+              <p className="mt-0.5 text-[11px] text-blue-100">
                 {seleccionada.entidad} · {seleccionada.codigoAccion} ·{" "}
                 {seleccionada.especialidad}
               </p>
             </div>
 
-            <div className="space-y-3 p-5">
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">
+            <div className="space-y-2 p-3">
+              <div className="grid gap-2 md:grid-cols-3">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">
                     Prioridad
                   </p>
-                  <p className="mt-1 text-sm font-semibold">{seleccionada.prioridad}</p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.prioridad}</p>
                 </div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">
                     Importe en riesgo
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-red-700">
+                  <p className="mt-0.5 text-[13px] font-semibold text-red-700">
                     {euro(seleccionada.importeRiesgo)}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase text-slate-500">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase text-slate-500">
                     Origen
                   </p>
-                  <p className="mt-1 text-sm font-semibold">{seleccionada.origen}</p>
+                  <p className="mt-0.5 line-clamp-1 text-[13px] font-semibold">
+                    {seleccionada.origen}
+                  </p>
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                   Asunto
                 </label>
                 <input
                   value={asunto}
                   onChange={(event) => setAsunto(event.target.value)}
-                  className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-blue-400 focus:bg-white"
+                  className="mt-0.5 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                   Mensaje a la entidad beneficiaria
                 </label>
                 <textarea
                   value={mensaje}
                   onChange={(event) => setMensaje(event.target.value)}
-                  rows={8}
-                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 outline-none focus:border-blue-400 focus:bg-white"
+                  rows={6}
+                  className="mt-0.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 outline-none focus:border-blue-400 focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                   Evidencia requerida
                 </label>
                 <textarea
                   value={evidencia}
                   onChange={(event) => setEvidencia(event.target.value)}
-                  rows={4}
-                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 outline-none focus:border-blue-400 focus:bg-white"
+                  rows={3}
+                  className="mt-0.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 outline-none focus:border-blue-400 focus:bg-white"
                 />
               </div>
 
               <div className="max-w-xs">
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                   Fecha límite de respuesta
                 </label>
                 <input
                   type="date"
                   value={fechaLimite}
                   onChange={(event) => setFechaLimite(event.target.value)}
-                  className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-blue-400 focus:bg-white"
+                  className="mt-0.5 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
                 />
               </div>
 
               {resultado ? (
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs font-semibold text-blue-900">
+                <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-semibold text-blue-900">
                   {resultado}
                 </div>
               ) : null}
 
-              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
                 <button
                   type="button"
                   onClick={() => router.push(seleccionada.destino)}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Ver subexpediente
                 </button>
@@ -770,7 +790,7 @@ function AccionesPageContent() {
                 <button
                   type="button"
                   onClick={() => setSeleccionada(null)}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Cerrar
                 </button>
@@ -779,7 +799,7 @@ function AccionesPageContent() {
                   type="button"
                   onClick={emitirActuacion}
                   disabled={guardando}
-                  className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f] disabled:opacity-50"
+                  className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f] disabled:opacity-50"
                 >
                   {guardando ? "Emitiendo..." : "Emitir y registrar actuación"}
                 </button>
