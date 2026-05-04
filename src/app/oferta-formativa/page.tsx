@@ -366,6 +366,13 @@ export default function OfertaFormativaPage() {
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/oferta-formativa/nueva"
+              className="rounded-full border border-blue-700 bg-blue-700 px-3 py-1 text-[10px] font-semibold text-white shadow-sm hover:bg-blue-800"
+            >
+              + Nueva acción
+            </Link>
+
             {soloRequerimientos ? (
               <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-semibold text-red-800 shadow-sm">
                 Filtro activo: requerimientos pendientes
