@@ -37,6 +37,7 @@ type OfertaResumen = {
   finalizadas_total: number;
   finalizadas_pendiente_justificacion: number;
   riesgo_reintegro: number;
+
   importe_concedido_total: number;
   importe_ejecutado_total: number;
   importe_en_riesgo_total: number;
@@ -44,6 +45,18 @@ type OfertaResumen = {
   importe_pendiente_justificacion: number;
   importe_sujeto_revision: number;
   importe_pendiente_ejecutar: number;
+
+  importe_en_ejecucion_concedido: number;
+  importe_finalizado_concedido: number;
+  importe_pendiente_ejecutar_concedido: number;
+  importe_revision_riesgo_concedido: number;
+  avance_economico_en_ejecucion: number;
+  importe_finalizado_ejecutado: number;
+
+  plazas_potenciales_estimadas: number;
+  bajas_estimadas: number;
+  alumnado_potencial_neto_estimado: number;
+
   alumnos_previstos: number;
   alumnos_inicio: number;
   alumnos_activos: number;
@@ -72,23 +85,6 @@ function euro(value: number | null | undefined) {
     currency: "EUR",
     maximumFractionDigits: 2,
   }).format(value ?? 0);
-}
-
-function euroShort(value: number | null | undefined) {
-  const safeValue = Number(value ?? 0);
-  const absValue = Math.abs(safeValue);
-
-  if (absValue >= 1_000_000) {
-    return `${(safeValue / 1_000_000).toLocaleString("es-ES", {
-      maximumFractionDigits: 1,
-    })} M€`;
-  }
-
-  if (absValue >= 1_000) {
-    return `${Math.round(safeValue / 1_000).toLocaleString("es-ES")} mil €`;
-  }
-
-  return euro(safeValue);
 }
 
 function num(value: number | null | undefined) {
@@ -439,7 +435,10 @@ function FocusRows({
         }
 
         return (
-          <div key={item.label} className="grid grid-cols-[96px_1fr_116px_38px] items-center gap-2 px-1.5 py-1 text-[11px]">
+          <div
+            key={item.label}
+            className="grid grid-cols-[96px_1fr_116px_38px] items-center gap-2 px-1.5 py-1 text-[11px]"
+          >
             {rowContent}
           </div>
         );
@@ -595,15 +594,32 @@ export default function DashboardPage() {
   }
 
   const totalAcciones = ofertaResumen.acciones_total || resumen.acciones_concedidas || 1;
-  const ejecucionEconomicaPct = pct(
+
+  const repartoConcedidoTotal =
+    ofertaResumen.importe_en_ejecucion_concedido +
+    ofertaResumen.importe_finalizado_concedido +
+    ofertaResumen.importe_pendiente_ejecutar_concedido +
+    ofertaResumen.importe_revision_riesgo_concedido;
+
+  const estadoResolucionPct = pct(
+    ofertaResumen.importe_en_ejecucion_concedido + ofertaResumen.importe_finalizado_concedido,
+    ofertaResumen.importe_concedido_total
+  );
+
+  const riesgoImportePct = pct(
+    ofertaResumen.importe_revision_riesgo_concedido,
+    ofertaResumen.importe_concedido_total
+  );
+
+  const avanceEconomicoPct = pct(
     ofertaResumen.importe_ejecutado_total,
     ofertaResumen.importe_concedido_total
   );
-  const riesgoImportePct = pct(
-    ofertaResumen.importe_en_riesgo_total,
-    ofertaResumen.importe_concedido_total
+
+  const impactoNetoPct = pct(
+    ofertaResumen.alumnado_potencial_neto_estimado,
+    ofertaResumen.plazas_potenciales_estimadas
   );
-  const activosPct = pct(ofertaResumen.alumnos_activos, ofertaResumen.alumnos_inicio);
 
   const maxCargaAdministrativa = Math.max(
     ofertaResumen.requerimientos_pendientes,
@@ -664,7 +680,7 @@ export default function DashboardPage() {
 
               <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-50">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                Resolución oficial trazada · simulación controlada
+                Resolución oficial trazada · simulación controlada con lectura backend
               </span>
             </div>
           </header>
@@ -687,24 +703,24 @@ export default function DashboardPage() {
               />
 
               <KpiCard
-                title="Ejecución económica"
-                mainValue={euro(ofertaResumen.importe_ejecutado_total)}
-                subtitle={`${ejecucionEconomicaPct}% ejecutado sobre lo concedido`}
+                title="Estado económico"
+                mainValue={euro(ofertaResumen.importe_concedido_total)}
+                subtitle={`${estadoResolucionPct}% en ejecución o finalizado`}
                 href="/justificacion-economica"
                 tone="green"
                 icon="€"
-                percentValue={ejecucionEconomicaPct}
+                percentValue={estadoResolucionPct}
                 cells={[
-                  { label: "Pend. ejecutar", value: euro(ofertaResumen.importe_pendiente_ejecutar), tone: "blue" },
-                  { label: "Pend. justificar", value: euro(ofertaResumen.importe_pendiente_justificacion), tone: "amber" },
-                  { label: "Sujeto revisión", value: euro(ofertaResumen.importe_sujeto_revision), tone: "red" },
-                  { label: "Finalizado", value: euro(ofertaResumen.importe_finalizado_potencial_cobro), tone: "slate" },
+                  { label: "En ejecución", value: euro(ofertaResumen.importe_en_ejecucion_concedido), tone: "green" },
+                  { label: "Finalizado", value: euro(ofertaResumen.importe_finalizado_concedido), tone: "slate" },
+                  { label: "Pendiente", value: euro(ofertaResumen.importe_pendiente_ejecutar_concedido), tone: "blue" },
+                  { label: "Revisión", value: euro(ofertaResumen.importe_revision_riesgo_concedido), tone: "red" },
                 ]}
               />
 
               <KpiCard
                 title="Riesgo y revisión"
-                mainValue={euro(ofertaResumen.importe_en_riesgo_total)}
+                mainValue={euro(ofertaResumen.importe_revision_riesgo_concedido)}
                 subtitle={`${riesgoImportePct}% del importe concedido`}
                 href="/alertas"
                 tone="red"
@@ -738,18 +754,18 @@ export default function DashboardPage() {
               />
 
               <KpiCard
-                title="Alumnado y resultados"
-                mainValue={num(ofertaResumen.alumnos_activos)}
-                subtitle={`${activosPct}% activos sobre inicio`}
-                href="/mesa-fiscalizacion"
+                title="Impacto potencial"
+                mainValue={num(ofertaResumen.plazas_potenciales_estimadas)}
+                subtitle={`${num(ofertaResumen.alumnado_potencial_neto_estimado)} netas estimadas tras bajas`}
+                href="/oferta-formativa"
                 tone="teal"
                 icon="☷"
-                percentValue={activosPct}
+                percentValue={impactoNetoPct}
                 cells={[
-                  { label: "Inicio", value: num(ofertaResumen.alumnos_inicio), tone: "blue" },
-                  { label: "Bajas", value: num(ofertaResumen.bajas), tone: "red" },
-                  { label: "Aptos", value: num(ofertaResumen.aptos), tone: "green" },
-                  { label: "No aptos", value: num(ofertaResumen.no_aptos), tone: "amber" },
+                  { label: "AF", value: num(ofertaResumen.acciones_af), tone: "blue" },
+                  { label: "CP", value: num(ofertaResumen.acciones_cp), tone: "violet" },
+                  { label: "Bajas est.", value: num(ofertaResumen.bajas_estimadas), tone: "amber" },
+                  { label: "Neto", value: num(ofertaResumen.alumnado_potencial_neto_estimado), tone: "green" },
                 ]}
               />
             </section>
@@ -789,44 +805,44 @@ export default function DashboardPage() {
                 <h2 className="text-sm font-black text-slate-950">Focos de fiscalización</h2>
 
                 <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  <FocusPanel title="Ejecución económica">
+                  <FocusPanel title="Reparto económico de la resolución">
                     <FocusRows
                       rows={[
                         {
-                          label: "Ejecutado",
-                          value: ofertaResumen.importe_ejecutado_total,
+                          label: "En ejecución",
+                          value: ofertaResumen.importe_en_ejecucion_concedido,
                           base: ofertaResumen.importe_concedido_total,
                           tone: "green",
-                          valueText: euro(ofertaResumen.importe_ejecutado_total),
-                          href: "/justificacion-economica?importe=ejecutado",
-                          title: "Ver acciones con importe ejecutado",
+                          valueText: euro(ofertaResumen.importe_en_ejecucion_concedido),
+                          href: "/oferta-formativa?estado=en_ejecucion",
+                          title: "Ver acciones en ejecución",
+                        },
+                        {
+                          label: "Finalizado",
+                          value: ofertaResumen.importe_finalizado_concedido,
+                          base: ofertaResumen.importe_concedido_total,
+                          tone: "slate",
+                          valueText: euro(ofertaResumen.importe_finalizado_concedido),
+                          href: "/oferta-formativa?estado=finalizada",
+                          title: "Ver acciones finalizadas",
                         },
                         {
                           label: "Pendiente",
-                          value: ofertaResumen.importe_pendiente_ejecutar,
+                          value: ofertaResumen.importe_pendiente_ejecutar_concedido,
                           base: ofertaResumen.importe_concedido_total,
                           tone: "blue",
-                          valueText: euro(ofertaResumen.importe_pendiente_ejecutar),
-                          href: "/justificacion-economica?operativo=pendiente_ejecutar",
+                          valueText: euro(ofertaResumen.importe_pendiente_ejecutar_concedido),
+                          href: "/oferta-formativa?estado=pendiente_ejecutar",
                           title: "Ver acciones pendientes de ejecutar",
                         },
                         {
-                          label: "Justificar",
-                          value: ofertaResumen.importe_pendiente_justificacion,
-                          base: ofertaResumen.importe_concedido_total,
-                          tone: "amber",
-                          valueText: euro(ofertaResumen.importe_pendiente_justificacion),
-                          href: "/justificacion-economica?operativo=finalizada_pendiente_justificacion",
-                          title: "Ver acciones finalizadas pendientes de justificación",
-                        },
-                        {
                           label: "Revisión",
-                          value: ofertaResumen.importe_sujeto_revision,
+                          value: ofertaResumen.importe_revision_riesgo_concedido,
                           base: ofertaResumen.importe_concedido_total,
                           tone: "red",
-                          valueText: euro(ofertaResumen.importe_sujeto_revision),
-                          href: "/justificacion-economica?revision=1",
-                          title: "Ver acciones sujetas a revisión",
+                          valueText: euro(ofertaResumen.importe_revision_riesgo_concedido),
+                          href: "/alertas",
+                          title: "Ver acciones sujetas a revisión o riesgo",
                         },
                       ]}
                     />
@@ -858,11 +874,11 @@ export default function DashboardPage() {
                           title: "Ver acciones en ejecución con incidencia",
                         },
                         {
-                          label: "Justificar",
-                          value: ofertaResumen.finalizadas_pendiente_justificacion,
-                          tone: "red",
-                          href: "/justificacion-economica?pendiente_justificar=1",
-                          title: "Ver acciones finalizadas pendientes de justificación",
+                          label: "Finalizada",
+                          value: ofertaResumen.finalizadas_total,
+                          tone: "slate",
+                          href: "/oferta-formativa?estado=finalizada",
+                          title: "Ver acciones finalizadas",
                         },
                         {
                           label: "Reintegro",
@@ -904,41 +920,50 @@ export default function DashboardPage() {
                     </div>
                   </FocusPanel>
 
-                  <FocusPanel title="Seguimiento de alumnado">
+                  <FocusPanel title="Impacto potencial estimado">
                     <div className="space-y-1.5">
                       <BarRow
-                        label="Inicio"
-                        value={ofertaResumen.alumnos_inicio}
-                        max={ofertaResumen.alumnos_inicio}
+                        label="Plazas"
+                        value={ofertaResumen.plazas_potenciales_estimadas}
+                        max={ofertaResumen.plazas_potenciales_estimadas}
                         tone="teal"
                       />
                       <BarRow
-                        label="Activos"
-                        value={ofertaResumen.alumnos_activos}
-                        max={ofertaResumen.alumnos_inicio}
+                        label="Neto"
+                        value={ofertaResumen.alumnado_potencial_neto_estimado}
+                        max={ofertaResumen.plazas_potenciales_estimadas}
                         tone="green"
                       />
                       <BarRow
                         label="Bajas"
-                        value={ofertaResumen.bajas}
-                        max={ofertaResumen.alumnos_inicio}
+                        value={ofertaResumen.bajas_estimadas}
+                        max={ofertaResumen.plazas_potenciales_estimadas}
                         tone="amber"
                       />
                       <BarRow
-                        label="Aptos"
-                        value={ofertaResumen.aptos}
-                        max={ofertaResumen.alumnos_inicio}
+                        label="Avance €"
+                        value={Math.round(ofertaResumen.importe_ejecutado_total)}
+                        max={Math.round(ofertaResumen.importe_concedido_total)}
                         tone="blue"
                       />
                     </div>
                   </FocusPanel>
+                </div>
+
+                <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-4 text-slate-600">
+                  Avance económico registrado:{" "}
+                  <span className="font-black text-slate-900">
+                    {euro(ofertaResumen.importe_ejecutado_total)}
+                  </span>{" "}
+                  ({avanceEconomicoPct}% sobre lo concedido). Dato auxiliar separado del reparto
+                  institucional de la resolución.
                 </div>
               </div>
             </section>
 
             <NoteCard
               title="Nota de trazabilidad"
-              text={resumen.nota_trazabilidad}
+              text={ofertaResumen.nota_trazabilidad || resumen.nota_trazabilidad}
               href="/trazabilidad-tecnica"
             />
           </div>

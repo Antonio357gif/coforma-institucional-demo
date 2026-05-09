@@ -55,17 +55,22 @@ function pct(part: number | null | undefined, total: number | null | undefined) 
   const p = Number(part ?? 0);
   const t = Number(total ?? 0);
   if (!t) return "—";
-  return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format(
-    (p / t) * 100
-  )} %`;
+
+  return `${new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 1,
+  }).format((p / t) * 100)} %`;
 }
 
 function normalize(value: string | number | null | undefined) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-function badgeClass(value: string) {
-  const normalizado = (value ?? "").toLowerCase();
+function isRegularizada(row: AlertaTipificada) {
+  return normalize(row.estado_revision) === "regularizada";
+}
+
+function badgeClass(value: string | null | undefined) {
+  const normalizado = normalize(value);
 
   if (
     normalizado.includes("alto") ||
@@ -89,6 +94,40 @@ function badgeClass(value: string) {
   }
 
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function estadoRevisionBadgeClass(value: string | null | undefined) {
+  const estado = normalize(value);
+
+  if (estado === "pendiente_revision") {
+    return "border-blue-200 bg-blue-50 text-blue-800";
+  }
+
+  if (estado === "pendiente_subsanacion") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  if (estado === "regularizada") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function estadoRevisionLabel(value: string | null | undefined) {
+  const estado = normalize(value);
+
+  if (estado === "pendiente_revision") return "Pendiente revisión";
+  if (estado === "pendiente_subsanacion") return "Pendiente subsanación";
+  if (estado === "regularizada") return "Regularizada";
+
+  return value || "Sin estado";
+}
+
+function importeAfectadoLabel(value: number | null | undefined) {
+  const importe = Number(value ?? 0);
+  if (importe <= 0) return "Sin importe cuantificado";
+  return euro(importe);
 }
 
 function Kpi({
@@ -145,6 +184,7 @@ function AlertasPageContent() {
   const [tipologiaFiltro, setTipologiaFiltro] = useState("todos");
   const [nivelFiltro, setNivelFiltro] = useState("todos");
   const [soloDocumentales, setSoloDocumentales] = useState(false);
+  const [mostrarRegularizadas, setMostrarRegularizadas] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -171,7 +211,7 @@ function AlertasPageContent() {
     loadAlertas();
   }, []);
 
-  const alertasPorEntidad = useMemo(() => {
+  const alertasEntidadTodas = useMemo(() => {
     if (!filtroEntidadActivo) return alertas;
 
     return alertas.filter((row) => {
@@ -188,6 +228,20 @@ function AlertasPageContent() {
       return pasaEntidadId || pasaCif || pasaNombre;
     });
   }, [alertas, filtroEntidadActivo, entidadIdInicial, cifInicial, entidadInicial]);
+
+  const alertasPorEntidad = useMemo(() => {
+    if (mostrarRegularizadas) return alertasEntidadTodas;
+
+    return alertasEntidadTodas.filter((row) => !isRegularizada(row));
+  }, [alertasEntidadTodas, mostrarRegularizadas]);
+
+  const totalRegularizadas = useMemo(() => {
+    return alertasEntidadTodas.filter((row) => isRegularizada(row)).length;
+  }, [alertasEntidadTodas]);
+
+  const totalPendientes = useMemo(() => {
+    return alertasEntidadTodas.filter((row) => !isRegularizada(row)).length;
+  }, [alertasEntidadTodas]);
 
   const tipologias = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -238,7 +292,7 @@ function AlertasPageContent() {
   const resumen = useMemo(() => {
     return filtradas.reduce(
       (acc, row) => {
-        acc.importeRiesgo += Number(row.importe_en_riesgo ?? 0);
+        acc.importeAfectado += Number(row.importe_en_riesgo ?? 0);
         acc.altas += row.nivel_aplicado === "alto" ? 1 : 0;
         acc.medias += row.nivel_aplicado === "medio" ? 1 : 0;
         acc.bajasNivel += row.nivel_aplicado === "bajo" ? 1 : 0;
@@ -251,7 +305,7 @@ function AlertasPageContent() {
         return acc;
       },
       {
-        importeRiesgo: 0,
+        importeAfectado: 0,
         altas: 0,
         medias: 0,
         bajasNivel: 0,
@@ -295,6 +349,11 @@ function AlertasPageContent() {
     setSoloDocumentales(false);
   }
 
+  function toggleRegularizadas() {
+    limpiarFiltros();
+    setMostrarRegularizadas((prev) => !prev);
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
@@ -328,34 +387,56 @@ function AlertasPageContent() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
-            <h1 className="mt-1 text-xl font-semibold">Alertas institucionales tipificadas</h1>
+            <h1 className="mt-1 text-xl font-semibold">
+              Alertas institucionales pendientes
+            </h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Riesgo económico · discrepancias formativas · identidad/alumnado · documentación subsanable.
+              Riesgo técnico, discrepancias formativas, identidad/alumnado y documentación subsanable.
             </p>
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            {num(filtradas.length)} alertas visibles · {num(alertas.length)} tipificadas
+            {num(filtradas.length)} visibles · {num(totalPendientes)} pendientes ·{" "}
+            {num(totalRegularizadas)} regularizadas
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl space-y-3 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
+          <Link
+            href="/dashboard"
+            className="text-xs font-semibold text-blue-800 hover:text-blue-950"
+          >
             ← Volver al dashboard
           </Link>
 
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Clic en una alerta para abrir el subexpediente
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+              Clic en una alerta para abrir el subexpediente
+            </span>
+
+            <button
+              type="button"
+              onClick={toggleRegularizadas}
+              className={
+                mostrarRegularizadas
+                  ? "rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100"
+                  : "rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+              }
+            >
+              {mostrarRegularizadas
+                ? "Mostrando pendientes + regularizadas"
+                : `Ver ${num(totalRegularizadas)} regularizadas`}
+            </button>
+          </div>
         </div>
 
-        <section className="grid gap-2 lg:grid-cols-6">
+        <section className="grid gap-2 lg:grid-cols-7">
           <Kpi
-            label="Alertas"
+            label={mostrarRegularizadas ? "Alertas" : "Pendientes"}
             value={num(filtradas.length)}
-            detail="casos tipificados"
+            detail={mostrarRegularizadas ? "pendientes + regularizadas" : "casos vivos"}
             active={
               tipologiaFiltro === "todos" &&
               nivelFiltro === "todos" &&
@@ -364,6 +445,7 @@ function AlertasPageContent() {
             }
             onClick={filtrarTodas}
           />
+
           <Kpi
             label="Nivel alto"
             value={num(resumen.altas)}
@@ -371,6 +453,7 @@ function AlertasPageContent() {
             active={nivelFiltro === "alto"}
             onClick={() => filtrarNivel("alto")}
           />
+
           <Kpi
             label="Nivel medio"
             value={num(resumen.medias)}
@@ -378,6 +461,7 @@ function AlertasPageContent() {
             active={nivelFiltro === "medio"}
             onClick={() => filtrarNivel("medio")}
           />
+
           <Kpi
             label="Documentación subsanable"
             value={num(resumen.documentales)}
@@ -385,21 +469,38 @@ function AlertasPageContent() {
             active={soloDocumentales}
             onClick={filtrarDocumentales}
           />
+
           <Kpi
             label="Pagos anticipados"
             value={num(resumen.pagos)}
-            detail="riesgo económico previo"
+            detail="revisión económica previa"
             active={tipologiaFiltro === "PAGOS_ANTICIPADOS"}
             onClick={() => filtrarTipologia("PAGOS_ANTICIPADOS")}
           />
+
           <Kpi
             label="Discrepancias"
             value={num(resumen.discrepancias)}
-            detail="calidad/ejecución"
+            detail="calidad / ejecución"
             active={tipologiaFiltro === "DISCREPANCIAS_FORMACION"}
             onClick={() => filtrarTipologia("DISCREPANCIAS_FORMACION")}
           />
+
+          <Kpi
+            label="Suplantación"
+            value={num(resumen.suplantacion)}
+            detail="identidad / alumnado"
+            active={tipologiaFiltro === "SUPLANTACION_ALUMNOS"}
+            onClick={() => filtrarTipologia("SUPLANTACION_ALUMNOS")}
+          />
         </section>
+
+        {totalRegularizadas > 0 && !mostrarRegularizadas ? (
+          <section className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-900 shadow-sm">
+            Se han excluido de la bandeja principal {num(totalRegularizadas)} alertas regularizadas.
+            La pantalla muestra por defecto únicamente alertas pendientes reales.
+          </section>
+        ) : null}
 
         {filtroEntidadActivo ? (
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-950 shadow-sm">
@@ -487,9 +588,11 @@ function AlertasPageContent() {
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-3 py-2">
-            <h2 className="text-sm font-semibold">Bandeja de revisión institucional</h2>
+            <h2 className="text-sm font-semibold">
+              Bandeja de revisión institucional
+            </h2>
             <p className="text-[11px] text-slate-500">
-              Casos de riesgo, incidencias y documentación subsanable vinculados a acciones de la resolución.
+              Casos pendientes de revisión, incidencias y documentación subsanable vinculados a acciones de la resolución.
             </p>
           </div>
 
@@ -502,7 +605,7 @@ function AlertasPageContent() {
                   <th className="px-2 py-2">Entidad / acción</th>
                   <th className="px-2 py-2">Caso detectado</th>
                   <th className="px-2 py-2">Evidencia requerida</th>
-                  <th className="px-2 py-2 text-right">Riesgo</th>
+                  <th className="px-2 py-2 text-right">Importe afectado</th>
                   <th className="px-2 py-2 text-right">Bajas</th>
                   <th className="px-2 py-2">Estado</th>
                 </tr>
@@ -511,7 +614,7 @@ function AlertasPageContent() {
               <tbody>
                 {filtradas.map((row) => (
                   <tr
-                    key={`${row.oferta_id}-${row.tipologia_codigo}`}
+                    key={`${row.oferta_id}-${row.tipologia_codigo}-${row.estado_revision}`}
                     onClick={() =>
                       router.push(
                         `/subexpedientes-accion/${row.oferta_id}?tipologia=${encodeURIComponent(
@@ -530,34 +633,53 @@ function AlertasPageContent() {
                         {row.nivel_aplicado}
                       </span>
                     </td>
+
                     <td className="px-2 py-1.5">
                       <p className="font-semibold text-slate-950">{row.tipologia_nombre}</p>
                       <p className="text-[10px] text-slate-500">{row.tipologia_codigo}</p>
                     </td>
+
                     <td className="px-2 py-1.5">
                       <p className="font-semibold text-slate-950">{row.entidad_nombre}</p>
                       <p className="text-[10px] text-slate-500">
                         {row.codigo_accion} · {row.tipo_oferta} · {row.codigo_especialidad}
                       </p>
                     </td>
+
                     <td className="max-w-[250px] px-2 py-1.5">
                       <p className="line-clamp-3">{row.descripcion_caso}</p>
                     </td>
+
                     <td className="max-w-[260px] px-2 py-1.5">
                       <p className="line-clamp-3">{row.evidencia_requerida}</p>
                     </td>
-                    <td className="px-2 py-1.5 text-right font-semibold text-red-700">
-                      {euro(row.importe_en_riesgo)}
+
+                    <td className="px-2 py-1.5 text-right">
+                      {Number(row.importe_en_riesgo ?? 0) > 0 ? (
+                        <span className="font-semibold text-red-700">
+                          {euro(row.importe_en_riesgo)}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          {importeAfectadoLabel(row.importe_en_riesgo)}
+                        </span>
+                      )}
                     </td>
+
                     <td className="px-2 py-1.5 text-right">
                       {num(row.bajas)}
                       <p className="text-[10px] text-slate-500">
                         {pct(row.bajas, row.alumnos_inicio)}
                       </p>
                     </td>
+
                     <td className="px-2 py-1.5">
-                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
-                        {row.estado_revision}
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estadoRevisionBadgeClass(
+                          row.estado_revision
+                        )}`}
+                      >
+                        {estadoRevisionLabel(row.estado_revision)}
                       </span>
                     </td>
                   </tr>
