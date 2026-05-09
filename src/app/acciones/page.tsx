@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type PrioridadActuacion = "alta" | "media" | "baja" | "normal";
@@ -71,6 +71,10 @@ function normalizarTexto(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function label(value: string | null | undefined) {
+  return String(value ?? "—").replaceAll("_", " ");
+}
+
 function normalizarPrioridad(value: string | null | undefined): PrioridadActuacion {
   const normalizada = normalizarTexto(value);
 
@@ -87,6 +91,10 @@ function priorityClass(prioridad: string) {
   if (prioridad === "media") return "border-amber-200 bg-amber-50 text-amber-800";
   if (prioridad === "baja") return "border-emerald-200 bg-emerald-50 text-emerald-800";
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function riesgoClass(value: number | null | undefined) {
+  return Number(value ?? 0) > 0 ? "text-red-700" : "text-emerald-700";
 }
 
 function Kpi({
@@ -111,22 +119,6 @@ function Kpi({
       </p>
     </div>
   );
-}
-
-function buildDefaultSubject(item: Actuacion) {
-  return `${item.tipo} · ${item.codigoAccion} · ${item.especialidad}`;
-}
-
-function buildDefaultMessage(item: Actuacion) {
-  return `Se comunica actuación administrativa vinculada al subexpediente ${item.codigoAccion} (${item.especialidad}) de la entidad ${item.entidad}.
-
-Motivo:
-${item.motivo}
-
-Evidencia requerida:
-${item.evidencia}
-
-La entidad deberá aportar la documentación o aclaración correspondiente dentro del plazo indicado para continuar la revisión administrativa del expediente.`;
 }
 
 function mapRowToActuacion(row: AccionPendienteRow): Actuacion {
@@ -154,8 +146,41 @@ function mapRowToActuacion(row: AccionPendienteRow): Actuacion {
   };
 }
 
+function prioridadOrden(prioridad: PrioridadActuacion) {
+  if (prioridad === "alta") return 1;
+  if (prioridad === "media") return 2;
+  if (prioridad === "baja") return 3;
+  return 4;
+}
+
+function accionNuevaHref(item: Actuacion) {
+  const params = new URLSearchParams();
+
+  params.set("accionId", item.id);
+
+  if (item.ofertaId) {
+    params.set("ofertaId", String(item.ofertaId));
+  }
+
+  if (item.entidadId) {
+    params.set("entidadId", String(item.entidadId));
+  }
+
+  if (item.cif && item.cif !== "—") {
+    params.set("cif", item.cif);
+  }
+
+  params.set("tipo", item.tipo);
+  params.set("origen", item.origen);
+
+  if (item.tipologiaCodigo) {
+    params.set("tipologia", item.tipologiaCodigo);
+  }
+
+  return `/acciones/nueva?${params.toString()}`;
+}
+
 function AccionesPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const ofertaIdParam = searchParams.get("ofertaId");
@@ -172,14 +197,6 @@ function AccionesPageContent() {
   const [prioridadFiltro, setPrioridadFiltro] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [seleccionada, setSeleccionada] = useState<Actuacion | null>(null);
-  const [asunto, setAsunto] = useState("");
-  const [mensaje, setMensaje] = useState("");
-  const [evidencia, setEvidencia] = useState("");
-  const [fechaLimite, setFechaLimite] = useState("");
-  const [guardando, setGuardando] = useState(false);
-  const [resultado, setResultado] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadAccionesAdministrativas() {
@@ -202,25 +219,10 @@ function AccionesPageContent() {
       const mapped = rows.map(mapRowToActuacion);
 
       mapped.sort((a, b) => {
-        const prioridadA =
-          a.prioridad === "alta"
-            ? 1
-            : a.prioridad === "media"
-              ? 2
-              : a.prioridad === "baja"
-                ? 3
-                : 4;
+        const ordenA = prioridadOrden(a.prioridad);
+        const ordenB = prioridadOrden(b.prioridad);
 
-        const prioridadB =
-          b.prioridad === "alta"
-            ? 1
-            : b.prioridad === "media"
-              ? 2
-              : b.prioridad === "baja"
-                ? 3
-                : 4;
-
-        if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+        if (ordenA !== ordenB) return ordenA - ordenB;
         return b.importeRiesgo - a.importeRiesgo;
       });
 
@@ -315,12 +317,6 @@ function AccionesPageContent() {
         if (item.prioridad === "media") acc.media++;
         if (item.prioridad === "baja") acc.baja++;
         if (item.prioridad === "normal") acc.normal++;
-        if (item.tipo === "Requerir subsanación documental") acc.subsanacion++;
-        if (item.tipo === "Revisar posible reintegro") acc.reintegro++;
-        if (item.tipo === "Requerir documentación") acc.requerir++;
-        if (item.tipo === "Abrir revisión prioritaria") acc.revision++;
-        if (item.tipo === "Revisar asistencia / alumnado") acc.asistencia++;
-        if (item.tipo === "Validar cierre / justificación") acc.cierre++;
         return acc;
       },
       {
@@ -329,86 +325,14 @@ function AccionesPageContent() {
         media: 0,
         baja: 0,
         normal: 0,
-        subsanacion: 0,
-        reintegro: 0,
-        requerir: 0,
-        revision: 0,
-        asistencia: 0,
-        cierre: 0,
       }
     );
   }, [filtradas]);
 
-  function abrirEmision(item: Actuacion) {
-    setSeleccionada(item);
-    setAsunto(buildDefaultSubject(item));
-    setMensaje(buildDefaultMessage(item));
-    setEvidencia(item.evidencia);
-    setFechaLimite("");
-    setResultado(null);
-  }
-
-  function accionNuevaHref(item: Actuacion) {
-    const params = new URLSearchParams();
-
-    params.set("accionId", item.id);
-
-    if (item.ofertaId) {
-      params.set("ofertaId", String(item.ofertaId));
-    }
-
-    if (item.entidadId) {
-      params.set("entidadId", String(item.entidadId));
-    }
-
-    if (item.cif && item.cif !== "—") {
-      params.set("cif", item.cif);
-    }
-
-    params.set("tipo", item.tipo);
-    params.set("origen", item.origen);
-
-    if (item.tipologiaCodigo) {
-      params.set("tipologia", item.tipologiaCodigo);
-    }
-
-    return `/acciones/nueva?${params.toString()}`;
-  }
-
-  async function emitirActuacion() {
-    if (!seleccionada || !seleccionada.ofertaId || !seleccionada.entidadId) {
-      setResultado("No se puede emitir la actuación: falta oferta o entidad vinculada.");
-      return;
-    }
-
-    setGuardando(true);
-    setResultado(null);
-
-    const { error: insertError } = await supabase
-      .from("actuaciones_administrativas")
-      .insert({
-        oferta_id: seleccionada.ofertaId,
-        entidad_id: seleccionada.entidadId,
-        tipo_actuacion: seleccionada.tipo,
-        prioridad: seleccionada.prioridad,
-        asunto,
-        mensaje,
-        evidencia_requerida: evidencia,
-        estado: "emitida",
-        fecha_emision: new Date().toISOString(),
-        fecha_limite_respuesta: fechaLimite || null,
-        fuente_origen: seleccionada.origen,
-        tipo_dato: "simulacion_controlada_demo_institucional",
-      });
-
-    setGuardando(false);
-
-    if (insertError) {
-      setResultado(`Error al emitir actuación: ${insertError.message}`);
-      return;
-    }
-
-    setResultado("Actuación administrativa emitida y registrada correctamente.");
+  function limpiarFiltros() {
+    setBusqueda("");
+    setTipoFiltro("todos");
+    setPrioridadFiltro("todos");
   }
 
   if (loading) {
@@ -444,12 +368,13 @@ function AccionesPageContent() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
+
             <h1 className="mt-1 text-xl font-semibold">
               Acciones administrativas pendientes
             </h1>
+
             <p className="mt-0.5 text-xs text-blue-100">
-              Bandeja calculada desde backend: requerir, subsanar, revisar riesgo,
-              validar cierre y controlar inicio.
+              Bandeja calculada desde backend para preparar actuaciones sobre subexpedientes.
             </p>
           </div>
 
@@ -469,17 +394,17 @@ function AccionesPageContent() {
           </Link>
 
           <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Prioridad operativa calculada en Supabase
+            Vista backend · actuación preparada antes de envío oficial
           </span>
         </div>
 
         <section className="grid gap-2 lg:grid-cols-6">
           <Kpi label="Actuaciones" value={num(filtradas.length)} detail="pendientes visibles" />
-          <Kpi label="Prioridad alta" value={num(resumen.alta)} detail="riesgo/reintegro" />
+          <Kpi label="Prioridad alta" value={num(resumen.alta)} detail="revisión/riesgo" />
           <Kpi label="Prioridad media" value={num(resumen.media)} detail="incidencia técnica" />
           <Kpi label="Prioridad baja" value={num(resumen.baja)} detail="subsanación documental" />
           <Kpi label="Prioridad normal" value={num(resumen.normal)} detail="tramitación ordinaria" />
-          <Kpi label="Riesgo total" value={euro(resumen.riesgo)} detail="importe afectado" />
+          <Kpi label="Revisión/Riesgo" value={euro(resumen.riesgo)} detail="importe afectado" />
         </section>
 
         {ofertaIdInicial ? (
@@ -565,11 +490,7 @@ function AccionesPageContent() {
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={() => {
-                  setBusqueda("");
-                  setTipoFiltro("todos");
-                  setPrioridadFiltro("todos");
-                }}
+                onClick={limpiarFiltros}
                 className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Limpiar
@@ -583,8 +504,9 @@ function AccionesPageContent() {
             <h2 className="text-[13px] font-semibold leading-5">
               Bandeja de actuación administrativa
             </h2>
+
             <p className="text-[10.5px] leading-4 text-slate-500">
-              Actuaciones derivadas de la vista backend de pendientes administrativos.
+              Actuaciones derivadas de la vista backend de pendientes administrativos. La emisión se prepara en ficha independiente.
             </p>
           </div>
 
@@ -597,7 +519,7 @@ function AccionesPageContent() {
                   <th className="px-2 py-1.5">Entidad / acción</th>
                   <th className="px-2 py-1.5">Motivo</th>
                   <th className="px-2 py-1.5">Evidencia requerida</th>
-                  <th className="px-2 py-1.5 text-right">Riesgo</th>
+                  <th className="px-2 py-1.5 text-right">Rev./Riesgo</th>
                   <th className="px-2 py-1.5">Acción</th>
                 </tr>
               </thead>
@@ -647,7 +569,7 @@ function AccionesPageContent() {
                       </p>
                     </td>
 
-                    <td className="px-2 py-1 text-right align-top font-semibold text-red-700">
+                    <td className={`px-2 py-1 text-right align-top font-semibold ${riesgoClass(item.importeRiesgo)}`}>
                       {euro(item.importeRiesgo)}
                     </td>
 
@@ -657,16 +579,15 @@ function AccionesPageContent() {
                           href={accionNuevaHref(item)}
                           className="rounded-md bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
                         >
-                          Emitir
+                          Preparar
                         </Link>
 
-                        <button
-                          type="button"
-                          onClick={() => router.push(item.destino)}
-                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                        <Link
+                          href={item.destino}
+                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
-                          Ver expediente
-                        </button>
+                          Ver subexpediente
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -684,130 +605,6 @@ function AccionesPageContent() {
           </div>
         </section>
       </section>
-
-      {seleccionada ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                Emisión de actuación administrativa
-              </p>
-              <h2 className="mt-0.5 text-base font-semibold">{seleccionada.tipo}</h2>
-              <p className="mt-0.5 text-[11px] text-blue-100">
-                {seleccionada.entidad} · {seleccionada.codigoAccion} ·{" "}
-                {seleccionada.especialidad}
-              </p>
-            </div>
-
-            <div className="space-y-2 p-3">
-              <div className="grid gap-2 md:grid-cols-3">
-                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">
-                    Prioridad
-                  </p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.prioridad}</p>
-                </div>
-                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">
-                    Importe en riesgo
-                  </p>
-                  <p className="mt-0.5 text-[13px] font-semibold text-red-700">
-                    {euro(seleccionada.importeRiesgo)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">
-                    Origen
-                  </p>
-                  <p className="mt-0.5 line-clamp-1 text-[13px] font-semibold">
-                    {seleccionada.origen}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                  Asunto
-                </label>
-                <input
-                  value={asunto}
-                  onChange={(event) => setAsunto(event.target.value)}
-                  className="mt-0.5 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                  Mensaje a la entidad beneficiaria
-                </label>
-                <textarea
-                  value={mensaje}
-                  onChange={(event) => setMensaje(event.target.value)}
-                  rows={6}
-                  className="mt-0.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 outline-none focus:border-blue-400 focus:bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                  Evidencia requerida
-                </label>
-                <textarea
-                  value={evidencia}
-                  onChange={(event) => setEvidencia(event.target.value)}
-                  rows={3}
-                  className="mt-0.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 outline-none focus:border-blue-400 focus:bg-white"
-                />
-              </div>
-
-              <div className="max-w-xs">
-                <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                  Fecha límite de respuesta
-                </label>
-                <input
-                  type="date"
-                  value={fechaLimite}
-                  onChange={(event) => setFechaLimite(event.target.value)}
-                  className="mt-0.5 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
-                />
-              </div>
-
-              {resultado ? (
-                <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-semibold text-blue-900">
-                  {resultado}
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-                <button
-                  type="button"
-                  onClick={() => router.push(seleccionada.destino)}
-                  className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Ver subexpediente
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSeleccionada(null)}
-                  className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cerrar
-                </button>
-
-                <button
-                  type="button"
-                  onClick={emitirActuacion}
-                  disabled={guardando}
-                  className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f] disabled:opacity-50"
-                >
-                  {guardando ? "Emitiendo..." : "Emitir y registrar actuación"}
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 }

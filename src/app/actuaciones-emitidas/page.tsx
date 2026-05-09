@@ -76,25 +76,38 @@ function normalize(value: string | number | null | undefined) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function label(value: string | null | undefined) {
+  return String(value ?? "—").replaceAll("_", " ");
+}
+
 function canalLabel(value: string | null | undefined) {
-  if (value === "bandeja_institucional_demo") return "Bandeja institucional demo";
+  if (value === "bandeja_institucional_demo") return "Bandeja institucional interna";
   if (value === "api_bidireccional") return "API bidireccional";
   if (value === "email_certificado") return "Email certificado";
   if (value === "sede_electronica") return "Sede electrónica";
-  if (value === "carpeta_entidad") return "Carpeta entidad";
-  return value ?? "—";
+  if (value === "carpeta_entidad") return "Carpeta de entidad";
+  return value ? label(value) : "—";
+}
+
+function canalDetail(value: string | null | undefined) {
+  if (value === "bandeja_institucional_demo") return "registro interno trazado";
+  if (value === "api_bidireccional") return "integración institucional";
+  if (value === "email_certificado") return "canal fehaciente";
+  if (value === "sede_electronica") return "canal oficial";
+  if (value === "carpeta_entidad") return "canal documental";
+  return "canal informado";
 }
 
 function estadoCanalLabel(value: string | null | undefined) {
-  if (value === "registrada_no_enviada") return "Registrada, no enviada";
+  if (value === "registrada_no_enviada") return "Registrada, pendiente de envío oficial";
   if (value === "enviada") return "Enviada";
-  if (value === "pendiente_respuesta") return "Pendiente respuesta";
+  if (value === "pendiente_respuesta") return "Pendiente de respuesta";
   if (value === "respondida") return "Respondida";
-  return value ?? "—";
+  return value ? label(value) : "—";
 }
 
 function badgeClass(value: string | null | undefined) {
-  const normalizado = String(value ?? "").toLowerCase();
+  const normalizado = normalize(value);
 
   if (normalizado.includes("alta") || normalizado.includes("no_enviada")) {
     return "border-red-200 bg-red-50 text-red-800";
@@ -108,7 +121,15 @@ function badgeClass(value: string | null | undefined) {
     return "border-blue-200 bg-blue-50 text-blue-800";
   }
 
+  if (normalizado.includes("respondida") || normalizado.includes("enviada")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function riesgoTone(value: number | null | undefined) {
+  return Number(value ?? 0) > 0 ? "text-red-700" : "text-emerald-700";
 }
 
 function Kpi({
@@ -202,7 +223,6 @@ function ActuacionesEmitidasPageContent() {
   const [busqueda, setBusqueda] = useState("");
   const [canalFiltro, setCanalFiltro] = useState("todos");
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
-  const [seleccionada, setSeleccionada] = useState<ActuacionEmitida | null>(null);
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -296,14 +316,14 @@ function ActuacionesEmitidasPageContent() {
         acc.riesgo += Number(row.importe_en_riesgo ?? 0);
         if (row.estado === "emitida") acc.emitidas++;
         if (row.estado_canal === "registrada_no_enviada") acc.registradasNoEnviadas++;
-        if (row.canal_comunicacion === "bandeja_institucional_demo") acc.bandejaDemo++;
+        if (row.canal_comunicacion === "bandeja_institucional_demo") acc.bandejaInterna++;
         return acc;
       },
       {
         riesgo: 0,
         emitidas: 0,
         registradasNoEnviadas: 0,
-        bandejaDemo: 0,
+        bandejaInterna: 0,
       }
     );
   }, [filtradas]);
@@ -348,7 +368,7 @@ function ActuacionesEmitidasPageContent() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Actuaciones emitidas</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Seguimiento técnico de requerimientos, revisiones y comunicaciones administrativas.
+              Trazabilidad técnica de actuaciones administrativas registradas por subexpediente.
             </p>
           </div>
 
@@ -364,22 +384,23 @@ function ActuacionesEmitidasPageContent() {
             <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               ← Volver al dashboard
             </Link>
+
             <Link href={accionesAdministrativasHref} className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               Acciones administrativas
             </Link>
           </div>
 
           <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Canal demo visible · API bidireccional prevista · técnico trazado
+            Canal institucional interno · envío oficial pendiente · técnico trazado
           </span>
         </div>
 
         <section className="grid gap-2 lg:grid-cols-5">
-          <Kpi label="Actuaciones" value={num(filtradas.length)} detail="emitidas/registradas" />
-          <Kpi label="Emitidas" value={num(resumen.emitidas)} detail="acto administrativo registrado" />
-          <Kpi label="Bandeja demo" value={num(resumen.bandejaDemo)} detail="canal visible en demo" />
-          <Kpi label="No enviadas" value={num(resumen.registradasNoEnviadas)} detail="pendiente canal oficial" />
-          <Kpi label="Riesgo asociado" value={euro(resumen.riesgo)} detail="importe del subexpediente" />
+          <Kpi label="Actuaciones" value={num(filtradas.length)} detail="registros visibles" />
+          <Kpi label="Emitidas" value={num(resumen.emitidas)} detail="actos administrativos registrados" />
+          <Kpi label="Bandeja interna" value={num(resumen.bandejaInterna)} detail="canal institucional interno" />
+          <Kpi label="Pendientes de envío" value={num(resumen.registradasNoEnviadas)} detail="canal oficial no ejecutado" />
+          <Kpi label="Revisión/Riesgo" value={euro(resumen.riesgo)} detail="importe asociado a subexpedientes" />
         </section>
 
         {tieneFiltroEntidad ? (
@@ -396,7 +417,7 @@ function ActuacionesEmitidasPageContent() {
               href="/actuaciones-emitidas"
               className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-800 hover:bg-blue-50"
             >
-              Ver todas las emitidas
+              Ver todas las actuaciones
             </Link>
           </section>
         ) : null}
@@ -466,9 +487,9 @@ function ActuacionesEmitidasPageContent() {
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-sm font-semibold">Registro técnico de actuaciones emitidas</h2>
+              <h2 className="text-sm font-semibold">Registro técnico de actuaciones</h2>
               <p className="text-[11px] text-slate-500">
-                Cada registro representa una actuación administrativa emitida por un técnico y preparada para canal institucional.
+                Cada registro representa una actuación administrativa emitida, trazada y vinculada a una entidad beneficiaria y subexpediente.
               </p>
             </div>
 
@@ -518,7 +539,7 @@ function ActuacionesEmitidasPageContent() {
                   <th className="px-2 py-2">Estado canal</th>
                   <th className="px-2 py-2">Emisión</th>
                   <th className="px-2 py-2">Límite</th>
-                  <th className="px-2 py-2 text-right">Riesgo</th>
+                  <th className="px-2 py-2 text-right">Rev./Riesgo</th>
                   <th className="px-2 py-2">Opciones</th>
                 </tr>
               </thead>
@@ -530,7 +551,7 @@ function ActuacionesEmitidasPageContent() {
                       <p className="font-semibold leading-4 text-slate-950">{row.tipo_actuacion}</p>
                       <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{row.asunto}</p>
                       <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.prioridad)}`}>
-                        {row.prioridad}
+                        {label(row.prioridad)}
                       </span>
                     </td>
 
@@ -550,7 +571,7 @@ function ActuacionesEmitidasPageContent() {
 
                     <td className="px-2 py-1">
                       <p className="font-semibold leading-4">{canalLabel(row.canal_comunicacion)}</p>
-                      <p className="text-[10px] leading-4 text-slate-500">API bidireccional prevista</p>
+                      <p className="text-[10px] leading-4 text-slate-500">{canalDetail(row.canal_comunicacion)}</p>
                     </td>
 
                     <td className="px-2 py-1">
@@ -562,7 +583,7 @@ function ActuacionesEmitidasPageContent() {
                     <td className="px-2 py-1 text-[10px] leading-4">{fecha(row.fecha_emision)}</td>
                     <td className="px-2 py-1 text-[10px] leading-4">{fechaCorta(row.fecha_limite_respuesta)}</td>
 
-                    <td className="px-2 py-1 text-right font-semibold text-red-700">
+                    <td className={`px-2 py-1 text-right font-semibold ${riesgoTone(row.importe_en_riesgo)}`}>
                       {euro(row.importe_en_riesgo)}
                     </td>
 
@@ -598,95 +619,6 @@ function ActuacionesEmitidasPageContent() {
           </div>
         </section>
       </section>
-
-      {seleccionada ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                Detalle de actuación emitida
-              </p>
-              <h2 className="mt-0.5 text-base font-semibold">{seleccionada.tipo_actuacion}</h2>
-              <p className="mt-0.5 text-[11px] text-blue-100">
-                {seleccionada.entidad_nombre} · {seleccionada.codigo_accion} · {seleccionada.codigo_especialidad}
-              </p>
-            </div>
-
-            <div className="space-y-2 p-3">
-              <div className="grid gap-2 md:grid-cols-5">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Estado</p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.estado}</p>
-                </div>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Técnico</p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.tecnico_nombre ?? "—"}</p>
-                  <p className="text-[10px] text-slate-500">{seleccionada.tecnico_unidad ?? "—"}</p>
-                </div>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Canal</p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{canalLabel(seleccionada.canal_comunicacion)}</p>
-                </div>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Estado canal</p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{estadoCanalLabel(seleccionada.estado_canal)}</p>
-                </div>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Referencia externa</p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.referencia_externa ?? "Pendiente"}</p>
-                </div>
-              </div>
-
-              <section className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] leading-5 text-blue-950">
-                <p className="font-semibold">Lectura de canal institucional</p>
-                <p className="mt-0.5">
-                  Esta actuación está registrada en bandeja institucional demo. En fase real, este registro puede actuar
-                  como origen de comunicación mediante API bidireccional, sede electrónica, carpeta de entidad o canal oficial
-                  que determine la Administración.
-                </p>
-              </section>
-
-              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Asunto</p>
-                <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.asunto}</p>
-              </section>
-
-              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Mensaje emitido</p>
-                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">{seleccionada.mensaje}</p>
-              </section>
-
-              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Evidencia requerida</p>
-                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-slate-700">
-                  {seleccionada.evidencia_requerida ?? "—"}
-                </p>
-              </section>
-
-              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-                <Link
-                  href={`/subexpedientes-accion/${seleccionada.oferta_id}`}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Ver subexpediente
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={() => setSeleccionada(null)}
-                  className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 }

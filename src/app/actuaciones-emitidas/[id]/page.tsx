@@ -59,30 +59,48 @@ function fecha(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+function normalize(value: string | number | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function label(value: string | null | undefined) {
+  return String(value ?? "—").replaceAll("_", " ");
+}
+
 function canalLabel(value: string | null | undefined) {
-  if (value === "bandeja_institucional_demo") return "Bandeja institucional demo";
+  if (value === "bandeja_institucional_demo") return "Bandeja institucional interna";
   if (value === "api_bidireccional") return "API bidireccional";
   if (value === "email_certificado") return "Email certificado";
   if (value === "sede_electronica") return "Sede electrónica";
-  if (value === "carpeta_entidad") return "Carpeta entidad";
-  return value ?? "—";
+  if (value === "carpeta_entidad") return "Carpeta de entidad";
+  return value ? label(value) : "—";
+}
+
+function canalDetail(value: string | null | undefined) {
+  if (value === "bandeja_institucional_demo") return "registro interno trazado";
+  if (value === "api_bidireccional") return "integración institucional";
+  if (value === "email_certificado") return "canal fehaciente";
+  if (value === "sede_electronica") return "canal oficial";
+  if (value === "carpeta_entidad") return "canal documental";
+  return "canal informado";
 }
 
 function estadoCanalLabel(value: string | null | undefined) {
-  if (value === "registrada_no_enviada") return "Registrada, no enviada";
+  if (value === "registrada_no_enviada") return "Registrada, pendiente de envío oficial";
   if (value === "enviada") return "Enviada";
-  if (value === "pendiente_respuesta") return "Pendiente respuesta";
+  if (value === "pendiente_respuesta") return "Pendiente de respuesta";
   if (value === "respondida") return "Respondida";
-  return value ?? "—";
+  return value ? label(value) : "—";
 }
 
 function badgeClass(value: string | null | undefined) {
-  const normalizado = String(value ?? "").toLowerCase();
+  const normalizado = normalize(value);
 
   if (
     normalizado.includes("alta") ||
     normalizado.includes("riesgo") ||
-    normalizado.includes("reintegro")
+    normalizado.includes("reintegro") ||
+    normalizado.includes("no_enviada")
   ) {
     return "border-red-200 bg-red-50 text-red-700";
   }
@@ -104,7 +122,19 @@ function badgeClass(value: string | null | undefined) {
     return "border-blue-200 bg-blue-50 text-blue-800";
   }
 
+  if (normalizado.includes("respondida")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function riesgoTone(value: number | null | undefined) {
+  return Number(value ?? 0) > 0 ? "risk" : "ok";
+}
+
+function riesgoDetail(value: number | null | undefined) {
+  return Number(value ?? 0) > 0 ? "importe asociado a revisión" : "sin riesgo económico activo";
 }
 
 function Kpi({
@@ -219,19 +249,15 @@ export default function ActuacionEmitidaDetallePage() {
   return (
     <main className="min-h-screen bg-[#edf3f8] text-slate-950">
       <section className="border-b border-blue-950/20 bg-[#183B63] px-5 py-5 text-white shadow-sm">
-        <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
             <h1 className="mt-1 text-xl font-semibold">Detalle de actuación emitida</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Registro técnico de comunicación administrativa, canal institucional y
-              trazabilidad del subexpediente.
+              Registro técnico de actuación administrativa, canal institucional y trazabilidad del subexpediente.
             </p>
-          </div>
-
-          <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:block">
           </div>
 
           <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-right text-xs font-semibold text-blue-50">
@@ -251,9 +277,11 @@ export default function ActuacionEmitidaDetallePage() {
             <Link href="/actuaciones-emitidas" className="hover:text-blue-950">
               ← Volver
             </Link>
+
             <Link href="/acciones" className="hover:text-blue-950">
               Acciones administrativas
             </Link>
+
             <Link
               href={`/subexpedientes-accion/${actuacion.oferta_id}`}
               className="hover:text-blue-950"
@@ -267,7 +295,7 @@ export default function ActuacionEmitidaDetallePage() {
               actuacion.prioridad
             )}`}
           >
-            Prioridad: {actuacion.prioridad || "—"}
+            Prioridad: {label(actuacion.prioridad)}
           </span>
         </div>
 
@@ -310,14 +338,14 @@ export default function ActuacionEmitidaDetallePage() {
         <section className="grid gap-2 lg:grid-cols-5">
           <Kpi
             label="Estado"
-            value={actuacion.estado || "—"}
+            value={label(actuacion.estado)}
             detail="estado administrativo"
             tone="ok"
           />
           <Kpi
             label="Canal"
             value={canalLabel(actuacion.canal_comunicacion)}
-            detail="canal de comunicación"
+            detail={canalDetail(actuacion.canal_comunicacion)}
           />
           <Kpi
             label="Estado canal"
@@ -326,15 +354,15 @@ export default function ActuacionEmitidaDetallePage() {
             tone="warn"
           />
           <Kpi
-            label="Riesgo asociado"
+            label="Revisión/Riesgo"
             value={euro(actuacion.importe_en_riesgo)}
-            detail="importe afectado"
-            tone="risk"
+            detail={riesgoDetail(actuacion.importe_en_riesgo)}
+            tone={riesgoTone(actuacion.importe_en_riesgo)}
           />
           <Kpi
             label="Referencia externa"
             value={actuacion.referencia_externa ?? "Pendiente"}
-            detail="sede/API/carpeta"
+            detail="sede/API/canal oficial"
           />
         </section>
 
@@ -364,7 +392,7 @@ export default function ActuacionEmitidaDetallePage() {
               </p>
               <div className="mt-1 grid gap-1 text-[10.5px]">
                 <div className="flex justify-between gap-3">
-                  <span className="text-slate-500">Emisión</span>
+                  <span className="text-slate-500">Registro</span>
                   <span className="font-semibold text-slate-950">
                     {fecha(actuacion.fecha_emision)}
                   </span>
@@ -389,7 +417,7 @@ export default function ActuacionEmitidaDetallePage() {
                 {actuacion.tipo_dato ?? "—"}
               </p>
               <p className="text-[10px] leading-4 text-slate-500">
-                Estado operativo: {actuacion.estado_operativo_administrativo ?? "—"}
+                Estado operativo: {label(actuacion.estado_operativo_administrativo)}
               </p>
             </div>
           </div>
@@ -398,7 +426,7 @@ export default function ActuacionEmitidaDetallePage() {
             <section className="rounded-md border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] leading-4 text-blue-950">
               <p className="font-semibold">Lectura de canal institucional</p>
               <p className="mt-0.5">
-                Esta actuación está registrada en la bandeja institucional demo. En fase real, este registro puede actuar como origen de comunicación mediante API bidireccional, sede electrónica, carpeta de entidad o canal oficial que determine la Administración.
+                Esta actuación consta como registro interno trazado. No representa un envío oficial si el estado del canal sigue pendiente; queda preparada para su eventual integración con sede electrónica, carpeta de entidad, API institucional u otro canal oficial que determine la Administración.
               </p>
             </section>
 
@@ -424,7 +452,7 @@ export default function ActuacionEmitidaDetallePage() {
 
             <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
               <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Mensaje emitido
+                Mensaje preparado
               </p>
               <p className="mt-0.5 line-clamp-4 whitespace-pre-wrap text-[11px] leading-4 text-slate-700">
                 {actuacion.mensaje}
@@ -446,7 +474,7 @@ export default function ActuacionEmitidaDetallePage() {
                   Observación de canal
                 </p>
                 <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[11px] leading-4 text-slate-700">
-                  {actuacion.observacion_canal ?? "—"}
+                  {actuacion.observacion_canal ?? "Sin observación adicional registrada."}
                 </p>
               </section>
             </div>

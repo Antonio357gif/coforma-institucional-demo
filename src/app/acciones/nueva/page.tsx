@@ -34,6 +34,28 @@ type AccionPendienteRow = {
   destino_subexpediente: string | null;
 };
 
+type OfertaRow = {
+  oferta_id: number;
+  convocatoria_id: number | null;
+  convocatoria_codigo: string | null;
+  entidad_id: number | null;
+  entidad_nombre: string | null;
+  cif: string | null;
+  codigo_accion: string | null;
+  tipo_oferta: string | null;
+  codigo_especialidad: string | null;
+  denominacion: string | null;
+  importe_concedido: number | null;
+  importe_en_riesgo: number | null;
+  estado_operativo_administrativo: string | null;
+  estado_operativo_label: string | null;
+  incidencias_abiertas: number | null;
+  requerimientos_pendientes: number | null;
+  alerta: string | null;
+  nivel_riesgo: string | null;
+  actuacion_sugerida: string | null;
+};
+
 type Actuacion = {
   id: string;
   fuentePendiente: string;
@@ -63,12 +85,16 @@ function euro(value: number | null | undefined) {
   }).format(Number(value ?? 0));
 }
 
-function num(value: number | null | undefined) {
-  return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
+function normalizar(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function label(value: string | null | undefined) {
+  return String(value ?? "—").replaceAll("_", " ");
 }
 
 function normalizarPrioridad(value: string | null | undefined): PrioridadActuacion {
-  const normalizada = String(value ?? "").trim().toLowerCase();
+  const normalizada = normalizar(value);
 
   if (normalizada === "alta") return "alta";
   if (normalizada === "media") return "media";
@@ -85,6 +111,13 @@ function priorityClass(prioridad: string) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function kpiToneClass(tone: "default" | "red" | "amber" | "green") {
+  if (tone === "red") return "border-red-200";
+  if (tone === "amber") return "border-amber-200";
+  if (tone === "green") return "border-emerald-200";
+  return "border-slate-200";
+}
+
 function buildDefaultSubject(item: Actuacion) {
   return `${item.tipo} · ${item.codigoAccion} · ${item.especialidad}`;
 }
@@ -95,10 +128,10 @@ function buildDefaultMessage(item: Actuacion) {
 Motivo:
 ${item.motivo}
 
-Evidencia requerida:
+Evidencia o seguimiento requerido:
 ${item.evidencia}
 
-La entidad deberá aportar la documentación o aclaración correspondiente dentro del plazo indicado para continuar la revisión administrativa del expediente.`;
+La entidad deberá aportar la documentación, aclaración o respuesta correspondiente dentro del plazo indicado para continuar la revisión administrativa del subexpediente.`;
 }
 
 function Kpi({
@@ -112,17 +145,8 @@ function Kpi({
   detail: string;
   tone?: "default" | "red" | "amber" | "green";
 }) {
-  const toneClass =
-    tone === "red"
-      ? "border-red-200"
-      : tone === "amber"
-        ? "border-amber-200"
-        : tone === "green"
-          ? "border-emerald-200"
-          : "border-slate-200";
-
   return (
-    <div className={`rounded-lg border ${toneClass} bg-white px-3 py-1.5 shadow-sm`}>
+    <div className={`rounded-lg border ${kpiToneClass(tone)} bg-white px-3 py-1.5 shadow-sm`}>
       <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
@@ -148,7 +172,7 @@ function mapRowToActuacion(row: AccionPendienteRow): Actuacion {
     especialidad: row.codigo_especialidad ?? "—",
     denominacion: row.denominacion ?? "—",
     motivo: row.motivo ?? "Actuación administrativa pendiente de revisión.",
-    evidencia: row.evidencia_requerida ?? "Revisar evidencia asociada al expediente.",
+    evidencia: row.evidencia_requerida ?? "Revisar evidencia asociada al subexpediente.",
     origen: row.origen ?? "Acción administrativa pendiente",
     destino:
       row.destino_subexpediente ??
@@ -159,11 +183,47 @@ function mapRowToActuacion(row: AccionPendienteRow): Actuacion {
   };
 }
 
+function mapOfertaToActuacion(row: OfertaRow): Actuacion {
+  const importeRiesgo = Number(row.importe_en_riesgo ?? 0);
+  const incidencias = Number(row.incidencias_abiertas ?? 0);
+  const requerimientos = Number(row.requerimientos_pendientes ?? 0);
+  const estado = row.estado_operativo_label ?? row.estado_operativo_administrativo ?? "control_ordinario";
+
+  const tieneRevision = importeRiesgo > 0 || incidencias > 0 || requerimientos > 0;
+
+  return {
+    id: `manual-oferta-${row.oferta_id}`,
+    fuentePendiente: "alta_manual_desde_subexpediente",
+    tipo: tieneRevision ? "Actuación administrativa de revisión" : "Actuación administrativa de seguimiento",
+    prioridad: importeRiesgo > 0 || incidencias > 0 ? "alta" : requerimientos > 0 ? "media" : "normal",
+    entidadId: row.entidad_id,
+    entidad: row.entidad_nombre ?? "Entidad no informada",
+    cif: row.cif ?? "—",
+    ofertaId: row.oferta_id,
+    codigoAccion: row.codigo_accion ?? "—",
+    especialidad: row.codigo_especialidad ?? "—",
+    denominacion: row.denominacion ?? "—",
+    motivo:
+      row.actuacion_sugerida ??
+      (tieneRevision
+        ? "Actuación administrativa preparada sobre subexpediente con elementos pendientes de revisión."
+        : "Actuación administrativa de seguimiento ordinario preparada sobre subexpediente."),
+    evidencia:
+      tieneRevision
+        ? "Revisar documentación, trazabilidad, ejecución y evidencias asociadas al subexpediente."
+        : "Documentar seguimiento ordinario del subexpediente y conservar trazabilidad administrativa.",
+    origen: "Alta manual vinculada a subexpediente",
+    destino: `/subexpedientes-accion/${row.oferta_id}`,
+    importeRiesgo,
+    estado,
+    tipologiaCodigo: null,
+  };
+}
+
 function entidadQueryHref(basePath: string, actuacion: Actuacion | null) {
   if (!actuacion?.entidadId) return basePath;
 
   const params = new URLSearchParams();
-
   params.set("entidadId", String(actuacion.entidadId));
 
   if (actuacion.cif && actuacion.cif !== "—") {
@@ -186,9 +246,7 @@ function subexpedienteHref(actuacion: Actuacion | null, tipologiaParam: string |
     return actuacion.destino ?? `/subexpedientes-accion/${actuacion.ofertaId}`;
   }
 
-  return `/subexpedientes-accion/${actuacion.ofertaId}?tipologia=${encodeURIComponent(
-    tipologia
-  )}`;
+  return `/subexpedientes-accion/${actuacion.ofertaId}?tipologia=${encodeURIComponent(tipologia)}`;
 }
 
 async function cargarActuacionesAdministrativas() {
@@ -201,7 +259,6 @@ async function cargarActuacionesAdministrativas() {
   }
 
   const rows = (data ?? []) as AccionPendienteRow[];
-
   const actuaciones = rows.map(mapRowToActuacion);
 
   actuaciones.sort((a, b) => {
@@ -215,6 +272,23 @@ async function cargarActuacionesAdministrativas() {
   });
 
   return actuaciones;
+}
+
+async function cargarActuacionManualPorOferta(ofertaId: number) {
+  const { data, error } = await supabase
+    .from("v_oferta_formativa_institucional")
+    .select("*")
+    .eq("oferta_id", ofertaId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) return null;
+
+  return mapOfertaToActuacion(data as OfertaRow);
 }
 
 function NuevaActuacionContent() {
@@ -267,7 +341,7 @@ function NuevaActuacionContent() {
 
         if (!activo) return;
 
-        const encontrada =
+        let encontrada =
           actuaciones.find((item) => item.id === accionId) ??
           actuaciones.find((item) => {
             const coincideOferta = ofertaIdInicial ? item.ofertaId === ofertaIdInicial : false;
@@ -281,9 +355,15 @@ function NuevaActuacionContent() {
           }) ??
           null;
 
+        if (!encontrada && ofertaIdInicial && !Number.isNaN(ofertaIdInicial)) {
+          encontrada = await cargarActuacionManualPorOferta(ofertaIdInicial);
+        }
+
+        if (!activo) return;
+
         if (!encontrada) {
           setActuacion(null);
-          setError("No se encontró la actuación administrativa solicitada.");
+          setError("No se encontró el subexpediente indicado para preparar la actuación.");
           setLoading(false);
           return;
         }
@@ -347,7 +427,7 @@ function NuevaActuacionContent() {
       fecha_emision: new Date().toISOString(),
       fecha_limite_respuesta: fechaLimite || null,
       fuente_origen: actuacion.origen,
-      tipo_dato: "simulacion_controlada_demo_institucional",
+      tipo_dato: "registro_manual_institucional",
     });
 
     setGuardando(false);
@@ -379,7 +459,7 @@ function NuevaActuacionContent() {
             No se pudo preparar la actuación administrativa
           </p>
           <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-red-50 p-4 text-xs text-red-800">
-            {error ?? "No se encontró la actuación solicitada."}
+            {error ?? "No se encontró el subexpediente indicado."}
           </pre>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -411,9 +491,9 @@ function NuevaActuacionContent() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
-            <h1 className="mt-1 text-xl font-semibold">Emitir actuación administrativa</h1>
+            <h1 className="mt-1 text-xl font-semibold">Preparar actuación administrativa</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Preparación, validación y registro de actuación sobre subexpediente fiscalizable.
+              Alta de actuación vinculada a subexpediente, entidad beneficiaria y trazabilidad backend.
             </p>
           </div>
 
@@ -502,14 +582,14 @@ function NuevaActuacionContent() {
 
         <section className="grid gap-2 lg:grid-cols-4">
           <Kpi label="Tipo de actuación" value={actuacion.tipo} detail={actuacion.origen} />
-          <Kpi label="Prioridad" value={actuacion.prioridad} detail="criterio backend" />
+          <Kpi label="Prioridad" value={actuacion.prioridad} detail="criterio aplicado" />
           <Kpi
-            label="Importe en riesgo"
+            label="Revisión/Riesgo"
             value={euro(actuacion.importeRiesgo)}
-            detail="importe afectado"
-            tone="red"
+            detail={actuacion.importeRiesgo > 0 ? "importe afectado" : "sin riesgo económico activo"}
+            tone={actuacion.importeRiesgo > 0 ? "red" : "green"}
           />
-          <Kpi label="Estado origen" value={actuacion.estado} detail="situación detectada" tone="amber" />
+          <Kpi label="Estado origen" value={label(actuacion.estado)} detail="situación de partida" tone="amber" />
         </section>
 
         <section className="grid gap-2 lg:grid-cols-[0.62fr_1.38fr]">
@@ -519,14 +599,15 @@ function NuevaActuacionContent() {
                 Lectura administrativa
               </p>
               <p className="mt-0.5">
-                Esta pantalla prepara una actuación administrativa desde la vista backend de pendientes,
-                manteniendo trazabilidad entre alerta, oferta, entidad beneficiaria y registro emitido.
+                Esta pantalla prepara una actuación administrativa vinculada al subexpediente seleccionado.
+                Si no existía una actuación pendiente previa, se genera una propuesta manual desde la ficha real
+                de oferta formativa institucional.
               </p>
             </section>
 
             <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
               <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Motivo detectado
+                Motivo
               </p>
               <p className="mt-0.5 line-clamp-5 text-[11px] leading-4 text-slate-700">
                 {actuacion.motivo}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 type DecisionEconomicaRow = {
@@ -67,24 +67,145 @@ function pct(parte: number | null | undefined, total: number | null | undefined)
   }).format((p / t) * 100)} %`;
 }
 
+function normalizar(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function label(value: string | null | undefined) {
   return String(value ?? "—").replaceAll("_", " ");
 }
 
+function labelInstitucional(value: string | null | undefined) {
+  const texto = label(value);
+
+  return texto
+    .replaceAll("estimada para demo", "registrada")
+    .replaceAll("estimado para demo", "registrado")
+    .replaceAll("para demo", "")
+    .replaceAll("  ", " ")
+    .trim();
+}
+
+function estadoJustificacionLabel(value: string | null | undefined) {
+  const estado = normalizar(value);
+
+  if (estado === "no_devengado") return "No devengado";
+  if (estado === "justificacion_parcial_en_curso") return "Justificación parcial en curso";
+  if (estado === "justificacion_total") return "Justificación total";
+  if (estado === "en_revision") return "En revisión";
+  if (estado === "pendiente_justificar") return "Pendiente de justificar";
+  if (!estado) return "Sin estado";
+
+  return label(value);
+}
+
+function estadoOperativoLabel(value: string | null | undefined) {
+  const estado = normalizar(value);
+
+  if (estado === "en_ejecucion") return "En ejecución";
+  if (estado === "finalizada") return "Finalizada";
+  if (estado === "pendiente_ejecutar") return "Pendiente de ejecutar";
+  if (estado === "finalizada_pendiente_justificacion") return "Finalizada";
+  if (estado === "en_ejecucion_con_incidencia") return "Revisión/Riesgo";
+  if (estado === "riesgo_reintegro") return "Revisión/Riesgo";
+  if (!estado) return "Sin estado";
+
+  return label(value);
+}
+
+function decisionLabel(value: string | null | undefined) {
+  const decision = normalizar(value);
+
+  if (decision === "sin_decision_economica") return "Sin decisión económica";
+  if (decision === "seguimiento_ejecucion_y_justificacion") return "Seguimiento de ejecución y justificación";
+  if (decision === "revisar_posible_reintegro") return "Revisión económica";
+  if (decision === "seguimiento_ordinario") return "Seguimiento ordinario";
+  if (!decision) return "Sin decisión registrada";
+
+  return label(value);
+}
+
+function controlRevisionLabel(decision: DecisionEconomicaRow) {
+  const importeRiesgo = Number(decision.importe_en_riesgo ?? 0);
+  const incidencias = Number(decision.incidencias_abiertas ?? 0);
+  const requerimientos = Number(decision.requerimientos_pendientes ?? 0);
+  const alerta = normalizar(decision.alerta);
+  const nivel = normalizar(decision.nivel_riesgo);
+
+  const sinAlertaCritica =
+    alerta.includes("sin alerta crítica") || alerta.includes("sin alerta critica");
+
+  if (importeRiesgo > 0) return "Revisión/Riesgo";
+  if (incidencias > 0) return "Revisión operativa";
+  if (requerimientos > 0) return "Requerimiento pendiente";
+  if (nivel.includes("alto")) return "Revisión prioritaria";
+  if (alerta.includes("crítica") && !sinAlertaCritica) return "Revisión prioritaria";
+  if (alerta.includes("critica") && !sinAlertaCritica) return "Revisión prioritaria";
+
+  return "Control ordinario";
+}
+
+function lecturaControl(decision: DecisionEconomicaRow) {
+  const importeRiesgo = Number(decision.importe_en_riesgo ?? 0);
+  const incidencias = Number(decision.incidencias_abiertas ?? 0);
+  const requerimientos = Number(decision.requerimientos_pendientes ?? 0);
+
+  if (importeRiesgo > 0) {
+    return "El subexpediente presenta importe en revisión/riesgo y requiere análisis económico específico.";
+  }
+
+  if (incidencias > 0 || requerimientos > 0) {
+    return "El subexpediente tiene controles administrativos pendientes de seguimiento.";
+  }
+
+  return "Sin riesgo económico activo. Mantener seguimiento ordinario según estado operativo y avance registrado.";
+}
+
+function motivoDecision(decision: DecisionEconomicaRow) {
+  if (decision.motivo_decision) return labelInstitucional(decision.motivo_decision);
+
+  const estadoOperativo = normalizar(decision.estado_operativo_administrativo);
+  const importeRiesgo = Number(decision.importe_en_riesgo ?? 0);
+
+  if (estadoOperativo === "pendiente_ejecutar") {
+    return "Acción pendiente de ejecutar: importe no devengado y sin avance económico reconocido.";
+  }
+
+  if (importeRiesgo > 0) {
+    return "Subexpediente con importe económico en revisión.";
+  }
+
+  return "Seguimiento económico ordinario según la información disponible en backend.";
+}
+
+function actuacionSugerida(decision: DecisionEconomicaRow) {
+  if (decision.actuacion_sugerida) return labelInstitucional(decision.actuacion_sugerida);
+
+  const importeRiesgo = Number(decision.importe_en_riesgo ?? 0);
+  const requerimientos = Number(decision.requerimientos_pendientes ?? 0);
+
+  if (importeRiesgo > 0) return "Revisar documentación económica y preparar actuación administrativa si procede.";
+  if (requerimientos > 0) return "Revisar requerimientos pendientes y documentar seguimiento.";
+  return "Mantener seguimiento ordinario de ejecución.";
+}
+
 function badgeClass(value: string | null | undefined) {
-  const normalizado = String(value ?? "").toLowerCase();
+  const normalizado = normalizar(value);
 
   if (
     normalizado.includes("alta") ||
+    normalizado.includes("alto") ||
     normalizado.includes("riesgo") ||
     normalizado.includes("reintegro") ||
-    normalizado.includes("revision")
+    normalizado.includes("revision") ||
+    normalizado.includes("revisión")
   ) {
     return "border-red-200 bg-red-50 text-red-800";
   }
 
   if (
     normalizado.includes("media") ||
+    normalizado.includes("medio") ||
     normalizado.includes("pendiente") ||
     normalizado.includes("parcial")
   ) {
@@ -95,12 +216,35 @@ function badgeClass(value: string | null | undefined) {
     normalizado.includes("total") ||
     normalizado.includes("validada") ||
     normalizado.includes("ordinario") ||
-    normalizado.includes("ejecucion")
+    normalizado.includes("ejecucion") ||
+    normalizado.includes("ejecución")
   ) {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
   }
 
   return "border-blue-200 bg-blue-50 text-blue-800";
+}
+
+function controlBadgeClass(decision: DecisionEconomicaRow) {
+  const control = controlRevisionLabel(decision);
+
+  if (control === "Control ordinario") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
+  if (control.includes("Requerimiento")) {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  return "border-red-200 bg-red-50 text-red-800";
+}
+
+function kpiToneClass(tone: "default" | "amber" | "red" | "green" | "blue") {
+  if (tone === "red") return "border-red-200";
+  if (tone === "amber") return "border-amber-200";
+  if (tone === "green") return "border-emerald-200";
+  if (tone === "blue") return "border-blue-200";
+  return "border-slate-200";
 }
 
 function Kpi({
@@ -112,19 +256,10 @@ function Kpi({
   labelText: string;
   value: string;
   detail: string;
-  tone?: "default" | "amber" | "red" | "green";
+  tone?: "default" | "amber" | "red" | "green" | "blue";
 }) {
-  const toneClass =
-    tone === "red"
-      ? "border-red-200"
-      : tone === "amber"
-      ? "border-amber-200"
-      : tone === "green"
-      ? "border-emerald-200"
-      : "border-slate-200";
-
   return (
-    <div className={`rounded-lg border ${toneClass} bg-white px-3 py-1.5 shadow-sm`}>
+    <div className={`rounded-lg border ${kpiToneClass(tone)} bg-white px-3 py-1.5 shadow-sm`}>
       <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {labelText}
       </p>
@@ -189,6 +324,11 @@ export default function DecisionEconomicaDetallePage() {
     };
   }, [id]);
 
+  const justificacionHref = useMemo(() => {
+    if (!decision?.oferta_id) return "/justificacion-economica";
+    return `/justificacion-economica?ofertaId=${decision.oferta_id}`;
+  }, [decision?.oferta_id]);
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
@@ -231,6 +371,10 @@ export default function DecisionEconomicaDetallePage() {
     );
   }
 
+  const importeRiesgo = Number(decision.importe_en_riesgo ?? 0);
+  const noAdmitido = Number(decision.importe_no_admitido ?? 0);
+  const control = controlRevisionLabel(decision);
+
   return (
     <main className="min-h-screen bg-[#edf3f8] text-slate-950">
       <section className="bg-[#183B63] px-5 py-4 text-white shadow-sm">
@@ -239,9 +383,9 @@ export default function DecisionEconomicaDetallePage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
-            <h1 className="mt-1 text-xl font-semibold">Decisión económica</h1>
+            <h1 className="mt-1 text-xl font-semibold">Ficha económica del subexpediente</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Ficha individual de decisión sobre justificación, riesgo y actuación administrativa.
+              Lectura económica saneada: concesión, avance, no devengado, revisión y actuación administrativa.
             </p>
           </div>
 
@@ -264,7 +408,7 @@ export default function DecisionEconomicaDetallePage() {
             </button>
 
             <Link
-              href="/justificacion-economica"
+              href={justificacionHref}
               className="text-xs font-semibold text-blue-800 hover:text-blue-950"
             >
               Justificación económica
@@ -286,23 +430,24 @@ export default function DecisionEconomicaDetallePage() {
           </div>
 
           <span
-            className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold shadow-sm ${badgeClass(
-              decision.prioridad_decision
+            className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold shadow-sm ${controlBadgeClass(
+              decision
             )}`}
           >
-            Prioridad: {label(decision.prioridad_decision)}
+            {control}
           </span>
         </div>
 
         <section className="grid gap-2 lg:grid-cols-6">
           <Kpi
-            labelText="Importe concedido"
+            labelText="Concedido"
             value={euro(decision.importe_concedido)}
             detail="resolución concedida"
+            tone="blue"
           />
 
           <Kpi
-            labelText="Ejecutado"
+            labelText="Avance registrado"
             value={euro(decision.importe_ejecutado)}
             detail={pct(decision.importe_ejecutado, decision.importe_concedido)}
             tone="green"
@@ -316,24 +461,24 @@ export default function DecisionEconomicaDetallePage() {
           />
 
           <Kpi
-            labelText="Pendiente justificar"
+            labelText="Pendiente / no devengado"
             value={euro(decision.importe_pendiente_justificar)}
             detail={pct(decision.importe_pendiente_justificar, decision.importe_concedido)}
             tone="amber"
           />
 
           <Kpi
-            labelText="En riesgo"
+            labelText="Revisión/Riesgo"
             value={euro(decision.importe_en_riesgo)}
-            detail={label(decision.riesgo_economico)}
-            tone="red"
+            detail={importeRiesgo > 0 ? "requiere revisión económica" : "sin riesgo económico activo"}
+            tone={importeRiesgo > 0 ? "red" : "green"}
           />
 
           <Kpi
             labelText="No admitido"
             value={euro(decision.importe_no_admitido)}
-            detail="importe no validado"
-            tone="red"
+            detail={noAdmitido > 0 ? "importe no validado" : "sin importe no admitido"}
+            tone={noAdmitido > 0 ? "red" : "green"}
           />
         </section>
 
@@ -377,14 +522,14 @@ export default function DecisionEconomicaDetallePage() {
           <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
             <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
               <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Estado justificación
+                Pago administrativo
               </p>
               <span
                 className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
                   decision.estado_justificacion
                 )}`}
               >
-                {label(decision.estado_justificacion)}
+                {estadoJustificacionLabel(decision.estado_justificacion)}
               </span>
             </div>
 
@@ -397,20 +542,22 @@ export default function DecisionEconomicaDetallePage() {
                   decision.estado_operativo_administrativo
                 )}`}
               >
-                {label(decision.estado_operativo_label ?? decision.estado_operativo_administrativo)}
+                {estadoOperativoLabel(
+                  decision.estado_operativo_label ?? decision.estado_operativo_administrativo
+                )}
               </span>
             </div>
 
             <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
               <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Nivel de riesgo
+                Control de revisión
               </p>
               <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
-                  decision.nivel_riesgo
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${controlBadgeClass(
+                  decision
                 )}`}
               >
-                {label(decision.nivel_riesgo)}
+                {control}
               </span>
             </div>
 
@@ -451,11 +598,7 @@ export default function DecisionEconomicaDetallePage() {
               <p className="text-[8.5px] font-semibold uppercase tracking-wide text-blue-700">
                 Lectura para toma de decisiones
               </p>
-              <p className="mt-0.5">
-                Esta ficha concentra la justificación económica del subexpediente, el importe pendiente,
-                el posible riesgo de reintegro, el estado de ejecución, la evidencia documental pendiente
-                y la actuación administrativa sugerida.
-              </p>
+              <p className="mt-0.5">{lecturaControl(decision)}</p>
             </section>
 
             <section className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
@@ -463,10 +606,10 @@ export default function DecisionEconomicaDetallePage() {
                 Decisión recomendada
               </p>
               <p className="mt-0.5 text-[13px] font-semibold leading-4 text-slate-950">
-                {label(decision.decision_recomendada)}
+                {decisionLabel(decision.decision_recomendada)}
               </p>
               <p className="mt-1 line-clamp-3 text-[11px] leading-4 text-slate-700">
-                {decision.motivo_decision ?? "Sin motivo específico registrado."}
+                {motivoDecision(decision)}
               </p>
             </section>
 
@@ -475,7 +618,7 @@ export default function DecisionEconomicaDetallePage() {
                 Actuación sugerida
               </p>
               <p className="mt-0.5 line-clamp-3 text-[11px] leading-4 text-slate-700">
-                {decision.actuacion_sugerida ?? "Sin actuación sugerida registrada."}
+                {actuacionSugerida(decision)}
               </p>
             </section>
 
@@ -502,7 +645,7 @@ export default function DecisionEconomicaDetallePage() {
                 <div className="rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5">
                   <p className="text-[9.5px] text-slate-500">Alerta</p>
                   <p className="truncate text-[12px] font-semibold leading-4">
-                    {label(decision.alerta)}
+                    {lecturaControl(decision)}
                   </p>
                 </div>
               </div>
@@ -520,7 +663,7 @@ export default function DecisionEconomicaDetallePage() {
             </Link>
 
             <Link
-              href="/justificacion-economica"
+              href={justificacionHref}
               className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
             >
               Ver justificación económica
@@ -534,10 +677,10 @@ export default function DecisionEconomicaDetallePage() {
             </Link>
 
             <Link
-              href="/acciones"
+              href={`/acciones/nueva?ofertaId=${decision.oferta_id}`}
               className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f]"
             >
-              Ir a acciones administrativas
+              Preparar actuación administrativa
             </Link>
           </div>
         </section>
