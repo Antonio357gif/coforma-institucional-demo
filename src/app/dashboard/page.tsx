@@ -70,6 +70,19 @@ type OfertaResumen = {
   nota_trazabilidad: string;
 };
 
+type DocumentacionResumen = {
+  documentos_total: number;
+  no_recibidos: number;
+  recibidos: number;
+  en_revision: number;
+  validados: number;
+  no_aplica: number;
+  riesgo_activo_alto_critico: number;
+  ofertas: number;
+  subexpedientes: number;
+  entidades: number;
+};
+
 type Tone = "blue" | "green" | "red" | "amber" | "slate" | "violet" | "teal";
 
 type Modulo = {
@@ -322,29 +335,40 @@ function KpiCard({
   );
 }
 
-function PriorityRow({
+function ControlTile({
   href,
   tone,
   label,
   value,
+  helper,
 }: {
   href: string;
   tone: Tone;
   label: string;
   value: string;
+  helper: string;
 }) {
   const palette = toneClasses(tone);
 
   return (
     <Link
       href={href}
-      className="grid grid-cols-[28px_1fr_50px] items-center gap-2 rounded-xl bg-slate-50 px-2.5 py-2 text-xs transition hover:bg-blue-50"
+      className={`group grid min-w-0 grid-cols-[22px_1fr_auto] items-center gap-2 rounded-xl border ${palette.border} bg-slate-50 px-2.5 py-1.5 transition hover:bg-blue-50 hover:shadow-sm`}
     >
-      <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${palette.icon}`}>
-        <span className={`h-2.5 w-2.5 rounded-full ${palette.line}`} />
+      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg ${palette.icon}`}>
+        <span className={`h-2 w-2 rounded-full ${palette.line}`} />
       </span>
-      <span className="truncate font-semibold text-slate-800">{label}</span>
-      <span className={`rounded-lg px-2 py-1 text-center text-[11px] font-bold ${palette.soft}`}>
+
+      <span className="min-w-0">
+        <span className="block truncate text-[11px] font-black leading-4 text-slate-800 group-hover:text-slate-950">
+          {label}
+        </span>
+        <span className="block truncate text-[9px] leading-3 text-slate-500">
+          {helper}
+        </span>
+      </span>
+
+      <span className={`rounded-lg px-2 py-0.5 text-[10px] font-black ${palette.soft}`}>
         {value}
       </span>
     </Link>
@@ -464,7 +488,7 @@ function VerticalBars({
   const maxValue = Math.max(...items.map((item) => item.value), 1);
 
   return (
-    <div className="grid grid-cols-5 gap-2">
+    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((item) => {
         const palette = toneClasses(item.tone);
         const percentage = pct(item.value, safeBase);
@@ -527,6 +551,7 @@ function NoteCard({
 export default function DashboardPage() {
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [ofertaResumen, setOfertaResumen] = useState<OfertaResumen | null>(null);
+  const [documentacionResumen, setDocumentacionResumen] = useState<DocumentacionResumen | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -535,12 +560,13 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
 
-      const [resumenRes, ofertaRes] = await Promise.all([
+      const [resumenRes, ofertaRes, documentacionRes] = await Promise.all([
         supabase.from("v_fiscalizacion_resumen").select("*").single(),
         supabase.from("v_oferta_formativa_resumen_institucional").select("*").single(),
+        supabase.from("v_recepcion_documentacion_resumen").select("*").single(),
       ]);
 
-      const firstError = resumenRes.error || ofertaRes.error;
+      const firstError = resumenRes.error || ofertaRes.error || documentacionRes.error;
 
       if (firstError) {
         setError(firstError.message);
@@ -550,6 +576,7 @@ export default function DashboardPage() {
 
       setResumen(resumenRes.data as Resumen);
       setOfertaResumen(ofertaRes.data as OfertaResumen);
+      setDocumentacionResumen(documentacionRes.data as DocumentacionResumen);
       setLoading(false);
     }
 
@@ -580,7 +607,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (error || !resumen || !ofertaResumen) {
+  if (error || !resumen || !ofertaResumen || !documentacionResumen) {
     return (
       <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
         <section className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
@@ -595,11 +622,28 @@ export default function DashboardPage() {
 
   const totalAcciones = ofertaResumen.acciones_total || resumen.acciones_concedidas || 1;
 
-  const repartoConcedidoTotal =
-    ofertaResumen.importe_en_ejecucion_concedido +
-    ofertaResumen.importe_finalizado_concedido +
-    ofertaResumen.importe_pendiente_ejecutar_concedido +
-    ofertaResumen.importe_revision_riesgo_concedido;
+  const revisionRiesgoAcciones =
+    ofertaResumen.en_ejecucion_con_incidencia + ofertaResumen.riesgo_reintegro;
+
+  const documentacionOperativaPct = pct(
+    documentacionResumen.documentos_total - documentacionResumen.no_recibidos,
+    documentacionResumen.documentos_total
+  );
+
+  const ejecucionEconomicaPct = pct(
+    ofertaResumen.importe_en_ejecucion_concedido,
+    ofertaResumen.importe_concedido_total
+  );
+
+  const finalizadoEconomicoPct = pct(
+    ofertaResumen.importe_finalizado_concedido,
+    ofertaResumen.importe_concedido_total
+  );
+
+  const pendienteEconomicoPct = pct(
+    ofertaResumen.importe_pendiente_ejecutar_concedido,
+    ofertaResumen.importe_concedido_total
+  );
 
   const estadoResolucionPct = pct(
     ofertaResumen.importe_en_ejecucion_concedido + ofertaResumen.importe_finalizado_concedido,
@@ -705,7 +749,7 @@ export default function DashboardPage() {
               <KpiCard
                 title="Estado económico"
                 mainValue={euro(ofertaResumen.importe_concedido_total)}
-                subtitle={`${estadoResolucionPct}% en ejecución o finalizado`}
+                subtitle={`${ejecucionEconomicaPct}% ejec. · ${finalizadoEconomicoPct}% fin. · ${pendienteEconomicoPct}% pend.`}
                 href="/justificacion-economica"
                 tone="green"
                 icon="€"
@@ -727,29 +771,26 @@ export default function DashboardPage() {
                 icon="!"
                 percentValue={riesgoImportePct}
                 cells={[
-                  { label: "Incidencias", value: num(ofertaResumen.incidencias_abiertas), tone: "amber" },
+                  { label: "Rev./Riesgo", value: num(revisionRiesgoAcciones), tone: "red" },
                   { label: "Req.", value: num(ofertaResumen.requerimientos_pendientes), tone: "red" },
-                  { label: "Reintegro", value: num(ofertaResumen.riesgo_reintegro), tone: "red" },
-                  { label: "Entidades", value: num(ofertaResumen.entidades_con_incidencias_o_riesgo), tone: "blue" },
+                  { label: "Alertas altas", value: num(resumen.alertas_altas), tone: "red" },
+                  { label: "Alertas medias", value: num(resumen.alertas_medias), tone: "amber" },
                 ]}
               />
 
               <KpiCard
-                title="Entidades beneficiarias"
-                mainValue={num(resumen.entidades_beneficiarias)}
-                subtitle={`${num(ofertaResumen.entidades_con_incidencias_o_riesgo)} priorizables`}
-                href="/entidades"
+                title="Documentación"
+                mainValue={num(documentacionResumen.documentos_total)}
+                subtitle={`${num(documentacionResumen.no_recibidos)} sin recibir · ${num(documentacionResumen.validados)} validados`}
+                href="/recepcion-documentacion"
                 tone="blue"
-                icon="▦"
-                percentValue={pct(
-                  ofertaResumen.entidades_con_incidencias_o_riesgo,
-                  resumen.entidades_beneficiarias
-                )}
+                icon="≡"
+                percentValue={documentacionOperativaPct}
                 cells={[
-                  { label: "Con oferta", value: num(ofertaResumen.entidades_con_oferta), tone: "green" },
-                  { label: "Priorizables", value: num(ofertaResumen.entidades_con_incidencias_o_riesgo), tone: "red" },
-                  { label: "Alertas altas", value: num(resumen.alertas_altas), tone: "red" },
-                  { label: "Alertas medias", value: num(resumen.alertas_medias), tone: "amber" },
+                  { label: "Recibidos", value: num(documentacionResumen.recibidos), tone: "blue" },
+                  { label: "Validados", value: num(documentacionResumen.validados), tone: "green" },
+                  { label: "No aplica", value: num(documentacionResumen.no_aplica), tone: "slate" },
+                  { label: "Sin recibir", value: num(documentacionResumen.no_recibidos), tone: "amber" },
                 ]}
               />
 
@@ -772,31 +813,46 @@ export default function DashboardPage() {
 
             <section className="grid gap-3 xl:grid-cols-[0.32fr_0.68fr]">
               <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                <h2 className="text-sm font-black text-slate-950">Prioridades de revisión</h2>
-                <div className="mt-3 space-y-2">
-                  <PriorityRow
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-black text-slate-950">Control institucional</h2>
+                    <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                      Sin prioridades críticas abiertas según la lectura backend actual.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] text-emerald-800">
+                    Operativo
+                  </span>
+                </div>
+
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  <ControlTile
                     href="/entidades"
                     tone="blue"
-                    label="Revisar entidades priorizables"
+                    label="Entidades"
+                    helper={`${num(resumen.entidades_beneficiarias)} benef. · ${num(ofertaResumen.entidades_con_oferta)} con oferta`}
                     value={num(ofertaResumen.entidades_con_incidencias_o_riesgo)}
                   />
-                  <PriorityRow
-                    href="/oferta-formativa?requerimientos=1"
+                  <ControlTile
+                    href="/recepcion-documentacion"
+                    tone="green"
+                    label="Documentación"
+                    helper={`${num(documentacionResumen.validados)} validados · ${num(documentacionResumen.no_recibidos)} sin recibir`}
+                    value={num(documentacionResumen.riesgo_activo_alto_critico)}
+                  />
+                  <ControlTile
+                    href="/alertas"
                     tone="red"
-                    label="Atender requerimientos pendientes"
-                    value={num(ofertaResumen.requerimientos_pendientes)}
+                    label="Rev./Riesgo"
+                    helper={`${num(resumen.alertas_altas)} altas · ${num(resumen.alertas_medias)} medias`}
+                    value={num(revisionRiesgoAcciones)}
                   />
-                  <PriorityRow
-                    href="/justificacion-economica?pendiente_justificar=1"
-                    tone="amber"
-                    label="Controlar acciones pendientes de justificar"
-                    value={num(ofertaResumen.finalizadas_pendiente_justificacion)}
-                  />
-                  <PriorityRow
-                    href="/trazabilidad-tecnica"
-                    tone="blue"
-                    label="Verificar trazabilidad técnica"
-                    value={num(resumen.acciones_sin_datos_ejecucion)}
+                  <ControlTile
+                    href="/justificacion-economica"
+                    tone="violet"
+                    label="Justificación"
+                    helper={`${euro(ofertaResumen.importe_ejecutado_total)} · ${avanceEconomicoPct}% avance`}
+                    value={`${avanceEconomicoPct}%`}
                   />
                 </div>
               </div>
@@ -860,32 +916,25 @@ export default function DashboardPage() {
                           title: "Ver acciones en ejecución",
                         },
                         {
-                          label: "Pendiente",
-                          value: ofertaResumen.pendientes_ejecutar,
-                          tone: "blue",
-                          href: "/oferta-formativa?estado=pendiente_ejecutar",
-                          title: "Ver acciones pendientes de ejecutar",
-                        },
-                        {
-                          label: "Incidencia",
-                          value: ofertaResumen.en_ejecucion_con_incidencia,
-                          tone: "amber",
-                          href: "/oferta-formativa?estado=en_ejecucion_con_incidencia",
-                          title: "Ver acciones en ejecución con incidencia",
-                        },
-                        {
-                          label: "Finalizada",
+                          label: "Finalizadas",
                           value: ofertaResumen.finalizadas_total,
                           tone: "slate",
                           href: "/oferta-formativa?estado=finalizada",
                           title: "Ver acciones finalizadas",
                         },
                         {
-                          label: "Reintegro",
-                          value: ofertaResumen.riesgo_reintegro,
-                          tone: "violet",
-                          href: "/oferta-formativa?estado=riesgo_reintegro",
-                          title: "Ver acciones con riesgo de reintegro",
+                          label: "Pendientes",
+                          value: ofertaResumen.pendientes_ejecutar,
+                          tone: "blue",
+                          href: "/oferta-formativa?estado=pendiente_ejecutar",
+                          title: "Ver acciones pendientes de ejecutar",
+                        },
+                        {
+                          label: "Rev./Riesgo",
+                          value: revisionRiesgoAcciones,
+                          tone: "red",
+                          href: "/alertas",
+                          title: "Ver revisión, alertas o riesgo",
                         },
                       ]}
                     />
