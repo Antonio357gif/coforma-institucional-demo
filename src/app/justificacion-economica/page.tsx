@@ -45,6 +45,13 @@ type JustificacionRow = {
   actuacion_sugerida: string | null;
 };
 
+type PagoAdministrativo =
+  | "pagado"
+  | "en_revision_parcial"
+  | "en_ejecucion_no_abonado"
+  | "no_devengado"
+  | "revision_riesgo";
+
 function euro(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
@@ -71,36 +78,82 @@ function label(value: string | null | undefined) {
   return String(value ?? "—").replaceAll("_", " ");
 }
 
-function badgeClass(value: string | null | undefined) {
-  const normalizado = String(value ?? "").toLowerCase();
+function normalizar(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
 
-  if (
-    normalizado.includes("alta") ||
-    normalizado.includes("riesgo") ||
-    normalizado.includes("reintegro") ||
-    normalizado.includes("revision")
-  ) {
-    return "border-red-200 bg-red-50 text-red-800";
-  }
+function estadoOperativo(row: JustificacionRow) {
+  return normalizar(row.estado_operativo_administrativo);
+}
 
-  if (
-    normalizado.includes("media") ||
-    normalizado.includes("pendiente") ||
-    normalizado.includes("parcial")
-  ) {
-    return "border-amber-200 bg-amber-50 text-amber-800";
-  }
+function esEnEjecucion(row: JustificacionRow) {
+  return estadoOperativo(row) === "en_ejecucion";
+}
 
-  if (
-    normalizado.includes("total") ||
-    normalizado.includes("validada") ||
-    normalizado.includes("ordinario") ||
-    normalizado.includes("ejecucion")
-  ) {
-    return "border-emerald-200 bg-emerald-50 text-emerald-800";
-  }
+function esFinalizada(row: JustificacionRow) {
+  return estadoOperativo(row) === "finalizada";
+}
 
-  return "border-blue-200 bg-blue-50 text-blue-800";
+function esPendiente(row: JustificacionRow) {
+  return estadoOperativo(row) === "pendiente_ejecutar";
+}
+
+function esRevisionRiesgo(row: JustificacionRow) {
+  const estado = estadoOperativo(row);
+
+  return (
+    estado !== "en_ejecucion" &&
+    estado !== "finalizada" &&
+    estado !== "pendiente_ejecutar"
+  );
+}
+
+function pagoAdministrativo(row: JustificacionRow): PagoAdministrativo {
+  if (esFinalizada(row)) return "pagado";
+  if (esPendiente(row)) return "no_devengado";
+  if (esRevisionRiesgo(row)) return "revision_riesgo";
+
+  const justificado = Number(row.importe_justificado ?? 0);
+  if (esEnEjecucion(row) && justificado > 0) return "en_revision_parcial";
+
+  return "en_ejecucion_no_abonado";
+}
+
+function pagoLabel(value: PagoAdministrativo) {
+  if (value === "pagado") return "Pagado";
+  if (value === "en_revision_parcial") return "Revisión parcial";
+  if (value === "en_ejecucion_no_abonado") return "En ejecución no abonado";
+  if (value === "no_devengado") return "No devengado";
+  return "Revisión/Riesgo";
+}
+
+function pagoBadgeClass(value: PagoAdministrativo) {
+  if (value === "pagado") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (value === "en_revision_parcial") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (value === "en_ejecucion_no_abonado") return "border-slate-200 bg-slate-50 text-slate-700";
+  if (value === "no_devengado") return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-red-200 bg-red-50 text-red-800";
+}
+
+function operativoBadgeClass(row: JustificacionRow) {
+  if (esFinalizada(row)) return "border-slate-200 bg-slate-50 text-slate-800";
+  if (esEnEjecucion(row)) return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (esPendiente(row)) return "border-blue-200 bg-blue-50 text-blue-800";
+  return "border-red-200 bg-red-50 text-red-800";
+}
+
+function lecturaControl(row: JustificacionRow) {
+  if (esFinalizada(row)) return "Finalizada con pago administrativo";
+  if (esEnEjecucion(row)) return "Ejecución viva / seguimiento económico";
+  if (esPendiente(row)) return "Pendiente de ejecución / no devengado";
+  return "Revisión o riesgo activo";
+}
+
+function textoEstadoOperativo(row: JustificacionRow) {
+  if (esEnEjecucion(row)) return "En ejecución";
+  if (esFinalizada(row)) return "Finalizada";
+  if (esPendiente(row)) return "Pendiente de ejecutar";
+  return label(row.estado_operativo_label ?? row.estado_operativo_administrativo);
 }
 
 async function cargarTodaLaJustificacion() {
@@ -112,7 +165,6 @@ async function cargarTodaLaJustificacion() {
     const { data, error } = await supabase
       .from("v_justificacion_economica")
       .select("*")
-      .order("importe_en_riesgo", { ascending: false, nullsFirst: false })
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
 
@@ -138,18 +190,46 @@ function Kpi({
   value,
   detail,
   href,
+  tone = "slate",
 }: {
   labelText: string;
   value: string;
   detail: string;
   href?: string;
+  tone?: "slate" | "green" | "blue" | "amber" | "red" | "violet";
 }) {
+  const toneClass =
+    tone === "green"
+      ? "border-emerald-200 bg-white hover:bg-emerald-50"
+      : tone === "blue"
+        ? "border-blue-200 bg-white hover:bg-blue-50"
+        : tone === "amber"
+          ? "border-amber-200 bg-white hover:bg-amber-50"
+          : tone === "red"
+            ? "border-red-200 bg-white hover:bg-red-50"
+            : tone === "violet"
+              ? "border-violet-200 bg-white hover:bg-violet-50"
+              : "border-slate-200 bg-white hover:bg-slate-50";
+
+  const valueClass =
+    tone === "green"
+      ? "text-emerald-800"
+      : tone === "blue"
+        ? "text-blue-800"
+        : tone === "amber"
+          ? "text-amber-800"
+          : tone === "red"
+            ? "text-red-800"
+            : tone === "violet"
+              ? "text-violet-800"
+              : "text-slate-950";
+
   const card = (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
+    <div className={`rounded-lg border px-3 py-1.5 shadow-sm transition ${toneClass}`}>
       <p className="truncate text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {labelText}
       </p>
-      <p className="mt-0.5 truncate text-[14px] font-semibold leading-4 text-slate-950">
+      <p className={`mt-0.5 truncate text-[14px] font-semibold leading-4 ${valueClass}`}>
         {value}
       </p>
       <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
@@ -177,16 +257,11 @@ function JustificacionEconomicaPageContent() {
 
   const [rows, setRows] = useState<JustificacionRow[]>([]);
   const [busqueda, setBusqueda] = useState("");
-  const [estadoFiltro, setEstadoFiltro] = useState("todos");
-  const [decisionFiltro, setDecisionFiltro] = useState("todos");
-  const [prioridadFiltro, setPrioridadFiltro] = useState("todos");
-  const [soloPendientesJustificar, setSoloPendientesJustificar] = useState(false);
   const [operativoFiltro, setOperativoFiltro] = useState("todos");
+  const [pagoFiltro, setPagoFiltro] = useState("todos");
   const [importeFiltro, setImporteFiltro] = useState("todos");
-  const [revisionFiltro, setRevisionFiltro] = useState(false);
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
-  const [seleccionada, setSeleccionada] = useState<JustificacionRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMsg, setLoadingMsg] = useState("Cargando justificación económica...");
   const [error, setError] = useState<string | null>(null);
@@ -237,38 +312,30 @@ function JustificacionEconomicaPageContent() {
   }, []);
 
   useEffect(() => {
-    const pendienteJustificar = searchParams.get("pendiente_justificar");
     const operativo = searchParams.get("operativo");
+    const pago = searchParams.get("pago");
     const importe = searchParams.get("importe");
     const revision = searchParams.get("revision");
-    const prioridad = searchParams.get("prioridad");
-
-    if (pendienteJustificar === "1" || pendienteJustificar === "true") {
-      setSoloPendientesJustificar(true);
-      setOperativoFiltro("finalizada_pendiente_justificacion");
-    }
 
     if (operativo) {
       setOperativoFiltro(operativo);
-      if (operativo === "finalizada_pendiente_justificacion") {
-        setSoloPendientesJustificar(true);
-      }
     }
 
-    if (importe === "ejecutado") {
-      setImporteFiltro("ejecutado");
+    if (pago) {
+      setPagoFiltro(pago);
     }
 
-    if (importe === "justificado") {
-      setImporteFiltro("justificado");
+    if (importe) {
+      setImporteFiltro(importe);
     }
 
     if (revision === "1" || revision === "true") {
-      setRevisionFiltro(true);
+      setOperativoFiltro("revision_riesgo");
     }
 
-    if (prioridad) {
-      setPrioridadFiltro(prioridad);
+    const pendienteJustificar = searchParams.get("pendiente_justificar");
+    if (pendienteJustificar === "1" || pendienteJustificar === "true") {
+      setPagoFiltro("no_devengado");
     }
   }, [searchParams]);
 
@@ -282,30 +349,6 @@ function JustificacionEconomicaPageContent() {
     return rowsPorOferta[0] ?? null;
   }, [rowsPorOferta]);
 
-  const estados = useMemo(() => {
-    return Array.from(new Set(rowsPorOferta.map((row) => row.estado_justificacion)))
-      .filter(Boolean)
-      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rowsPorOferta]);
-
-  const operativos = useMemo(() => {
-    return Array.from(new Set(rowsPorOferta.map((row) => row.estado_operativo_administrativo)))
-      .filter(Boolean)
-      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rowsPorOferta]);
-
-  const decisiones = useMemo(() => {
-    return Array.from(new Set(rowsPorOferta.map((row) => row.decision_recomendada)))
-      .filter(Boolean)
-      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rowsPorOferta]);
-
-  const prioridades = useMemo(() => {
-    return Array.from(new Set(rowsPorOferta.map((row) => row.prioridad_decision)))
-      .filter(Boolean)
-      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rowsPorOferta]);
-
   const filtradas = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
 
@@ -317,78 +360,45 @@ function JustificacionEconomicaPageContent() {
         row.tipo_oferta,
         row.codigo_especialidad,
         row.denominacion,
-        row.estado_justificacion,
-        row.estado_operativo_administrativo,
-        row.estado_operativo_label,
-        row.decision_recomendada,
-        row.prioridad_decision,
-        row.motivo_decision,
+        textoEstadoOperativo(row),
+        pagoLabel(pagoAdministrativo(row)),
+        lecturaControl(row),
         row.tecnico_nombre,
-        row.riesgo_administrativo,
-        row.riesgo_economico,
-        row.actuacion_sugerida,
+        row.tecnico_unidad,
       ]
         .join(" ")
         .toLowerCase();
 
       const pasaBusqueda = term === "" || texto.includes(term);
-      const pasaEstado = estadoFiltro === "todos" || row.estado_justificacion === estadoFiltro;
-      const pasaOperativo =
-        operativoFiltro === "todos" || row.estado_operativo_administrativo === operativoFiltro;
-      const pasaDecision = decisionFiltro === "todos" || row.decision_recomendada === decisionFiltro;
-      const pasaPrioridad = prioridadFiltro === "todos" || row.prioridad_decision === prioridadFiltro;
 
-      const pasaPendienteJustificar =
-        !soloPendientesJustificar ||
-        row.estado_operativo_administrativo === "finalizada_pendiente_justificacion";
+      const estado = estadoOperativo(row);
+      const pago = pagoAdministrativo(row);
+
+      const pasaOperativo =
+        operativoFiltro === "todos" ||
+        estado === operativoFiltro ||
+        (operativoFiltro === "revision_riesgo" && esRevisionRiesgo(row));
+
+      const pasaPago = pagoFiltro === "todos" || pago === pagoFiltro;
 
       const pasaImporte =
         importeFiltro === "todos" ||
         (importeFiltro === "ejecutado" && Number(row.importe_ejecutado ?? 0) > 0) ||
         (importeFiltro === "justificado" && Number(row.importe_justificado ?? 0) > 0);
 
-      const pasaRevision =
-        !revisionFiltro ||
-        row.estado_operativo_administrativo === "en_ejecucion_con_incidencia" ||
-        row.estado_operativo_administrativo === "riesgo_reintegro";
-
-      return (
-        pasaBusqueda &&
-        pasaEstado &&
-        pasaOperativo &&
-        pasaDecision &&
-        pasaPrioridad &&
-        pasaPendienteJustificar &&
-        pasaImporte &&
-        pasaRevision
-      );
+      return pasaBusqueda && pasaOperativo && pasaPago && pasaImporte;
     });
   }, [
     rowsPorOferta,
     busqueda,
-    estadoFiltro,
     operativoFiltro,
-    decisionFiltro,
-    prioridadFiltro,
-    soloPendientesJustificar,
+    pagoFiltro,
     importeFiltro,
-    revisionFiltro,
   ]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [
-    busqueda,
-    estadoFiltro,
-    operativoFiltro,
-    decisionFiltro,
-    prioridadFiltro,
-    soloPendientesJustificar,
-    importeFiltro,
-    revisionFiltro,
-    pageSize,
-    ofertaIdFiltro,
-  ]);
+  }, [busqueda, operativoFiltro, pagoFiltro, importeFiltro, pageSize, ofertaIdFiltro]);
 
   const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -399,42 +409,59 @@ function JustificacionEconomicaPageContent() {
   const resumen = useMemo(() => {
     return filtradas.reduce(
       (acc, row) => {
-        acc.concedido += Number(row.importe_concedido ?? 0);
-        acc.ejecutado += Number(row.importe_ejecutado ?? 0);
-        acc.justificado += Number(row.importe_justificado ?? 0);
-        acc.pendiente += Number(row.importe_pendiente_justificar ?? 0);
-        acc.noAdmitido += Number(row.importe_no_admitido ?? 0);
-        acc.riesgo += Number(row.importe_en_riesgo ?? 0);
+        const concedido = Number(row.importe_concedido ?? 0);
+        const ejecutado = Number(row.importe_ejecutado ?? 0);
 
-        if (row.prioridad_decision === "alta") acc.alta++;
-        if (row.estado_justificacion === "en_revision") acc.enRevision++;
-        if (row.decision_recomendada === "revisar_posible_reintegro") acc.reintegro++;
+        acc.concedido += concedido;
+        acc.ejecutado += ejecutado;
+
+        if (esEnEjecucion(row)) {
+          acc.enEjecucionAcciones++;
+          acc.enEjecucionImporte += concedido;
+        } else if (esFinalizada(row)) {
+          acc.finalizadasAcciones++;
+          acc.finalizadoImporte += concedido;
+        } else if (esPendiente(row)) {
+          acc.pendientesAcciones++;
+          acc.pendienteImporte += concedido;
+        } else {
+          acc.revisionAcciones++;
+          acc.revisionImporte += concedido;
+        }
+
+        const pago = pagoAdministrativo(row);
+
+        if (pago === "pagado") acc.pagadoAcciones++;
+        if (pago === "en_revision_parcial") acc.revisionParcialAcciones++;
+        if (pago === "en_ejecucion_no_abonado") acc.noAbonadoAcciones++;
+        if (pago === "no_devengado") acc.noDevengadoAcciones++;
 
         return acc;
       },
       {
         concedido: 0,
         ejecutado: 0,
-        justificado: 0,
-        pendiente: 0,
-        noAdmitido: 0,
-        riesgo: 0,
-        alta: 0,
-        enRevision: 0,
-        reintegro: 0,
+        enEjecucionAcciones: 0,
+        enEjecucionImporte: 0,
+        finalizadasAcciones: 0,
+        finalizadoImporte: 0,
+        pendientesAcciones: 0,
+        pendienteImporte: 0,
+        revisionAcciones: 0,
+        revisionImporte: 0,
+        pagadoAcciones: 0,
+        revisionParcialAcciones: 0,
+        noAbonadoAcciones: 0,
+        noDevengadoAcciones: 0,
       }
     );
   }, [filtradas]);
 
   function limpiarFiltros() {
     setBusqueda("");
-    setEstadoFiltro("todos");
     setOperativoFiltro("todos");
-    setDecisionFiltro("todos");
-    setPrioridadFiltro("todos");
-    setSoloPendientesJustificar(false);
+    setPagoFiltro("todos");
     setImporteFiltro("todos");
-    setRevisionFiltro(false);
   }
 
   if (loading) {
@@ -470,12 +497,12 @@ function JustificacionEconomicaPageContent() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Justificación económica</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Control del dinero concedido, ejecutado, justificado, pendiente y en riesgo de reintegro.
+              Lectura económica saneada: concedido, ejecución, pago administrativo, no devengado y revisión.
             </p>
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            {num(filtradas.length)} acciones visibles · {num(rows.length)} con justificación
+            {num(filtradas.length)} visibles · {num(rows.length)} subexpedientes económicos
           </div>
         </div>
       </section>
@@ -495,44 +522,26 @@ function JustificacionEconomicaPageContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            {soloPendientesJustificar ? (
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-800 shadow-sm">
-                Pendiente justificar
-              </span>
-            ) : null}
-
-            {operativoFiltro !== "todos" && !soloPendientesJustificar ? (
+            {operativoFiltro !== "todos" ? (
               <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-800 shadow-sm">
-                {label(operativoFiltro)}
+                Estado: {label(operativoFiltro)}
               </span>
             ) : null}
 
-            {importeFiltro === "ejecutado" ? (
+            {pagoFiltro !== "todos" ? (
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm">
-                Ejecutado &gt; 0
+                Pago: {label(pagoFiltro)}
               </span>
             ) : null}
 
-            {importeFiltro === "justificado" ? (
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm">
-                Justificado &gt; 0
-              </span>
-            ) : null}
-
-            {revisionFiltro ? (
-              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-semibold text-red-800 shadow-sm">
-                Sujeto a revisión
-              </span>
-            ) : null}
-
-            {prioridadFiltro !== "todos" ? (
-              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-semibold text-red-800 shadow-sm">
-                Prioridad: {label(prioridadFiltro)}
+            {importeFiltro !== "todos" ? (
+              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
+                Importe: {label(importeFiltro)}
               </span>
             ) : null}
 
             <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
-              Justificación económica
+              Foto madre económica
             </span>
           </div>
         </div>
@@ -543,36 +552,42 @@ function JustificacionEconomicaPageContent() {
             value={euro(resumen.concedido)}
             detail={`${num(filtradas.length)} acciones`}
             href={justificacionHref({})}
+            tone="violet"
           />
           <Kpi
-            labelText="Ejecutado"
-            value={euro(resumen.ejecutado)}
-            detail={pct(resumen.ejecutado, resumen.concedido)}
-            href={justificacionHref({ importe: "ejecutado" })}
+            labelText="En ejecución"
+            value={euro(resumen.enEjecucionImporte)}
+            detail={`${num(resumen.enEjecucionAcciones)} acciones · ${pct(resumen.enEjecucionImporte, resumen.concedido)}`}
+            href={justificacionHref({ operativo: "en_ejecucion" })}
+            tone="green"
           />
           <Kpi
-            labelText="Justificado"
-            value={euro(resumen.justificado)}
-            detail={pct(resumen.justificado, resumen.concedido)}
-            href={justificacionHref({ importe: "justificado" })}
+            labelText="Finalizado / pagado"
+            value={euro(resumen.finalizadoImporte)}
+            detail={`${num(resumen.finalizadasAcciones)} acciones · ${pct(resumen.finalizadoImporte, resumen.concedido)}`}
+            href={justificacionHref({ operativo: "finalizada" })}
+            tone="slate"
           />
           <Kpi
-            labelText="Pendiente justificar"
-            value={euro(resumen.pendiente)}
-            detail={pct(resumen.pendiente, resumen.concedido)}
-            href={justificacionHref({ pendiente_justificar: "1" })}
+            labelText="Pendiente / no devengado"
+            value={euro(resumen.pendienteImporte)}
+            detail={`${num(resumen.pendientesAcciones)} acciones · ${pct(resumen.pendienteImporte, resumen.concedido)}`}
+            href={justificacionHref({ operativo: "pendiente_ejecutar" })}
+            tone="blue"
           />
           <Kpi
-            labelText="En riesgo"
-            value={euro(resumen.riesgo)}
-            detail={`${num(resumen.reintegro)} posibles reintegros`}
+            labelText="Revisión / riesgo"
+            value={euro(resumen.revisionImporte)}
+            detail={`${num(resumen.revisionAcciones)} acciones`}
             href={justificacionHref({ revision: "1" })}
+            tone="red"
           />
           <Kpi
-            labelText="Prioridad alta"
-            value={num(resumen.alta)}
-            detail={`${num(resumen.enRevision)} en revisión`}
-            href={justificacionHref({ prioridad: "alta" })}
+            labelText="Avance registrado"
+            value={euro(resumen.ejecutado)}
+            detail={`${pct(resumen.ejecutado, resumen.concedido)} sobre concedido`}
+            href={justificacionHref({ importe: "ejecutado" })}
+            tone="green"
           />
         </section>
 
@@ -601,7 +616,7 @@ function JustificacionEconomicaPageContent() {
         ) : null}
 
         <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.2fr_0.7fr_0.7fr_0.7fr_0.6fr_auto_auto_auto_auto]">
+          <div className="grid gap-2 lg:grid-cols-[1.25fr_0.7fr_0.75fr_auto_auto_auto_auto]">
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -609,27 +624,9 @@ function JustificacionEconomicaPageContent() {
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
-                placeholder="Entidad, CIF, acción, especialidad, decisión, técnico..."
+                placeholder="Entidad, CIF, acción, especialidad, estado, pago..."
                 className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
-            </div>
-
-            <div>
-              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Estado justificación
-              </label>
-              <select
-                value={estadoFiltro}
-                onChange={(event) => setEstadoFiltro(event.target.value)}
-                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
-              >
-                <option value="todos">Todos</option>
-                {estados.map((estado) => (
-                  <option key={estado} value={estado}>
-                    {label(estado)}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div>
@@ -638,75 +635,60 @@ function JustificacionEconomicaPageContent() {
               </label>
               <select
                 value={operativoFiltro}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setOperativoFiltro(value);
-                  setSoloPendientesJustificar(value === "finalizada_pendiente_justificacion");
-                }}
+                onChange={(event) => setOperativoFiltro(event.target.value)}
                 className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
                 <option value="todos">Todos</option>
-                {operativos.map((operativo) => (
-                  <option key={operativo} value={operativo}>
-                    {label(operativo)}
-                  </option>
-                ))}
+                <option value="en_ejecucion">En ejecución</option>
+                <option value="finalizada">Finalizada</option>
+                <option value="pendiente_ejecutar">Pendiente de ejecutar</option>
+                <option value="revision_riesgo">Revisión/Riesgo</option>
               </select>
             </div>
 
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Decisión
+                Pago administrativo
               </label>
               <select
-                value={decisionFiltro}
-                onChange={(event) => setDecisionFiltro(event.target.value)}
+                value={pagoFiltro}
+                onChange={(event) => setPagoFiltro(event.target.value)}
                 className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
-                <option value="todos">Todas</option>
-                {decisiones.map((decision) => (
-                  <option key={decision} value={decision}>
-                    {label(decision)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Prioridad
-              </label>
-              <select
-                value={prioridadFiltro}
-                onChange={(event) => setPrioridadFiltro(event.target.value)}
-                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
-              >
-                <option value="todos">Todas</option>
-                {prioridades.map((prioridad) => (
-                  <option key={prioridad} value={prioridad}>
-                    {label(prioridad)}
-                  </option>
-                ))}
+                <option value="todos">Todos</option>
+                <option value="pagado">Pagado</option>
+                <option value="en_revision_parcial">Revisión parcial</option>
+                <option value="en_ejecucion_no_abonado">En ejecución no abonado</option>
+                <option value="no_devengado">No devengado</option>
+                <option value="revision_riesgo">Revisión/Riesgo</option>
               </select>
             </div>
 
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={() => {
-                  setSoloPendientesJustificar((prev) => {
-                    const next = !prev;
-                    setOperativoFiltro(next ? "finalizada_pendiente_justificacion" : "todos");
-                    return next;
-                  });
-                }}
+                onClick={() => setOperativoFiltro((prev) => (prev === "en_ejecucion" ? "todos" : "en_ejecucion"))}
                 className={
-                  soloPendientesJustificar
-                    ? "h-7 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-100"
+                  operativoFiltro === "en_ejecucion"
+                    ? "h-7 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
                     : "h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
-                Pend. justificar
+                Ejecución
+              </button>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => setOperativoFiltro((prev) => (prev === "pendiente_ejecutar" ? "todos" : "pendiente_ejecutar"))}
+                className={
+                  operativoFiltro === "pendiente_ejecutar"
+                    ? "h-7 rounded-lg border border-blue-200 bg-blue-50 px-2.5 text-[10px] font-semibold text-blue-800 hover:bg-blue-100"
+                    : "h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                }
+              >
+                Pendiente
               </button>
             </div>
 
@@ -720,21 +702,7 @@ function JustificacionEconomicaPageContent() {
                     : "h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
-                Ejecutado
-              </button>
-            </div>
-
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={() => setRevisionFiltro((prev) => !prev)}
-                className={
-                  revisionFiltro
-                    ? "h-7 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[10px] font-semibold text-red-800 hover:bg-red-100"
-                    : "h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
-                }
-              >
-                Revisión
+                Avance
               </button>
             </div>
 
@@ -753,9 +721,11 @@ function JustificacionEconomicaPageContent() {
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-1.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-[14px] font-semibold leading-5">Control de justificación por subexpediente</h2>
+              <h2 className="text-[14px] font-semibold leading-5">
+                Control económico por subexpediente
+              </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Dinero concedido, ejecutado, justificado, pendiente, riesgo y decisión recomendada.
+                Lectura saneada por estado operativo, pago administrativo y avance registrado.
               </p>
             </div>
 
@@ -800,92 +770,87 @@ function JustificacionEconomicaPageContent() {
                 <tr>
                   <th className="px-2 py-1.5">Entidad / acción</th>
                   <th className="px-2 py-1.5 text-right">Concedido</th>
-                  <th className="px-2 py-1.5 text-right">Ejecutado</th>
-                  <th className="px-2 py-1.5 text-right">Justificado</th>
-                  <th className="px-2 py-1.5 text-right">Pendiente</th>
-                  <th className="px-2 py-1.5 text-right">Riesgo</th>
-                  <th className="px-2 py-1.5">Estado</th>
-                  <th className="px-2 py-1.5">Decisión</th>
+                  <th className="px-2 py-1.5 text-right">Avance registrado</th>
+                  <th className="px-2 py-1.5 text-right">% avance</th>
+                  <th className="px-2 py-1.5">Estado operativo</th>
+                  <th className="px-2 py-1.5">Pago administrativo</th>
+                  <th className="px-2 py-1.5">Lectura de control</th>
                   <th className="px-2 py-1.5">Opciones</th>
                 </tr>
               </thead>
 
               <tbody>
-                {paginadas.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 hover:bg-blue-50">
-                    <td className="px-2 py-1">
-                      <p className="font-semibold leading-4 text-slate-950">{row.entidad_nombre ?? "—"}</p>
-                      <p className="text-[10px] leading-4 text-slate-500">{row.cif ?? "—"}</p>
-                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
-                        {row.codigo_accion ?? "—"} · {row.codigo_especialidad ?? "—"} · {row.tipo_oferta ?? "—"}
-                      </p>
-                      <p className="mt-0.5 max-w-[360px] truncate text-[10px] leading-4 text-slate-500">
-                        {row.denominacion ?? "—"}
-                      </p>
-                    </td>
+                {paginadas.map((row) => {
+                  const pago = pagoAdministrativo(row);
 
-                    <td className="px-2 py-1 text-right font-semibold">{euro(row.importe_concedido)}</td>
-                    <td className="px-2 py-1 text-right">{euro(row.importe_ejecutado)}</td>
-                    <td className="px-2 py-1 text-right text-emerald-700">{euro(row.importe_justificado)}</td>
-                    <td className="px-2 py-1 text-right text-amber-700">{euro(row.importe_pendiente_justificar)}</td>
-                    <td className="px-2 py-1 text-right font-semibold text-red-700">{euro(row.importe_en_riesgo)}</td>
+                  return (
+                    <tr key={row.id} className="border-t border-slate-100 hover:bg-blue-50">
+                      <td className="px-2 py-1">
+                        <p className="font-semibold leading-4 text-slate-950">{row.entidad_nombre ?? "—"}</p>
+                        <p className="text-[10px] leading-4 text-slate-500">{row.cif ?? "—"}</p>
+                        <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                          {row.codigo_accion ?? "—"} · {row.codigo_especialidad ?? "—"} · {row.tipo_oferta ?? "—"}
+                        </p>
+                        <p className="mt-0.5 max-w-[360px] truncate text-[10px] leading-4 text-slate-500">
+                          {row.denominacion ?? "—"}
+                        </p>
+                      </td>
 
-                    <td className="px-2 py-1">
-                      <div className="flex flex-col gap-1">
+                      <td className="px-2 py-1 text-right font-semibold">{euro(row.importe_concedido)}</td>
+                      <td className="px-2 py-1 text-right">{euro(row.importe_ejecutado)}</td>
+                      <td className="px-2 py-1 text-right">{pct(row.importe_ejecutado, row.importe_concedido)}</td>
+
+                      <td className="px-2 py-1">
                         <span
-                          className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
-                            row.estado_justificacion
+                          className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${operativoBadgeClass(
+                            row
                           )}`}
                         >
-                          {label(row.estado_justificacion)}
+                          {textoEstadoOperativo(row)}
                         </span>
+                      </td>
+
+                      <td className="px-2 py-1">
                         <span
-                          className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
-                            row.estado_operativo_administrativo
+                          className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${pagoBadgeClass(
+                            pago
                           )}`}
                         >
-                          {label(row.estado_operativo_label ?? row.estado_operativo_administrativo)}
+                          {pagoLabel(pago)}
                         </span>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="px-2 py-1">
-                      <p className="line-clamp-2 font-semibold leading-4 text-slate-950">
-                        {label(row.decision_recomendada)}
-                      </p>
-                      <span
-                        className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
-                          row.prioridad_decision
-                        )}`}
-                      >
-                        {label(row.prioridad_decision)}
-                      </span>
-                    </td>
+                      <td className="px-2 py-1">
+                        <p className="line-clamp-2 text-[10.5px] leading-4 text-slate-700">
+                          {lecturaControl(row)}
+                        </p>
+                      </td>
 
-                    <td className="px-2 py-1">
-                      <div className="flex flex-col gap-1">
-                        <Link
-                          href={`/decisiones-economicas/${row.id}`}
-                          className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
-                        >
-                          Ver decisión
-                        </Link>
+                      <td className="px-2 py-1">
+                        <div className="flex flex-col gap-1">
+                          <Link
+                            href={`/decisiones-economicas/${row.id}`}
+                            className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                          >
+                            Ficha económica
+                          </Link>
 
-                        <Link
-                          href={`/subexpedientes-accion/${row.oferta_id}`}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          Subexpediente
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <Link
+                            href={`/subexpedientes-accion/${row.oferta_id}`}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Subexpediente
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {filtradas.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-xs text-slate-500">
-                      No hay registros de justificación que coincidan con los filtros aplicados.
+                    <td colSpan={8} className="px-3 py-8 text-center text-xs text-slate-500">
+                      No hay registros económicos que coincidan con los filtros aplicados.
                     </td>
                   </tr>
                 ) : null}
@@ -894,110 +859,6 @@ function JustificacionEconomicaPageContent() {
           </div>
         </section>
       </section>
-
-      {seleccionada ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-          <section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                Decisión sobre justificación económica
-              </p>
-              <h2 className="mt-0.5 text-base font-semibold">{seleccionada.entidad_nombre}</h2>
-              <p className="mt-0.5 text-[11px] text-blue-100">
-                {seleccionada.codigo_accion} · {seleccionada.codigo_especialidad} · {seleccionada.tipo_oferta}
-              </p>
-            </div>
-
-            <div className="space-y-2 p-3">
-              <section className="grid gap-2 md:grid-cols-3">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Importe concedido</p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{euro(seleccionada.importe_concedido)}</p>
-                </div>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Pendiente justificar</p>
-                  <p className="mt-0.5 text-[13px] font-semibold text-amber-700">
-                    {euro(seleccionada.importe_pendiente_justificar)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">En riesgo</p>
-                  <p className="mt-0.5 text-[13px] font-semibold text-red-700">
-                    {euro(seleccionada.importe_en_riesgo)}
-                  </p>
-                </div>
-              </section>
-
-              <section className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] leading-5 text-blue-950">
-                <p className="font-semibold">Lectura para toma de decisiones</p>
-                <p className="mt-0.5">
-                  La actuación recomendada se calcula desde el estado económico del subexpediente: importe concedido,
-                  ejecución, justificación, pendiente documental/económico e importe en riesgo.
-                </p>
-              </section>
-
-              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Decisión recomendada</p>
-                <p className="mt-0.5 text-[13px] font-semibold">{label(seleccionada.decision_recomendada)}</p>
-                <p className="mt-1 text-[12px] leading-5 text-slate-700">
-                  {seleccionada.motivo_decision ?? "Sin motivo específico registrado."}
-                </p>
-              </section>
-
-              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Actuación sugerida</p>
-                <p className="mt-1 text-[12px] leading-5 text-slate-700">
-                  {seleccionada.actuacion_sugerida ?? "Sin actuación sugerida registrada."}
-                </p>
-              </section>
-
-              <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Datos de ejecución</p>
-                <div className="mt-1 grid gap-2 md:grid-cols-4">
-                  <p className="text-[12px]">
-                    Inicio: <strong>{num(seleccionada.alumnos_inicio)}</strong>
-                  </p>
-                  <p className="text-[12px]">
-                    Activos: <strong>{num(seleccionada.alumnos_activos)}</strong>
-                  </p>
-                  <p className="text-[12px]">
-                    Bajas: <strong>{num(seleccionada.bajas)}</strong>
-                  </p>
-                  <p className="text-[12px]">
-                    Aptos: <strong>{num(seleccionada.aptos)}</strong>
-                  </p>
-                </div>
-              </section>
-
-              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-                <Link
-                  href={`/subexpedientes-accion/${seleccionada.oferta_id}`}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Ver subexpediente
-                </Link>
-
-                <Link
-                  href="/acciones"
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Ir a acciones administrativas
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={() => setSeleccionada(null)}
-                  className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 }

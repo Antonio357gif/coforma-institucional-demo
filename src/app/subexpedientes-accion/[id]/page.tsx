@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 type AccionDetalle = {
@@ -41,31 +41,97 @@ type AccionDetalle = {
   fuente_ejecucion: string | null;
 };
 
+type AlertaTipificada = {
+  oferta_id: number;
+  tipologia_codigo: string;
+  tipologia_nombre: string;
+  nivel_aplicado: string;
+  evidencia_requerida: string;
+  descripcion_caso: string;
+  estado_revision: string;
+};
+
 function euro(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 2,
-  }).format(value ?? 0);
+  }).format(Number(value ?? 0));
 }
 
 function num(value: number | null | undefined) {
-  return new Intl.NumberFormat("es-ES").format(value ?? 0);
+  return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
 }
 
 function pct(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
-  return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 }).format(value)} %`;
+
+  return `${new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 2,
+  }).format(Number(value))} %`;
 }
 
-function badgeClass(value: string) {
-  const normalizado = value.toLowerCase();
+function normalizar(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
 
-  if (normalizado.includes("alta") || normalizado.includes("alto") || normalizado.includes("riesgo")) {
+function textoPlano(value: string | null | undefined) {
+  return String(value ?? "—").replaceAll("_", " ");
+}
+
+function estadoOperativoLabel(value: string | null | undefined) {
+  const estado = normalizar(value);
+
+  if (estado === "en_ejecucion") return "En ejecución";
+  if (estado === "finalizada") return "Finalizada";
+  if (estado === "pendiente_ejecutar") return "Pendiente de ejecutar";
+  if (estado === "en_ejecucion_con_incidencia") return "Revisión/Riesgo";
+  if (estado === "riesgo_reintegro") return "Revisión/Riesgo";
+  if (estado === "finalizada_pendiente_justificacion") return "Finalizada";
+  if (!estado) return "Sin estado";
+
+  return textoPlano(value);
+}
+
+function estadoOperativoClass(value: string | null | undefined) {
+  const estado = normalizar(value);
+
+  if (estado.includes("riesgo") || estado.includes("incidencia")) {
     return "border-red-200 bg-red-50 text-red-800";
   }
 
-  if (normalizado.includes("media") || normalizado.includes("medio") || normalizado.includes("preventivo")) {
+  if (estado.includes("pendiente")) {
+    return "border-blue-200 bg-blue-50 text-blue-800";
+  }
+
+  if (estado.includes("finalizada") || estado.includes("justificacion")) {
+    return "border-slate-200 bg-slate-50 text-slate-700";
+  }
+
+  if (estado.includes("ejecucion")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
+  return "border-slate-200 bg-white text-slate-700";
+}
+
+function badgeClass(value: string | null | undefined) {
+  const normalizado = normalizar(value);
+
+  if (
+    normalizado.includes("alta") ||
+    normalizado.includes("alto") ||
+    normalizado.includes("riesgo") ||
+    normalizado.includes("reintegro")
+  ) {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+
+  if (
+    normalizado.includes("media") ||
+    normalizado.includes("medio") ||
+    normalizado.includes("preventivo")
+  ) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
 
@@ -74,6 +140,72 @@ function badgeClass(value: string) {
   }
 
   return "border-emerald-200 bg-emerald-50 text-emerald-800";
+}
+
+function controlBadgeClass(accion: AccionDetalle, alertaTipificada: AlertaTipificada | null) {
+  if (alertaTipificada) return badgeClass(alertaTipificada.nivel_aplicado);
+
+  const importeRiesgo = Number(accion.importe_en_riesgo ?? 0);
+  const alerta = normalizar(accion.alerta);
+  const nivel = normalizar(accion.nivel_riesgo);
+
+  const sinAlertaCritica =
+  alerta.includes("sin alerta crítica") ||
+  alerta.includes("sin alerta critica");
+
+if (
+  importeRiesgo > 0 ||
+  nivel.includes("alto") ||
+  (alerta.includes("crítica") && !sinAlertaCritica) ||
+  (alerta.includes("critica") && !sinAlertaCritica)
+) {
+  return "border-red-200 bg-red-50 text-red-800";
+}
+
+  return "border-emerald-200 bg-emerald-50 text-emerald-800";
+}
+
+function controlLabel(accion: AccionDetalle, alertaTipificada: AlertaTipificada | null) {
+  if (alertaTipificada) {
+    return `Alerta ${textoPlano(alertaTipificada.nivel_aplicado)}`;
+  }
+
+  const importeRiesgo = Number(accion.importe_en_riesgo ?? 0);
+  if (importeRiesgo > 0) return "Revisión/Riesgo";
+
+  return "Control ordinario";
+}
+
+function lecturaRiesgo(accion: AccionDetalle, alertaTipificada: AlertaTipificada | null) {
+  if (alertaTipificada) return alertaTipificada.tipologia_nombre;
+
+  const alerta = normalizar(accion.alerta);
+  const importeRiesgo = Number(accion.importe_en_riesgo ?? 0);
+
+  if (!alerta || alerta === "sin alerta crítica" || importeRiesgo <= 0) {
+    return "Sin alerta crítica activa";
+  }
+
+  return accion.alerta;
+}
+
+function evidenciaTexto(accion: AccionDetalle, alertaTipificada: AlertaTipificada | null) {
+  if (alertaTipificada?.evidencia_requerida) return alertaTipificada.evidencia_requerida;
+
+  return (
+    accion.evidencia_a_revisar ||
+    "Mantener seguimiento ordinario de asistencia, alumnado activo y ejecución económica."
+  );
+}
+
+function decisionTexto(accion: AccionDetalle, alertaTipificada: AlertaTipificada | null) {
+  if (alertaTipificada) {
+    return alertaTipificada.estado_revision === "regularizada"
+      ? "Registro regularizado. Mantener trazabilidad del subexpediente."
+      : "Revisar alerta tipificada y documentar actuación administrativa si procede.";
+  }
+
+  return accion.decision_recomendada || "Seguimiento ordinario";
 }
 
 function DataCard({
@@ -96,16 +228,23 @@ function DataCard({
   );
 }
 
-export default function SubexpedienteAccionPage() {
+function SubexpedienteAccionContent() {
   const params = useParams();
   const searchParams = useSearchParams();
+
   const ofertaId = Number(params.id);
   const tipologiaParam = searchParams.get("tipologia");
 
   const [accion, setAccion] = useState<AccionDetalle | null>(null);
-  const [alertaTipificada, setAlertaTipificada] = useState<any | null>(null);
+  const [alertaTipificada, setAlertaTipificada] = useState<AlertaTipificada | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const justificacionHref = useMemo(() => {
+    return Number.isNaN(ofertaId)
+      ? "/justificacion-economica"
+      : `/justificacion-economica?ofertaId=${ofertaId}`;
+  }, [ofertaId]);
 
   useEffect(() => {
     async function loadAccion() {
@@ -137,7 +276,7 @@ export default function SubexpedienteAccionPage() {
           .maybeSingle();
 
         if (!alertaError && alertaData) {
-          setAlertaTipificada(alertaData);
+          setAlertaTipificada(alertaData as AlertaTipificada);
         } else {
           setAlertaTipificada(null);
         }
@@ -184,6 +323,9 @@ export default function SubexpedienteAccionPage() {
     );
   }
 
+  const estadoVisible = estadoOperativoLabel(accion.estado_ejecucion);
+  const controlVisible = controlLabel(accion, alertaTipificada);
+
   return (
     <main className="min-h-screen bg-[#edf3f8] text-slate-950">
       <section className="bg-[#183B63] px-4 py-2 text-white shadow-sm">
@@ -204,8 +346,13 @@ export default function SubexpedienteAccionPage() {
             ← Volver a oferta formativa
           </Link>
 
-          <span className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${badgeClass(alertaTipificada?.nivel_aplicado ?? accion.prioridad_operativa)}`}>
-            {alertaTipificada ? `Prioridad ${alertaTipificada.nivel_aplicado}` : accion.prioridad_operativa}
+          <span
+            className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${controlBadgeClass(
+              accion,
+              alertaTipificada
+            )}`}
+          >
+            {controlVisible}
           </span>
         </div>
 
@@ -246,7 +393,7 @@ export default function SubexpedienteAccionPage() {
         <section className="grid gap-2 lg:grid-cols-4">
           <DataCard label="Importe concedido" value={euro(accion.importe_concedido)} />
           <DataCard
-            label="Importe en riesgo"
+            label="Revisión/Riesgo"
             value={euro(accion.importe_en_riesgo)}
             detail={pct(accion.porcentaje_importe_en_riesgo)}
           />
@@ -266,25 +413,38 @@ export default function SubexpedienteAccionPage() {
           <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
             <div className="grid gap-1.5">
               <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
-                <span className="text-[9px] font-semibold uppercase text-slate-500">Estado ejecución</span>
-                <span className="text-[13px] font-semibold">{accion.estado_ejecucion}</span>
+                <span className="text-[9px] font-semibold uppercase text-slate-500">
+                  Estado operativo
+                </span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estadoOperativoClass(
+                    accion.estado_ejecucion
+                  )}`}
+                >
+                  {estadoVisible}
+                </span>
               </div>
 
               <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
                 <span className="text-[9px] font-semibold uppercase text-slate-500">
-                  {alertaTipificada ? "Nivel de alerta" : "Nivel de riesgo"}
+                  {alertaTipificada ? "Nivel de alerta" : "Control de revisión"}
                 </span>
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(alertaTipificada?.nivel_aplicado ?? accion.nivel_riesgo)}`}>
-                  {alertaTipificada?.nivel_aplicado ?? accion.nivel_riesgo}
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${controlBadgeClass(
+                    accion,
+                    alertaTipificada
+                  )}`}
+                >
+                  {alertaTipificada ? textoPlano(alertaTipificada.nivel_aplicado) : controlVisible}
                 </span>
               </div>
 
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
                 <p className="text-[9px] font-semibold uppercase text-slate-500">
-                  {alertaTipificada ? "Alerta tipificada" : "Lectura de riesgo"}
+                  {alertaTipificada ? "Alerta tipificada" : "Lectura de control"}
                 </p>
                 <p className="mt-0.5 text-[11px] leading-4 text-slate-800">
-                  {alertaTipificada?.tipologia_nombre ?? accion.alerta}
+                  {lecturaRiesgo(accion, alertaTipificada)}
                 </p>
               </div>
             </div>
@@ -293,27 +453,35 @@ export default function SubexpedienteAccionPage() {
           <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
             <div className="grid gap-1.5">
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
-                <p className="text-[9px] font-semibold uppercase text-slate-500">Evidencia a revisar</p>
+                <p className="text-[9px] font-semibold uppercase text-slate-500">
+                  Evidencia / seguimiento
+                </p>
                 <p className="mt-0.5 text-[11px] leading-4 text-slate-800">
-                  {alertaTipificada?.evidencia_requerida ?? accion.evidencia_a_revisar}
+                  {evidenciaTexto(accion, alertaTipificada)}
                 </p>
               </div>
 
               <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-1.5">
-                <p className="text-[9px] font-semibold uppercase text-blue-900">Decisión recomendada</p>
-                <p className="mt-0.5 text-[11px] leading-4 text-blue-950">{accion.decision_recomendada}</p>
+                <p className="text-[9px] font-semibold uppercase text-blue-900">
+                  Decisión recomendada
+                </p>
+                <p className="mt-0.5 text-[11px] leading-4 text-blue-950">
+                  {decisionTexto(accion, alertaTipificada)}
+                </p>
               </div>
 
               <div className="flex flex-wrap gap-2 pt-0.5">
                 <Link
-                  href="/justificacion-economica"
+                  href={justificacionHref}
                   className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f]"
                 >
                   Ver justificación económica
                 </Link>
 
                 <Link
-                  href={`/acciones/nueva?ofertaId=${ofertaId}${tipologiaParam ? `&tipologia=${encodeURIComponent(tipologiaParam)}` : ""}`}
+                  href={`/acciones/nueva?ofertaId=${ofertaId}${
+                    tipologiaParam ? `&tipologia=${encodeURIComponent(tipologiaParam)}` : ""
+                  }`}
                   className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Emitir actuación
@@ -331,5 +499,21 @@ export default function SubexpedienteAccionPage() {
         </section>
       </section>
     </main>
+  );
+}
+
+export default function SubexpedienteAccionPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#edf3f8] p-6 text-slate-950">
+          <section className="mx-auto max-w-7xl rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+            <p className="text-xs text-slate-600">Cargando subexpediente de acción...</p>
+          </section>
+        </main>
+      }
+    >
+      <SubexpedienteAccionContent />
+    </Suspense>
   );
 }

@@ -60,16 +60,56 @@ function numberValue(row: OfertaRow, keys: string[]) {
   return 0;
 }
 
+function normalizar(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function estadoLabel(estado: string | null | undefined) {
+  const normalizado = normalizar(estado);
+
+  if (normalizado === "en_ejecucion") return "En ejecución";
+  if (normalizado === "finalizada") return "Finalizada";
+  if (normalizado === "pendiente_ejecutar") return "Pendiente de ejecutar";
+  if (normalizado === "en_ejecucion_con_incidencia") return "Revisión/Riesgo";
+  if (normalizado === "riesgo_reintegro") return "Revisión/Riesgo";
+  if (normalizado === "finalizada_pendiente_justificacion") return "Finalizada";
+  if (!normalizado) return "Sin estado";
+
+  return String(estado ?? "Sin estado").replaceAll("_", " ");
+}
+
 function estadoClass(estado: string) {
   const normalizado = estado.toLowerCase();
 
-  if (normalizado.includes("riesgo")) return "border-red-200 bg-red-50 text-red-800";
-  if (normalizado.includes("incidencia")) return "border-amber-200 bg-amber-50 text-amber-800";
-  if (normalizado.includes("justificacion")) return "border-slate-200 bg-slate-50 text-slate-700";
-  if (normalizado.includes("pendiente")) return "border-blue-200 bg-blue-50 text-blue-800";
-  if (normalizado.includes("ejecucion")) return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (normalizado.includes("riesgo") || normalizado.includes("incidencia")) {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+
+  if (normalizado.includes("pendiente")) {
+    return "border-blue-200 bg-blue-50 text-blue-800";
+  }
+
+  if (normalizado.includes("finalizada") || normalizado.includes("justificacion")) {
+    return "border-slate-200 bg-slate-50 text-slate-700";
+  }
+
+  if (normalizado.includes("ejecucion")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
 
   return "border-slate-200 bg-white text-slate-700";
+}
+
+function estadoFiltroLabel(estado: string) {
+  return estadoLabel(estado);
+}
+
+function estadoParaFiltro(row: OfertaRow) {
+  return text(
+    row,
+    ["estado_operativo_administrativo", "estado_operativo", "estado_ejecucion", "estado"],
+    ""
+  );
 }
 
 async function cargarTodasLasAcciones() {
@@ -110,19 +150,36 @@ function Kpi({
   label: string;
   value: string;
   detail: string;
-  tone?: "default" | "blue" | "green" | "amber" | "red";
+  tone?: "default" | "blue" | "green" | "amber" | "red" | "slate" | "violet";
   onClick?: () => void;
 }) {
   const toneClass =
     tone === "red"
       ? "border-red-200 hover:border-red-400"
       : tone === "amber"
-      ? "border-amber-200 hover:border-amber-400"
-      : tone === "green"
-      ? "border-emerald-200 hover:border-emerald-400"
-      : tone === "blue"
-      ? "border-blue-200 hover:border-blue-400"
-      : "border-slate-200 hover:border-blue-300";
+        ? "border-amber-200 hover:border-amber-400"
+        : tone === "green"
+          ? "border-emerald-200 hover:border-emerald-400"
+          : tone === "blue"
+            ? "border-blue-200 hover:border-blue-400"
+            : tone === "slate"
+              ? "border-slate-200 hover:border-slate-400"
+              : tone === "violet"
+                ? "border-violet-200 hover:border-violet-400"
+                : "border-slate-200 hover:border-blue-300";
+
+  const valueClass =
+    tone === "red"
+      ? "text-red-800"
+      : tone === "amber"
+        ? "text-amber-800"
+        : tone === "green"
+          ? "text-emerald-800"
+          : tone === "blue"
+            ? "text-blue-800"
+            : tone === "violet"
+              ? "text-violet-800"
+              : "text-slate-950";
 
   return (
     <button
@@ -133,7 +190,7 @@ function Kpi({
       <p className="truncate text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-0.5 truncate text-[15px] font-semibold leading-5 text-slate-950">
+      <p className={`mt-0.5 truncate text-[15px] font-semibold leading-5 ${valueClass}`}>
         {value}
       </p>
       <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">{detail}</p>
@@ -240,18 +297,14 @@ export default function OfertaFormativaPage() {
     const set = new Set<string>();
 
     rows.forEach((row) => {
-      const estado = text(
-        row,
-        ["estado_operativo_administrativo", "estado_operativo", "estado_ejecucion", "estado"],
-        ""
-      );
+      const estado = estadoParaFiltro(row);
 
       if (estado) {
         set.add(estado);
       }
     });
 
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+    return Array.from(set).sort((a, b) => estadoFiltroLabel(a).localeCompare(estadoFiltroLabel(b), "es"));
   }, [rows]);
 
   const filteredRows = useMemo(() => {
@@ -259,11 +312,7 @@ export default function OfertaFormativaPage() {
 
     return rows.filter((row) => {
       const entidadId = text(row, ["entidad_id"], "");
-      const estado = text(
-        row,
-        ["estado_operativo_administrativo", "estado_operativo", "estado_ejecucion", "estado"],
-        ""
-      );
+      const estado = estadoParaFiltro(row);
       const tipo = text(row, ["tipo_oferta", "tipo", "tipo_accion"], "").toUpperCase();
       const requerimientosPendientes = numberValue(row, ["requerimientos_pendientes"]);
 
@@ -276,6 +325,7 @@ export default function OfertaFormativaPage() {
         text(row, ["familia_profesional", "familia"], ""),
         text(row, ["municipio", "entidad_municipio"], ""),
         text(row, ["isla", "entidad_isla"], ""),
+        estadoLabel(estado),
       ]
         .join(" ")
         .toLowerCase();
@@ -295,6 +345,9 @@ export default function OfertaFormativaPage() {
   const inicio = (paginaSegura - 1) * pageSize;
   const fin = inicio + pageSize;
   const rowsPagina = filteredRows.slice(inicio, fin);
+
+  const revisionRiesgoAcciones =
+    Number(resumen?.en_ejecucion_con_incidencia ?? 0) + Number(resumen?.riesgo_reintegro ?? 0);
 
   function limpiarFiltros() {
     setEntidadFiltro("todos");
@@ -349,12 +402,12 @@ export default function OfertaFormativaPage() {
 
             <h1 className="mt-1 text-xl font-semibold">Oferta formativa concedida</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Mesa de auditoría y fiscalización de subexpedientes AF/CP.
+              Mesa operativa de subexpedientes AF/CP concedidos, estados y controles administrativos.
             </p>
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            {num(filteredRows.length)} acciones filtradas · {num(rows.length)} totales
+            {num(filteredRows.length)} acciones visibles · {num(rows.length)} total cargado
           </div>
         </div>
       </section>
@@ -391,10 +444,33 @@ export default function OfertaFormativaPage() {
             value={num(resumen.acciones_total)}
             detail={`${num(resumen.acciones_af)} AF · ${num(resumen.acciones_cp)} CP`}
             onClick={limpiarFiltros}
+            tone="violet"
           />
 
           <Kpi
-            label="Pendientes ejecutar"
+            label="En ejecución"
+            value={num(resumen.en_ejecucion)}
+            detail="acciones en ejecución ordinaria"
+            tone="green"
+            onClick={() => {
+              setSoloRequerimientos(false);
+              setEstadoFiltro("en_ejecucion");
+            }}
+          />
+
+          <Kpi
+            label="Finalizadas"
+            value={num(resumen.finalizadas_total)}
+            detail="acciones finalizadas"
+            tone="slate"
+            onClick={() => {
+              setSoloRequerimientos(false);
+              setEstadoFiltro("finalizada");
+            }}
+          />
+
+          <Kpi
+            label="Pendientes"
             value={num(resumen.pendientes_ejecutar)}
             detail={euro(resumen.importe_pendiente_ejecutar)}
             tone="blue"
@@ -405,42 +481,24 @@ export default function OfertaFormativaPage() {
           />
 
           <Kpi
-            label="En ejecución"
-            value={num(resumen.en_ejecucion)}
-            detail="acciones sin incidencia crítica"
-            tone="green"
-            onClick={() => {
-              setSoloRequerimientos(false);
-              setEstadoFiltro("en_ejecucion");
-            }}
-          />
-
-          <Kpi
-            label="Con incidencia"
-            value={num(resumen.en_ejecucion_con_incidencia)}
-            detail={`${num(resumen.incidencias_abiertas)} incidencias abiertas`}
-            tone="amber"
-            onClick={() => {
-              setSoloRequerimientos(false);
-              setEstadoFiltro("en_ejecucion_con_incidencia");
-            }}
-          />
-
-          <Kpi
-            label="Riesgo reintegro"
-            value={num(resumen.riesgo_reintegro)}
+            label="Revisión/Riesgo"
+            value={num(revisionRiesgoAcciones)}
             detail={euro(resumen.importe_en_riesgo_total)}
             tone="red"
             onClick={() => {
               setSoloRequerimientos(false);
-              setEstadoFiltro("riesgo_reintegro");
+              if (revisionRiesgoAcciones > 0) {
+                setEstadoFiltro("riesgo_reintegro");
+              } else {
+                setEstadoFiltro("todos");
+              }
             }}
           />
 
           <Kpi
             label="Requerimientos"
             value={num(resumen.requerimientos_pendientes)}
-            detail="acciones con requerimiento pendiente"
+            detail="pendientes según lectura backend"
             tone="red"
             onClick={() => {
               setEstadoFiltro("todos");
@@ -465,7 +523,7 @@ export default function OfertaFormativaPage() {
 
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Entidad / academia
+                Entidad beneficiaria
               </label>
               <select
                 value={entidadFiltro}
@@ -493,7 +551,7 @@ export default function OfertaFormativaPage() {
                 <option value="todos">Todos</option>
                 {estados.map((estado) => (
                   <option key={estado} value={estado}>
-                    {estado}
+                    {estadoFiltroLabel(estado)}
                   </option>
                 ))}
               </select>
@@ -524,7 +582,7 @@ export default function OfertaFormativaPage() {
                     : "h-7 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                 }
               >
-                Con requerimientos
+                Requerimientos
               </button>
             </div>
 
@@ -545,7 +603,7 @@ export default function OfertaFormativaPage() {
             <div>
               <h2 className="text-[14px] font-semibold leading-5">Acciones concedidas</h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Cada fila es un subexpediente fiscalizable. Clic para abrir detalle.
+                Cada fila representa un subexpediente de la resolución. Clic para abrir detalle.
               </p>
             </div>
 
@@ -595,7 +653,7 @@ export default function OfertaFormativaPage() {
                   <th className="px-2 py-1.5">Denominación</th>
                   <th className="px-2 py-1.5">Estado</th>
                   <th className="px-2 py-1.5 text-right">Concedido</th>
-                  <th className="px-2 py-1.5 text-right">Riesgo</th>
+                  <th className="px-2 py-1.5 text-right">Rev./Riesgo</th>
                   <th className="px-2 py-1.5 text-right">Inc.</th>
                   <th className="px-2 py-1.5 text-right">Req.</th>
                 </tr>
@@ -603,12 +661,8 @@ export default function OfertaFormativaPage() {
 
               <tbody>
                 {rowsPagina.map((row, index) => {
-                  const estado = text(
-                    row,
-                    ["estado_operativo_administrativo", "estado_operativo", "estado_ejecucion", "estado"],
-                    "sin estado"
-                  );
-
+                  const estado = estadoParaFiltro(row);
+                  const estadoVisible = estadoLabel(estado);
                   const ofertaId = text(row, ["oferta_id", "id"], String(index));
 
                   return (
@@ -644,7 +698,7 @@ export default function OfertaFormativaPage() {
 
                       <td className="px-2 py-1">
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estadoClass(estado)}`}>
-                          {estado}
+                          {estadoVisible}
                         </span>
                       </td>
 
