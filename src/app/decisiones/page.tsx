@@ -35,6 +35,13 @@ type DecisionMesaRow = {
   aptos: number | null;
   alerta: string | null;
   nivel_riesgo: string | null;
+  estado_operativo_administrativo: string | null;
+  estado_operativo_label: string | null;
+  incidencias_abiertas: number | null;
+  requerimientos_pendientes: number | null;
+  riesgo_administrativo: string | null;
+  riesgo_economico: string | null;
+  actuacion_sugerida: string | null;
 };
 
 function euro(value: number | null | undefined) {
@@ -49,18 +56,62 @@ function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
 }
 
+function pct(parte: number | null | undefined, total: number | null | undefined) {
+  const p = Number(parte ?? 0);
+  const t = Number(total ?? 0);
+
+  if (!t) return "0 %";
+
+  return `${new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 1,
+  }).format((p / t) * 100)} %`;
+}
+
+function normalize(value: string | number | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function label(value: string | null | undefined) {
-  return String(value ?? "—").replaceAll("_", " ");
+  const raw = String(value ?? "—").trim();
+
+  if (!raw || raw === "—") return "—";
+
+  const mapa: Record<string, string> = {
+    en_ejecucion: "En ejecución",
+    finalizada: "Finalizada",
+    pendiente_ejecutar: "Pendiente de ejecutar",
+    justificacion_parcial_en_curso: "Justificación parcial en curso",
+    pendiente_aportacion: "Pendiente de aportación",
+    no_devengado: "No devengado",
+    normal: "Normal",
+    ordinaria: "Ordinaria",
+    media: "Media",
+    baja: "Baja",
+    alta: "Alta",
+    seguimiento_ejecucion_y_justificacion: "Seguimiento de ejecución y justificación",
+    seguimiento_ordinario: "Seguimiento ordinario",
+    control_inicio: "Control de inicio",
+    cierre_y_justificacion: "Cierre y justificación",
+  };
+
+  return mapa[raw] ?? raw.replaceAll("_", " ");
+}
+
+function estadoOperativo(row: DecisionMesaRow) {
+  return row.estado_operativo_administrativo ?? row.estado_ejecucion ?? "sin_estado";
+}
+
+function estadoOperativoLabel(row: DecisionMesaRow) {
+  return row.estado_operativo_label ?? estadoOperativo(row);
 }
 
 function badgeClass(value: string | null | undefined) {
-  const normalizado = String(value ?? "").toLowerCase();
+  const normalizado = normalize(value);
 
   if (
-    normalizado.includes("alta") ||
     normalizado.includes("riesgo") ||
     normalizado.includes("reintegro") ||
-    normalizado.includes("revision")
+    normalizado.includes("alta")
   ) {
     return "border-red-200 bg-red-50 text-red-800";
   }
@@ -68,20 +119,93 @@ function badgeClass(value: string | null | undefined) {
   if (
     normalizado.includes("media") ||
     normalizado.includes("pendiente") ||
-    normalizado.includes("parcial")
+    normalizado.includes("aportacion") ||
+    normalizado.includes("aportación") ||
+    normalizado.includes("parcial") ||
+    normalizado.includes("no_devengado") ||
+    normalizado.includes("no devengado")
   ) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
 
   if (
-    normalizado.includes("total") ||
-    normalizado.includes("validada") ||
-    normalizado.includes("ordinario")
+    normalizado.includes("ejecucion") ||
+    normalizado.includes("ejecución") ||
+    normalizado.includes("finalizada") ||
+    normalizado.includes("normal") ||
+    normalizado.includes("ordinaria")
   ) {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
   }
 
-  return "border-blue-200 bg-blue-50 text-blue-800";
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function lecturaControl(row: DecisionMesaRow) {
+  const estado = normalize(estadoOperativo(row));
+  const justificacion = normalize(row.estado_justificacion);
+  const riesgo = Number(row.importe_en_riesgo ?? 0);
+  const pendiente = Number(row.importe_pendiente_justificar ?? 0);
+
+  if (riesgo > 0) {
+    return {
+      control: "Revisión / riesgo",
+      descripcion: "Subexpediente con importe económico en revisión.",
+      tono: "risk" as const,
+    };
+  }
+
+  if (estado === "pendiente_ejecutar") {
+    return {
+      control: "Pendiente / no devengado",
+      descripcion: "Acción pendiente de ejecución. Importe no devengado.",
+      tono: "pending" as const,
+    };
+  }
+
+  if (estado === "finalizada" && justificacion.includes("pendiente")) {
+    return {
+      control: "Cierre / aportación",
+      descripcion: "Acción finalizada con documentación económica pendiente.",
+      tono: "pending" as const,
+    };
+  }
+
+  if (estado === "finalizada") {
+    return {
+      control: "Cierre económico",
+      descripcion: "Acción finalizada con seguimiento económico ordinario.",
+      tono: "ok" as const,
+    };
+  }
+
+  if (estado === "en_ejecucion" && justificacion.includes("parcial")) {
+    return {
+      control: "Seguimiento",
+      descripcion: "Acción en ejecución con avance económico registrado.",
+      tono: "ok" as const,
+    };
+  }
+
+  if (estado === "en_ejecucion" && justificacion.includes("pendiente")) {
+    return {
+      control: "Seguimiento / aportación",
+      descripcion: "Acción en ejecución con aportación documental pendiente.",
+      tono: "pending" as const,
+    };
+  }
+
+  return {
+    control: "Control ordinario",
+    descripcion: "Lectura económica ordinaria del subexpediente.",
+    tono: "ok" as const,
+  };
+}
+
+function controlBadgeClass(tono: "ok" | "pending" | "risk") {
+  if (tono === "risk") return "border-red-200 bg-red-50 text-red-800";
+  if (tono === "pending") return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-emerald-200 bg-emerald-50 text-emerald-800";
 }
 
 async function cargarTodasLasDecisiones() {
@@ -93,8 +217,6 @@ async function cargarTodasLasDecisiones() {
     const { data, error } = await supabase
       .from("v_justificacion_economica")
       .select("*")
-      .order("prioridad_decision", { ascending: true })
-      .order("importe_en_riesgo", { ascending: false, nullsFirst: false })
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
 
@@ -119,13 +241,32 @@ function Kpi({
   labelText,
   value,
   detail,
+  tone = "default",
+  onClick,
 }: {
   labelText: string;
   value: string;
   detail: string;
+  tone?: "default" | "green" | "blue" | "amber" | "red";
+  onClick?: () => void;
 }) {
+  const toneClass =
+    tone === "red"
+      ? "border-red-200 hover:border-red-400"
+      : tone === "amber"
+        ? "border-amber-200 hover:border-amber-400"
+        : tone === "green"
+          ? "border-emerald-200 hover:border-emerald-400"
+          : tone === "blue"
+            ? "border-blue-200 hover:border-blue-400"
+            : "border-slate-200 hover:border-blue-300";
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border bg-white px-3 py-1.5 text-left shadow-sm transition ${toneClass}`}
+    >
       <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
         {labelText}
       </p>
@@ -135,7 +276,7 @@ function Kpi({
       <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
         {detail}
       </p>
-    </div>
+    </button>
   );
 }
 
@@ -147,14 +288,13 @@ function DecisionesPageContent() {
 
   const [rows, setRows] = useState<DecisionMesaRow[]>([]);
   const [busqueda, setBusqueda] = useState("");
-  const [decisionFiltro, setDecisionFiltro] = useState("todos");
+  const [estadoOperativoFiltro, setEstadoOperativoFiltro] = useState("todos");
+  const [estadoJustificacionFiltro, setEstadoJustificacionFiltro] = useState("todos");
   const [prioridadFiltro, setPrioridadFiltro] = useState("todos");
-  const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
-  const [seleccionada, setSeleccionada] = useState<DecisionMesaRow | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingMsg, setLoadingMsg] = useState("Cargando mesa de toma de decisiones...");
+  const [loadingMsg, setLoadingMsg] = useState("Cargando lectura económica saneada...");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,7 +303,7 @@ function DecisionesPageContent() {
     async function loadDecisiones() {
       setLoading(true);
       setError(null);
-      setLoadingMsg("Cargando decisiones completas...");
+      setLoadingMsg("Cargando subexpedientes económicos...");
 
       try {
         const data = await cargarTodasLasDecisiones();
@@ -199,8 +339,14 @@ function DecisionesPageContent() {
     return rows.find((row) => Number(row.oferta_id) === Number(ofertaIdFiltro)) ?? null;
   }, [rows, tieneFiltroOferta, ofertaIdFiltro]);
 
-  const decisiones = useMemo(() => {
-    return Array.from(new Set(rowsPorOferta.map((row) => row.decision_recomendada)))
+  const estadosOperativos = useMemo(() => {
+    return Array.from(new Set(rowsPorOferta.map((row) => estadoOperativo(row))))
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
+  }, [rowsPorOferta]);
+
+  const estadosJustificacion = useMemo(() => {
+    return Array.from(new Set(rowsPorOferta.map((row) => row.estado_justificacion)))
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
   }, [rowsPorOferta]);
@@ -211,16 +357,12 @@ function DecisionesPageContent() {
       .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
   }, [rowsPorOferta]);
 
-  const estados = useMemo(() => {
-    return Array.from(new Set(rowsPorOferta.map((row) => row.estado_justificacion)))
-      .filter(Boolean)
-      .sort((a, b) => String(a).localeCompare(String(b), "es")) as string[];
-  }, [rowsPorOferta]);
-
   const filtradas = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
 
     return rowsPorOferta.filter((row) => {
+      const estadoOp = estadoOperativo(row);
+
       const texto = [
         row.entidad_nombre,
         row.cif,
@@ -228,28 +370,48 @@ function DecisionesPageContent() {
         row.tipo_oferta,
         row.codigo_especialidad,
         row.denominacion,
+        estadoOp,
+        row.estado_operativo_label,
         row.estado_justificacion,
         row.decision_recomendada,
         row.prioridad_decision,
         row.motivo_decision,
         row.tecnico_nombre,
         row.alerta,
+        row.actuacion_sugerida,
       ]
         .join(" ")
         .toLowerCase();
 
       const pasaBusqueda = term === "" || texto.includes(term);
-      const pasaDecision = decisionFiltro === "todos" || row.decision_recomendada === decisionFiltro;
-      const pasaPrioridad = prioridadFiltro === "todos" || row.prioridad_decision === prioridadFiltro;
-      const pasaEstado = estadoFiltro === "todos" || row.estado_justificacion === estadoFiltro;
+      const pasaEstadoOperativo =
+        estadoOperativoFiltro === "todos" || estadoOp === estadoOperativoFiltro;
+      const pasaEstadoJustificacion =
+        estadoJustificacionFiltro === "todos" ||
+        row.estado_justificacion === estadoJustificacionFiltro;
+      const pasaPrioridad =
+        prioridadFiltro === "todos" || row.prioridad_decision === prioridadFiltro;
 
-      return pasaBusqueda && pasaDecision && pasaPrioridad && pasaEstado;
+      return pasaBusqueda && pasaEstadoOperativo && pasaEstadoJustificacion && pasaPrioridad;
     });
-  }, [rowsPorOferta, busqueda, decisionFiltro, prioridadFiltro, estadoFiltro]);
+  }, [
+    rowsPorOferta,
+    busqueda,
+    estadoOperativoFiltro,
+    estadoJustificacionFiltro,
+    prioridadFiltro,
+  ]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [busqueda, decisionFiltro, prioridadFiltro, estadoFiltro, pageSize, ofertaIdParam]);
+  }, [
+    busqueda,
+    estadoOperativoFiltro,
+    estadoJustificacionFiltro,
+    prioridadFiltro,
+    pageSize,
+    ofertaIdParam,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -260,34 +422,55 @@ function DecisionesPageContent() {
   const resumen = useMemo(() => {
     return filtradas.reduce(
       (acc, row) => {
-        acc.importeRiesgo += Number(row.importe_en_riesgo ?? 0);
-        acc.pendiente += Number(row.importe_pendiente_justificar ?? 0);
-        acc.noAdmitido += Number(row.importe_no_admitido ?? 0);
+        const estado = estadoOperativo(row);
+        const riesgo = Number(row.importe_en_riesgo ?? 0);
 
+        acc.concedido += Number(row.importe_concedido ?? 0);
+        acc.ejecutado += Number(row.importe_ejecutado ?? 0);
+        acc.justificado += Number(row.importe_justificado ?? 0);
+        acc.pendiente += Number(row.importe_pendiente_justificar ?? 0);
+        acc.riesgo += riesgo;
+
+        if (estado === "en_ejecucion") acc.enEjecucion++;
+        if (estado === "finalizada") acc.finalizadas++;
+        if (estado === "pendiente_ejecutar") acc.pendientes++;
+        if (riesgo > 0) acc.revisionRiesgo++;
         if (row.prioridad_decision === "alta") acc.prioridadAlta++;
-        if (row.decision_recomendada === "revisar_posible_reintegro") acc.reintegro++;
-        if (row.decision_recomendada === "requerir_documentacion_justificativa") acc.requerir++;
-        if (row.estado_justificacion === "en_revision") acc.enRevision++;
 
         return acc;
       },
       {
-        importeRiesgo: 0,
+        concedido: 0,
+        ejecutado: 0,
+        justificado: 0,
         pendiente: 0,
-        noAdmitido: 0,
+        riesgo: 0,
+        enEjecucion: 0,
+        finalizadas: 0,
+        pendientes: 0,
+        revisionRiesgo: 0,
         prioridadAlta: 0,
-        reintegro: 0,
-        requerir: 0,
-        enRevision: 0,
       }
     );
   }, [filtradas]);
 
   function limpiarFiltros() {
     setBusqueda("");
-    setDecisionFiltro("todos");
+    setEstadoOperativoFiltro("todos");
+    setEstadoJustificacionFiltro("todos");
     setPrioridadFiltro("todos");
-    setEstadoFiltro("todos");
+  }
+
+  function filtrarEstado(estado: string) {
+    setEstadoOperativoFiltro(estado);
+    setEstadoJustificacionFiltro("todos");
+    setPrioridadFiltro("todos");
+  }
+
+  function filtrarRiesgo() {
+    setEstadoOperativoFiltro("todos");
+    setEstadoJustificacionFiltro("todos");
+    setPrioridadFiltro("alta");
   }
 
   if (loading) {
@@ -304,7 +487,9 @@ function DecisionesPageContent() {
     return (
       <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
         <section className="mx-auto max-w-7xl rounded-xl border border-red-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-semibold text-red-700">Error cargando toma de decisiones</p>
+          <p className="text-sm font-semibold text-red-700">
+            Error cargando mesa económica
+          </p>
           <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-red-50 p-4 text-xs text-red-800">
             {error}
           </pre>
@@ -323,12 +508,12 @@ function DecisionesPageContent() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Toma de decisiones</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Mesa de decisión sobre justificación, riesgo, documentación y posible reintegro.
+              Lectura económica saneada para seguimiento, cierre, pendiente no devengado y actuación administrativa.
             </p>
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            {num(filtradas.length)} decisiones visibles · {num(rows.length)} subexpedientes
+            {num(filtradas.length)} visibles · {num(rows.length)} subexpedientes económicos
           </div>
         </div>
       </section>
@@ -345,20 +530,67 @@ function DecisionesPageContent() {
             <Link href="/acciones" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               Acciones administrativas
             </Link>
+            <Link href="/actuaciones-emitidas" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
+              Actuaciones emitidas
+            </Link>
           </div>
 
           <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Decisión basada en justificación económica
+            Lectura desde v_justificacion_economica
           </span>
         </div>
 
         <section className="grid gap-2 lg:grid-cols-6">
-          <Kpi labelText="Decisiones" value={num(filtradas.length)} detail="subexpedientes evaluados" />
-          <Kpi labelText="Prioridad alta" value={num(resumen.prioridadAlta)} detail="requieren intervención" />
-          <Kpi labelText="Posible reintegro" value={num(resumen.reintegro)} detail="revisión económica" />
-          <Kpi labelText="Requerir documentación" value={num(resumen.requerir)} detail="justificación pendiente" />
-          <Kpi labelText="Pendiente justificar" value={euro(resumen.pendiente)} detail="importe acumulado" />
-          <Kpi labelText="Riesgo económico" value={euro(resumen.importeRiesgo)} detail={`${num(resumen.enRevision)} en revisión`} />
+          <Kpi
+            labelText="Subexpedientes"
+            value={num(filtradas.length)}
+            detail="lectura económica"
+            onClick={limpiarFiltros}
+          />
+
+          <Kpi
+            labelText="En ejecución"
+            value={num(resumen.enEjecucion)}
+            detail={`${pct(resumen.ejecutado, resumen.concedido)} avance`}
+            tone="green"
+            onClick={() => filtrarEstado("en_ejecucion")}
+          />
+
+          <Kpi
+            labelText="Finalizados"
+            value={num(resumen.finalizadas)}
+            detail="cierre económico"
+            tone="green"
+            onClick={() => filtrarEstado("finalizada")}
+          />
+
+          <Kpi
+            labelText="Pendientes"
+            value={num(resumen.pendientes)}
+            detail={euro(
+              filtradas
+                .filter((row) => estadoOperativo(row) === "pendiente_ejecutar")
+                .reduce((acc, row) => acc + Number(row.importe_pendiente_justificar ?? 0), 0)
+            )}
+            tone="blue"
+            onClick={() => filtrarEstado("pendiente_ejecutar")}
+          />
+
+          <Kpi
+            labelText="Revisión/riesgo"
+            value={num(resumen.revisionRiesgo)}
+            detail={euro(resumen.riesgo)}
+            tone={resumen.revisionRiesgo > 0 ? "red" : "green"}
+            onClick={filtrarRiesgo}
+          />
+
+          <Kpi
+            labelText="Prioridad alta"
+            value={num(resumen.prioridadAlta)}
+            detail="control técnico"
+            tone={resumen.prioridadAlta > 0 ? "red" : "green"}
+            onClick={filtrarRiesgo}
+          />
         </section>
 
         {tieneFiltroOferta ? (
@@ -383,7 +615,7 @@ function DecisionesPageContent() {
         ) : null}
 
         <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.15fr_0.8fr_0.65fr_0.75fr_auto]">
+          <div className="grid gap-2 lg:grid-cols-[1.1fr_0.75fr_0.8fr_0.65fr_auto]">
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -391,24 +623,42 @@ function DecisionesPageContent() {
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
-                placeholder="Entidad, CIF, acción, decisión, motivo, técnico..."
+                placeholder="Entidad, CIF, acción, estado, técnico..."
                 className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
 
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Decisión
+                Estado operativo
               </label>
               <select
-                value={decisionFiltro}
-                onChange={(event) => setDecisionFiltro(event.target.value)}
+                value={estadoOperativoFiltro}
+                onChange={(event) => setEstadoOperativoFiltro(event.target.value)}
                 className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               >
-                <option value="todos">Todas</option>
-                {decisiones.map((decision) => (
-                  <option key={decision} value={decision}>
-                    {label(decision)}
+                <option value="todos">Todos</option>
+                {estadosOperativos.map((estado) => (
+                  <option key={estado} value={estado}>
+                    {label(estado)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                Pago / justificación
+              </label>
+              <select
+                value={estadoJustificacionFiltro}
+                onChange={(event) => setEstadoJustificacionFiltro(event.target.value)}
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
+              >
+                <option value="todos">Todos</option>
+                {estadosJustificacion.map((estado) => (
+                  <option key={estado} value={estado}>
+                    {label(estado)}
                   </option>
                 ))}
               </select>
@@ -432,24 +682,6 @@ function DecisionesPageContent() {
               </select>
             </div>
 
-            <div>
-              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Estado
-              </label>
-              <select
-                value={estadoFiltro}
-                onChange={(event) => setEstadoFiltro(event.target.value)}
-                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
-              >
-                <option value="todos">Todos</option>
-                {estados.map((estado) => (
-                  <option key={estado} value={estado}>
-                    {label(estado)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div className="flex items-end">
               <button
                 type="button"
@@ -465,15 +697,17 @@ function DecisionesPageContent() {
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-1.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-[14px] font-semibold leading-5">Mesa de decisiones por subexpediente</h2>
+              <h2 className="text-[14px] font-semibold leading-5">
+                Mesa económica por subexpediente
+              </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Decisión apoyada en justificación económica, riesgo, estado del subexpediente y documentación pendiente.
+                Control de avance, no devengado, revisión/riesgo y actuación administrativa vinculada.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-[10.5px] text-slate-600">
               <span className="font-semibold">
-                Página {safeCurrentPage} de {totalPages}
+                Página {num(safeCurrentPage)} de {num(totalPages)}
               </span>
 
               <select
@@ -510,105 +744,147 @@ function DecisionesPageContent() {
             <table className="w-full border-collapse text-left text-[11px]">
               <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-2 py-1.5">Prioridad</th>
+                  <th className="px-2 py-1.5">Control</th>
                   <th className="px-2 py-1.5">Entidad / acción</th>
                   <th className="px-2 py-1.5">Base económica</th>
-                  <th className="px-2 py-1.5">Decisión</th>
-                  <th className="px-2 py-1.5">Motivo</th>
+                  <th className="px-2 py-1.5">Estado</th>
+                  <th className="px-2 py-1.5">Lectura</th>
                   <th className="px-2 py-1.5">Técnico</th>
                   <th className="px-2 py-1.5">Opciones</th>
                 </tr>
               </thead>
 
               <tbody>
-                {paginadas.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 hover:bg-blue-50">
-                    <td className="px-2 py-1">
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
-                          row.prioridad_decision
-                        )}`}
-                      >
-                        {label(row.prioridad_decision)}
-                      </span>
-                      <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                        {label(row.estado_justificacion)}
-                      </p>
-                    </td>
+                {paginadas.map((row) => {
+                  const lectura = lecturaControl(row);
+                  const riesgo = Number(row.importe_en_riesgo ?? 0);
 
-                    <td className="px-2 py-1">
-                      <p className="font-semibold leading-4 text-slate-950">{row.entidad_nombre ?? "—"}</p>
-                      <p className="text-[10px] leading-4 text-slate-500">{row.cif ?? "—"}</p>
-                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
-                        {row.codigo_accion ?? "—"} · {row.codigo_especialidad ?? "—"} · {row.tipo_oferta ?? "—"}
-                      </p>
-                      <p className="mt-0.5 max-w-[300px] truncate text-[10px] leading-4 text-slate-500">
-                        {row.denominacion ?? "—"}
-                      </p>
-                    </td>
-
-                    <td className="px-2 py-1">
-                      <p className="text-[10px] leading-4 text-slate-500">
-                        Concedido: <strong>{euro(row.importe_concedido)}</strong>
-                      </p>
-                      <p className="text-[10px] leading-4 text-emerald-700">
-                        Justificado: <strong>{euro(row.importe_justificado)}</strong>
-                      </p>
-                      <p className="text-[10px] leading-4 text-amber-700">
-                        Pendiente: <strong>{euro(row.importe_pendiente_justificar)}</strong>
-                      </p>
-                      <p className="text-[10px] leading-4 text-red-700">
-                        Riesgo: <strong>{euro(row.importe_en_riesgo)}</strong>
-                      </p>
-                    </td>
-
-                    <td className="px-2 py-1">
-                      <p className="font-semibold leading-4 text-slate-950">{label(row.decision_recomendada)}</p>
-                      <p className="text-[10px] leading-4 text-slate-500">{row.estado_ejecucion ?? "—"}</p>
-                    </td>
-
-                    <td className="max-w-[240px] px-2 py-1">
-                      <p className="line-clamp-2 text-[11px] leading-4 text-slate-700">
-                        {row.motivo_decision ?? "Sin motivo específico registrado."}
-                      </p>
-                    </td>
-
-                    <td className="px-2 py-1">
-                      <p className="font-semibold leading-4 text-slate-950">{row.tecnico_nombre ?? "—"}</p>
-                      <p className="text-[10px] leading-4 text-slate-500">{row.tecnico_unidad ?? "—"}</p>
-                    </td>
-
-                    <td className="px-2 py-1">
-                      <div className="flex flex-col gap-1">
-                        <Link
-                          href={`/decisiones-economicas/${row.id}`}
-                          className="rounded-md bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                  return (
+                    <tr key={row.id} className="border-t border-slate-100 hover:bg-blue-50">
+                      <td className="px-2 py-1 align-top">
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${controlBadgeClass(
+                            lectura.tono
+                          )}`}
                         >
-                          Ver decisión
-                        </Link>
+                          {lectura.control}
+                        </span>
+                        <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                          Prioridad: {label(row.prioridad_decision)}
+                        </p>
+                      </td>
 
-                        <Link
-                          href={`/subexpedientes-accion/${row.oferta_id}`}
-                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          Subexpediente
-                        </Link>
+                      <td className="px-2 py-1 align-top">
+                        <p className="font-semibold leading-4 text-slate-950">
+                          {row.entidad_nombre ?? "—"}
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">{row.cif ?? "—"}</p>
+                        <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                          {row.codigo_accion ?? "—"} · {row.codigo_especialidad ?? "—"} ·{" "}
+                          {row.tipo_oferta ?? "—"}
+                        </p>
+                        <p className="mt-0.5 max-w-[300px] truncate text-[10px] leading-4 text-slate-500">
+                          {row.denominacion ?? "—"}
+                        </p>
+                      </td>
 
-                        <Link
-                          href={`/acciones/nueva?ofertaId=${row.oferta_id}`}
-                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                      <td className="px-2 py-1 align-top">
+                        <p className="text-[10px] leading-4 text-slate-500">
+                          Concedido: <strong>{euro(row.importe_concedido)}</strong>
+                        </p>
+                        <p className="text-[10px] leading-4 text-emerald-700">
+                          Avance: <strong>{euro(row.importe_ejecutado)}</strong>
+                        </p>
+                        <p className="text-[10px] leading-4 text-blue-700">
+                          Justificado: <strong>{euro(row.importe_justificado)}</strong>
+                        </p>
+                        <p className="text-[10px] leading-4 text-amber-700">
+                          Pendiente/no devengado:{" "}
+                          <strong>{euro(row.importe_pendiente_justificar)}</strong>
+                        </p>
+                        <p
+                          className={
+                            riesgo > 0
+                              ? "text-[10px] leading-4 text-red-700"
+                              : "text-[10px] leading-4 text-emerald-700"
+                          }
                         >
-                          Emitir actuación
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          Revisión/riesgo: <strong>{euro(row.importe_en_riesgo)}</strong>
+                        </p>
+                      </td>
+
+                      <td className="px-2 py-1 align-top">
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
+                            estadoOperativo(row)
+                          )}`}
+                        >
+                          {label(estadoOperativoLabel(row))}
+                        </span>
+
+                        <p className="mt-1">
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
+                              row.estado_justificacion
+                            )}`}
+                          >
+                            {label(row.estado_justificacion)}
+                          </span>
+                        </p>
+                      </td>
+
+                      <td className="max-w-[260px] px-2 py-1 align-top">
+                        <p className="line-clamp-2 text-[11px] leading-4 text-slate-700">
+                          {lectura.descripcion}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500">
+                          {row.motivo_decision ??
+                            row.actuacion_sugerida ??
+                            "Sin observación económica adicional registrada."}
+                        </p>
+                      </td>
+
+                      <td className="px-2 py-1 align-top">
+                        <p className="font-semibold leading-4 text-slate-950">
+                          {row.tecnico_nombre ?? "—"}
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">
+                          {row.tecnico_unidad ?? "—"}
+                        </p>
+                      </td>
+
+                      <td className="px-2 py-1 align-top">
+                        <div className="flex flex-col gap-1">
+                          <Link
+                            href={`/decisiones-economicas/${row.id}`}
+                            className="rounded-md bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                          >
+                            Ficha económica
+                          </Link>
+
+                          <Link
+                            href={`/subexpedientes-accion/${row.oferta_id}`}
+                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Subexpediente
+                          </Link>
+
+                          <Link
+                            href={`/acciones/nueva?ofertaId=${row.oferta_id}`}
+                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Preparar actuación
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {paginadas.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-3 py-8 text-center text-xs text-slate-500">
-                      No hay decisiones que coincidan con los filtros aplicados.
+                      No hay subexpedientes económicos que coincidan con los filtros aplicados.
                     </td>
                   </tr>
                 ) : null}
@@ -617,113 +893,6 @@ function DecisionesPageContent() {
           </div>
         </section>
       </section>
-
-      {seleccionada ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                Decisión administrativa
-              </p>
-              <h2 className="mt-0.5 text-base font-semibold">{label(seleccionada.decision_recomendada)}</h2>
-              <p className="mt-0.5 text-[11px] text-blue-100">
-                {seleccionada.entidad_nombre} · {seleccionada.codigo_accion} · {seleccionada.codigo_especialidad}
-              </p>
-            </div>
-
-            <div className="space-y-2 p-3">
-              <section className="grid gap-2 md:grid-cols-4">
-                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Prioridad</p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{label(seleccionada.prioridad_decision)}</p>
-                </div>
-
-                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Pendiente justificar</p>
-                  <p className="mt-0.5 text-[13px] font-semibold text-amber-700">
-                    {euro(seleccionada.importe_pendiente_justificar)}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Riesgo</p>
-                  <p className="mt-0.5 text-[13px] font-semibold text-red-700">{euro(seleccionada.importe_en_riesgo)}</p>
-                </div>
-
-                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[9px] font-semibold uppercase text-slate-500">Técnico</p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{seleccionada.tecnico_nombre ?? "—"}</p>
-                  <p className="text-[10px] text-slate-500">{seleccionada.tecnico_unidad ?? "—"}</p>
-                </div>
-              </section>
-
-              <section className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] leading-5 text-blue-950">
-                <p className="font-semibold">Base para la toma de decisiones</p>
-                <p className="mt-0.5">
-                  Esta decisión se apoya en la justificación económica del subexpediente, el importe pendiente,
-                  el posible riesgo de reintegro, el estado de ejecución y la evidencia documental pendiente.
-                </p>
-              </section>
-
-              <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Motivo de decisión</p>
-                <p className="mt-1 text-[12px] leading-5 text-slate-700">
-                  {seleccionada.motivo_decision ?? "Sin motivo específico registrado."}
-                </p>
-              </section>
-
-              <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Datos de ejecución</p>
-                <div className="mt-1 grid gap-2 md:grid-cols-4">
-                  <p className="text-[12px]">
-                    Inicio: <strong>{num(seleccionada.alumnos_inicio)}</strong>
-                  </p>
-                  <p className="text-[12px]">
-                    Activos: <strong>{num(seleccionada.alumnos_activos)}</strong>
-                  </p>
-                  <p className="text-[12px]">
-                    Bajas: <strong>{num(seleccionada.bajas)}</strong>
-                  </p>
-                  <p className="text-[12px]">
-                    Aptos: <strong>{num(seleccionada.aptos)}</strong>
-                  </p>
-                </div>
-              </section>
-
-              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-                <Link
-                  href={`/subexpedientes-accion/${seleccionada.oferta_id}`}
-                  className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Ver subexpediente
-                </Link>
-
-                <Link
-                  href={`/justificacion-economica?ofertaId=${seleccionada.oferta_id}`}
-                  className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Ver justificación
-                </Link>
-
-                <Link
-                  href={`/acciones/nueva?ofertaId=${seleccionada.oferta_id}`}
-                  className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Emitir actuación
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={() => setSeleccionada(null)}
-                  className="rounded-md bg-[#183B63] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 }
@@ -734,7 +903,7 @@ export default function DecisionesPage() {
       fallback={
         <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
           <section className="mx-auto max-w-7xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-600">Cargando mesa de toma de decisiones...</p>
+            <p className="text-sm text-slate-600">Cargando mesa económica...</p>
           </section>
         </main>
       }

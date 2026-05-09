@@ -137,6 +137,10 @@ function normalize(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function label(value: string | null | undefined) {
+  return String(value ?? "—").replaceAll("_", " ");
+}
+
 function normalizePriority(value: string | null | undefined) {
   const current = normalize(value);
 
@@ -149,7 +153,8 @@ function normalizePriority(value: string | null | undefined) {
     current.includes("ordinario") ||
     current.includes("control ordinario") ||
     current.includes("seguimiento ordinario") ||
-    current.includes("inicio")
+    current.includes("inicio") ||
+    current.includes("ordinaria")
   ) {
     return "normal";
   }
@@ -160,38 +165,68 @@ function normalizePriority(value: string | null | undefined) {
 function priorityLabel(priority: string | null | undefined) {
   const value = normalizePriority(priority);
 
-  if (value === "alta") return "alta";
-  if (value === "media") return "media";
-  if (value === "baja") return "baja";
-  return "normal";
+  if (value === "alta") return "Alta";
+  if (value === "media") return "Media";
+  if (value === "baja") return "Baja";
+  return "Normal";
 }
 
-function priorityClass(priority: string | null | undefined) {
+function priorityClass(priority: string | null | undefined, importeRiesgo?: number | null) {
   const value = normalizePriority(priority);
+  const riesgo = Number(importeRiesgo ?? 0);
 
-  if (value === "alta") return "border-red-200 bg-red-50 text-red-800";
-  if (value === "media") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (riesgo > 0 && value === "alta") return "border-red-200 bg-red-50 text-red-800";
+  if (riesgo > 0 && value === "media") return "border-amber-200 bg-amber-50 text-amber-800";
   if (value === "baja") return "border-emerald-200 bg-emerald-50 text-emerald-800";
 
-  return "border-slate-200 bg-slate-50 text-slate-700";
+  return "border-emerald-200 bg-emerald-50 text-emerald-800";
 }
 
-function riskClass(risk: string | null | undefined) {
-  const value = normalize(risk);
+function controlLabel(priority: string | null | undefined, importeRiesgo?: number | null) {
+  const riesgo = Number(importeRiesgo ?? 0);
+  const value = normalizePriority(priority);
 
-  if (value === "alto" || value === "alta") {
+  if (riesgo > 0 && value === "alta") return "Revisión económica";
+  if (riesgo > 0 && value === "media") return "Seguimiento preventivo";
+  if (value === "baja") return "Subsanación documental";
+  return "Control ordinario";
+}
+
+function riskClass(importeRiesgo: number | null | undefined) {
+  const riesgo = Number(importeRiesgo ?? 0);
+
+  if (riesgo > 0) return "border-red-200 bg-red-50 text-red-800";
+
+  return "border-emerald-200 bg-emerald-50 text-emerald-800";
+}
+
+function estadoOperativoLabel(value: string | null | undefined) {
+  const current = normalize(value);
+
+  if (current === "en_ejecucion") return "En ejecución";
+  if (current === "finalizada") return "Finalizada";
+  if (current === "pendiente_ejecutar") return "Pendiente";
+  if (current === "no_iniciada") return "No iniciada";
+  if (current === "finalizada_pendiente_justificacion") return "Finalizada / justificar";
+  if (current === "riesgo_reintegro") return "Revisión / riesgo";
+  if (current === "incidencia") return "Revisión técnica";
+
+  return label(value);
+}
+
+function estadoOperativoClass(value: string | null | undefined, importeRiesgo?: number | null) {
+  const current = normalize(value);
+  const riesgo = Number(importeRiesgo ?? 0);
+
+  if (riesgo > 0 || current.includes("riesgo") || current.includes("incidencia")) {
     return "border-red-200 bg-red-50 text-red-800";
   }
 
-  if (value === "medio" || value === "media") {
+  if (current.includes("pendiente") || current.includes("no_iniciada")) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
 
-  if (value === "bajo" || value === "baja") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-800";
-  }
-
-  return "border-slate-200 bg-slate-50 text-slate-700";
+  return "border-emerald-200 bg-emerald-50 text-emerald-800";
 }
 
 function subexpedienteHref(ofertaId: number | null | undefined) {
@@ -293,21 +328,29 @@ function KpiMini({
   value: string;
   detail: string;
   href?: string;
-  tone?: "default" | "red" | "amber";
+  tone?: "default" | "red" | "amber" | "green" | "blue";
 }) {
   const border =
     tone === "red"
       ? "border-red-200"
       : tone === "amber"
         ? "border-amber-200"
-        : "border-slate-200";
+        : tone === "green"
+          ? "border-emerald-200"
+          : tone === "blue"
+            ? "border-blue-200"
+            : "border-slate-200";
 
   const color =
     tone === "red"
       ? "text-red-700"
       : tone === "amber"
         ? "text-amber-700"
-        : "text-slate-950";
+        : tone === "green"
+          ? "text-emerald-700"
+          : tone === "blue"
+            ? "text-blue-800"
+            : "text-slate-950";
 
   const card = (
     <div className={`rounded-lg border ${border} bg-white px-3 py-1.5 shadow-sm`}>
@@ -500,6 +543,30 @@ export default function MesaFiscalizacionPage() {
     );
   }, [accionesEntidadTodas]);
 
+  const resumenMesa = useMemo(() => {
+    return acciones.reduce(
+      (acc, accion) => {
+        const riesgo = Number(accion.importe_en_riesgo ?? 0);
+        const prioridad = normalizePriority(accion.prioridad_operativa);
+
+        if (riesgo > 0) acc.revisionRiesgo += 1;
+        if (prioridad === "normal") acc.controlOrdinario += 1;
+        if (prioridad === "baja") acc.subsanacion += 1;
+        if (prioridad === "media") acc.seguimiento += 1;
+        if (prioridad === "alta") acc.revision += 1;
+
+        return acc;
+      },
+      {
+        revisionRiesgo: 0,
+        controlOrdinario: 0,
+        subsanacion: 0,
+        seguimiento: 0,
+        revision: 0,
+      }
+    );
+  }, [acciones]);
+
   function selectEntidad(entidadId: number) {
     const entidad = entidades.find((item) => item.entidad_id === entidadId) ?? null;
 
@@ -545,6 +612,8 @@ export default function MesaFiscalizacionPage() {
     );
   }
 
+  const hayRiesgoGlobal = Number(resumen.importe_total_en_riesgo ?? 0) > 0;
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#edf3f8] text-slate-950">
       <section className="bg-[#183B63] px-5 py-4 text-white shadow-sm">
@@ -560,7 +629,7 @@ export default function MesaFiscalizacionPage() {
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            Resolución oficial · ejecución trazada · actuación administrativa
+            Resolución concedida · ejecución · justificación · actuación administrativa
           </div>
         </div>
       </section>
@@ -572,10 +641,13 @@ export default function MesaFiscalizacionPage() {
               ← Dashboard
             </Link>
             <Link href="/oferta-formativa" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
-              Oferta
+              Oferta formativa
             </Link>
-            <Link href="/alertas" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
-              Alertas
+            <Link href="/justificacion-economica" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
+              Justificación económica
+            </Link>
+            <Link href="/decisiones" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
+              Decisiones
             </Link>
             <Link href="/acciones" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               Acciones
@@ -586,7 +658,7 @@ export default function MesaFiscalizacionPage() {
           </div>
 
           <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
-            Entidad → acción → decisión
+            Entidad → subexpediente → decisión → actuación
           </span>
         </div>
 
@@ -598,10 +670,11 @@ export default function MesaFiscalizacionPage() {
             href="/entidades"
           />
           <KpiMini
-            label="Acciones"
+            label="Subexpedientes"
             value={num(resumen.acciones_concedidas)}
             detail={`${num(resumen.acciones_af)} AF · ${num(resumen.acciones_cp)} CP`}
             href="/oferta-formativa"
+            tone="blue"
           />
           <KpiMini
             label="Concedido"
@@ -612,22 +685,27 @@ export default function MesaFiscalizacionPage() {
           <KpiMini
             label="Ejecutado"
             value={euro(resumen.importe_total_ejecutado)}
-            detail="ejecución trazada"
+            detail="avance registrado"
             href="/justificacion-economica"
+            tone="green"
           />
           <KpiMini
-            label="Riesgo"
+            label="Revisión/riesgo"
             value={euro(resumen.importe_total_en_riesgo)}
-            detail={`${num(resumen.alertas_altas)} alertas altas`}
-            href="/acciones"
-            tone="red"
+            detail={
+              hayRiesgoGlobal
+                ? `${num(resumenMesa.revisionRiesgo)} subexpedientes`
+                : "sin riesgo económico activo"
+            }
+            href="/decisiones"
+            tone={hayRiesgoGlobal ? "red" : "green"}
           />
           <KpiMini
-            label="Seguimiento"
-            value={num(resumen.alertas_medias)}
-            detail="incidencias medias"
-            href="/alertas"
-            tone="amber"
+            label="Control ordinario"
+            value={num(resumenMesa.controlOrdinario)}
+            detail="seguimiento institucional"
+            href="/acciones"
+            tone="green"
           />
         </section>
 
@@ -636,7 +714,7 @@ export default function MesaFiscalizacionPage() {
             <div className="border-b border-slate-100 px-3 py-1.5">
               <h2 className="text-[14px] font-semibold leading-5">Entidades beneficiarias</h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                {num(entidadesFiltradas.length)} de {num(entidades.length)} entidades · revisión institucional
+                {num(entidadesFiltradas.length)} de {num(entidades.length)} entidades · consulta institucional
               </p>
               <input
                 value={entitySearch}
@@ -647,49 +725,59 @@ export default function MesaFiscalizacionPage() {
             </div>
 
             <div className="max-h-[398px] overflow-y-auto overflow-x-hidden">
-              {entidadesFiltradas.map((entidad) => (
-                <button
-                  key={entidad.entidad_id}
-                  type="button"
-                  onClick={() => selectEntidad(entidad.entidad_id)}
-                  className={`w-full border-b border-slate-100 px-3 py-1.5 text-left hover:bg-blue-50 ${
-                    selectedEntidadId === entidad.entidad_id ? "bg-blue-50" : "bg-white"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-[11px] font-semibold leading-4 text-slate-950">
-                        {entidad.entidad_nombre}
-                      </p>
-                      <p className="text-[10px] leading-4 text-slate-500">{entidad.cif}</p>
-                    </div>
+              {entidadesFiltradas.map((entidad) => {
+                const entidadConRiesgo = Number(entidad.importe_en_riesgo ?? 0) > 0;
 
-                    <span
-                      className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${riskClass(
-                        entidad.nivel_riesgo_global
-                      )}`}
-                    >
-                      {entidad.nivel_riesgo_global}
-                    </span>
-                  </div>
+                return (
+                  <button
+                    key={entidad.entidad_id}
+                    type="button"
+                    onClick={() => selectEntidad(entidad.entidad_id)}
+                    className={`w-full border-b border-slate-100 px-3 py-1.5 text-left hover:bg-blue-50 ${
+                      selectedEntidadId === entidad.entidad_id ? "bg-blue-50" : "bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-semibold leading-4 text-slate-950">
+                          {entidad.entidad_nombre}
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">{entidad.cif}</p>
+                      </div>
 
-                  <div className="mt-1 grid grid-cols-[48px_1fr_56px] gap-2 text-[10px] leading-4">
-                    <div>
-                      <span className="text-slate-500">Acc.</span>{" "}
-                      <span className="font-semibold">{num(entidad.acciones_concedidas)}</span>
-                    </div>
-                    <div className="truncate">
-                      <span className="text-slate-500">R. </span>
-                      <span className="font-semibold text-red-700">
-                        {euro(entidad.importe_en_riesgo)}
+                      <span
+                        className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${riskClass(
+                          entidad.importe_en_riesgo
+                        )}`}
+                      >
+                        {entidadConRiesgo ? "Revisión" : "Control"}
                       </span>
                     </div>
-                    <div className="truncate text-right font-semibold">
-                      {priorityLabel(entidad.prioridad_principal)}
+
+                    <div className="mt-1 grid grid-cols-[48px_1fr_74px] gap-2 text-[10px] leading-4">
+                      <div>
+                        <span className="text-slate-500">Acc.</span>{" "}
+                        <span className="font-semibold">{num(entidad.acciones_concedidas)}</span>
+                      </div>
+                      <div className="truncate">
+                        <span className="text-slate-500">Rev. </span>
+                        <span
+                          className={
+                            entidadConRiesgo
+                              ? "font-semibold text-red-700"
+                              : "font-semibold text-emerald-700"
+                          }
+                        >
+                          {euro(entidad.importe_en_riesgo)}
+                        </span>
+                      </div>
+                      <div className="truncate text-right font-semibold">
+                        {controlLabel(entidad.prioridad_principal, entidad.importe_en_riesgo)}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
 
               {entidadesFiltradas.length === 0 ? (
                 <div className="px-3 py-6 text-center text-xs text-slate-500">
@@ -716,15 +804,19 @@ export default function MesaFiscalizacionPage() {
 
               <span
                 className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${priorityClass(
-                  selectedEntidad?.prioridad_principal
+                  selectedEntidad?.prioridad_principal,
+                  selectedEntidad?.importe_en_riesgo
                 )}`}
               >
-                {selectedEntidad ? priorityLabel(selectedEntidad.prioridad_principal) : "—"}
+                {selectedEntidad
+                  ? controlLabel(selectedEntidad.prioridad_principal, selectedEntidad.importe_en_riesgo)
+                  : "—"}
               </span>
             </div>
 
             <p className="mt-2 line-clamp-3 rounded-lg bg-slate-50 px-3 py-1.5 text-[11px] leading-4 text-slate-700">
-              {selectedEntidad?.resumen_operativo ?? "Selecciona una entidad para revisar su situación."}
+              {selectedEntidad?.resumen_operativo ??
+                "Selecciona una entidad para revisar su situación."}
             </p>
 
             <div className="mt-2 grid grid-cols-2 gap-1.5">
@@ -734,15 +826,27 @@ export default function MesaFiscalizacionPage() {
                   {euro(selectedEntidad?.importe_concedido)}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-100 px-3 py-1.5">
+              <div className="rounded-lg border border-emerald-100 px-3 py-1.5">
                 <p className="text-[9px] uppercase text-slate-500">Ejecutado</p>
-                <p className="truncate text-[11px] font-semibold leading-4">
+                <p className="truncate text-[11px] font-semibold leading-4 text-emerald-700">
                   {euro(selectedEntidad?.importe_ejecutado)}
                 </p>
               </div>
-              <div className="rounded-lg border border-red-100 px-3 py-1.5">
-                <p className="text-[9px] uppercase text-slate-500">Riesgo</p>
-                <p className="truncate text-[11px] font-semibold leading-4 text-red-700">
+              <div
+                className={`rounded-lg border px-3 py-1.5 ${
+                  Number(selectedEntidad?.importe_en_riesgo ?? 0) > 0
+                    ? "border-red-100"
+                    : "border-emerald-100"
+                }`}
+              >
+                <p className="text-[9px] uppercase text-slate-500">Revisión/riesgo</p>
+                <p
+                  className={`truncate text-[11px] font-semibold leading-4 ${
+                    Number(selectedEntidad?.importe_en_riesgo ?? 0) > 0
+                      ? "text-red-700"
+                      : "text-emerald-700"
+                  }`}
+                >
                   {euro(selectedEntidad?.importe_en_riesgo)}
                 </p>
               </div>
@@ -770,10 +874,10 @@ export default function MesaFiscalizacionPage() {
                 Acciones
               </Link>
               <Link
-                href={entidadContextHref("/alertas", selectedEntidad)}
+                href={entidadContextHref("/decisiones", selectedEntidad)}
                 className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Alertas
+                Decisiones
               </Link>
               <Link
                 href={entidadContextHref("/actuaciones-emitidas", selectedEntidad)}
@@ -787,7 +891,7 @@ export default function MesaFiscalizacionPage() {
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
               <div>
-                <h2 className="text-[14px] font-semibold leading-5">Acciones de la entidad</h2>
+                <h2 className="text-[14px] font-semibold leading-5">Subexpedientes de la entidad</h2>
                 <p className="text-[10.5px] leading-4 text-slate-500">
                   {num(accionesEntidad.length)} visibles · alta {num(resumenPrioridadesEntidad.alta)} · media{" "}
                   {num(resumenPrioridadesEntidad.media)} · baja {num(resumenPrioridadesEntidad.baja)} · normal{" "}
@@ -819,58 +923,67 @@ export default function MesaFiscalizacionPage() {
                   <tr>
                     <th className="w-[100px] px-2 py-1.5">Acción</th>
                     <th className="px-2 py-1.5">Especialidad</th>
-                    <th className="w-[92px] px-2 py-1.5 text-right">Riesgo</th>
-                    <th className="w-[66px] px-2 py-1.5">Prior.</th>
+                    <th className="w-[98px] px-2 py-1.5 text-right">Rev./riesgo</th>
+                    <th className="w-[78px] px-2 py-1.5">Control</th>
                     <th className="w-[82px] px-2 py-1.5">Operar</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {accionesEntidad.map((accion) => (
-                    <tr
-                      key={accion.oferta_id}
-                      onClick={() => setSelectedOfertaId(accion.oferta_id)}
-                      className={`cursor-pointer border-t border-slate-100 hover:bg-blue-50 ${
-                        selectedOfertaId === accion.oferta_id ? "bg-blue-50" : ""
-                      }`}
-                    >
-                      <td className="px-2 py-1 align-top">
-                        <p className="font-semibold leading-4 text-slate-950">{accion.codigo_accion}</p>
-                        <p className="text-[10px] leading-4 text-slate-500">{accion.tipo_oferta}</p>
-                      </td>
-                      <td className="px-2 py-1 align-top">
-                        <p className="font-medium leading-4">{accion.codigo_especialidad}</p>
-                        <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{accion.denominacion}</p>
-                      </td>
-                      <td className="px-2 py-1 text-right align-top font-semibold text-red-700">
-                        {euro(accion.importe_en_riesgo)}
-                      </td>
-                      <td className="px-2 py-1 align-top">
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${priorityClass(
-                            accion.prioridad_operativa
-                          )}`}
+                  {accionesEntidad.map((accion) => {
+                    const accionConRiesgo = Number(accion.importe_en_riesgo ?? 0) > 0;
+
+                    return (
+                      <tr
+                        key={accion.oferta_id}
+                        onClick={() => setSelectedOfertaId(accion.oferta_id)}
+                        className={`cursor-pointer border-t border-slate-100 hover:bg-blue-50 ${
+                          selectedOfertaId === accion.oferta_id ? "bg-blue-50" : ""
+                        }`}
+                      >
+                        <td className="px-2 py-1 align-top">
+                          <p className="font-semibold leading-4 text-slate-950">{accion.codigo_accion}</p>
+                          <p className="text-[10px] leading-4 text-slate-500">{accion.tipo_oferta}</p>
+                        </td>
+                        <td className="px-2 py-1 align-top">
+                          <p className="font-medium leading-4">{accion.codigo_especialidad}</p>
+                          <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{accion.denominacion}</p>
+                        </td>
+                        <td
+                          className={`px-2 py-1 text-right align-top font-semibold ${
+                            accionConRiesgo ? "text-red-700" : "text-emerald-700"
+                          }`}
                         >
-                          {priorityLabel(accion.prioridad_operativa)}
-                        </span>
-                      </td>
-                      <td className="px-2 py-1 align-top">
-                        <div className="flex flex-col gap-1">
-                          <ButtonLink href={subexpedienteHref(accion.oferta_id)} variant="primary">
-                            Subexp.
-                          </ButtonLink>
-                          <ButtonLink href={emitirActuacionHref(accion.oferta_id)}>
-                            Emitir
-                          </ButtonLink>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                          {euro(accion.importe_en_riesgo)}
+                        </td>
+                        <td className="px-2 py-1 align-top">
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${priorityClass(
+                              accion.prioridad_operativa,
+                              accion.importe_en_riesgo
+                            )}`}
+                          >
+                            {controlLabel(accion.prioridad_operativa, accion.importe_en_riesgo)}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 align-top">
+                          <div className="flex flex-col gap-1">
+                            <ButtonLink href={subexpedienteHref(accion.oferta_id)} variant="primary">
+                              Subexp.
+                            </ButtonLink>
+                            <ButtonLink href={emitirActuacionHref(accion.oferta_id)}>
+                              Preparar
+                            </ButtonLink>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
 
                   {accionesEntidad.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-3 py-8 text-center text-xs text-slate-500">
-                        No hay acciones con la prioridad seleccionada.
+                        No hay subexpedientes con el filtro seleccionado.
                       </td>
                     </tr>
                   ) : null}
@@ -885,12 +998,12 @@ export default function MesaFiscalizacionPage() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                  Panel de decisión de la acción seleccionada
+                  Panel de decisión del subexpediente seleccionado
                 </p>
                 <h2 className="mt-0.5 truncate text-[15px] font-semibold leading-5">
                   {selectedAccion
                     ? `${selectedAccion.codigo_accion} · ${selectedAccion.codigo_especialidad}`
-                    : "Sin acción seleccionada"}
+                    : "Sin subexpediente seleccionado"}
                 </h2>
                 <p className="line-clamp-1 text-[11px] leading-4 text-slate-600">
                   {selectedAccion?.denominacion ?? "Selecciona una acción para revisar trazabilidad."}
@@ -899,10 +1012,13 @@ export default function MesaFiscalizacionPage() {
 
               <span
                 className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${priorityClass(
-                  selectedAccion?.prioridad_operativa
+                  selectedAccion?.prioridad_operativa,
+                  selectedAccion?.importe_en_riesgo
                 )}`}
               >
-                {selectedAccion ? priorityLabel(selectedAccion.prioridad_operativa) : "normal"}
+                {selectedAccion
+                  ? controlLabel(selectedAccion.prioridad_operativa, selectedAccion.importe_en_riesgo)
+                  : "Control ordinario"}
               </span>
             </div>
 
@@ -911,9 +1027,21 @@ export default function MesaFiscalizacionPage() {
                 <p className="text-[9px] uppercase text-slate-500">Concedido</p>
                 <p className="truncate text-[11px] font-semibold leading-4">{euro(selectedAccion?.importe_concedido)}</p>
               </div>
-              <div className="rounded-lg border border-red-100 px-3 py-1.5">
-                <p className="text-[9px] uppercase text-slate-500">Riesgo</p>
-                <p className="truncate text-[11px] font-semibold leading-4 text-red-700">
+              <div
+                className={`rounded-lg border px-3 py-1.5 ${
+                  Number(selectedAccion?.importe_en_riesgo ?? 0) > 0
+                    ? "border-red-100"
+                    : "border-emerald-100"
+                }`}
+              >
+                <p className="text-[9px] uppercase text-slate-500">Revisión/riesgo</p>
+                <p
+                  className={`truncate text-[11px] font-semibold leading-4 ${
+                    Number(selectedAccion?.importe_en_riesgo ?? 0) > 0
+                      ? "text-red-700"
+                      : "text-emerald-700"
+                  }`}
+                >
                   {euro(selectedAccion?.importe_en_riesgo)}
                 </p>
               </div>
@@ -925,7 +1053,9 @@ export default function MesaFiscalizacionPage() {
               </div>
               <div className="rounded-lg border border-slate-100 px-3 py-1.5">
                 <p className="text-[9px] uppercase text-slate-500">Estado</p>
-                <p className="truncate text-[11px] font-semibold leading-4">{selectedAccion?.estado_ejecucion ?? "—"}</p>
+                <p className="truncate text-[11px] font-semibold leading-4">
+                  {estadoOperativoLabel(selectedAccion?.estado_ejecucion)}
+                </p>
               </div>
             </div>
 
@@ -941,7 +1071,7 @@ export default function MesaFiscalizacionPage() {
 
               <div className="rounded-lg bg-slate-50 px-3 py-2">
                 <p className="text-[9px] font-semibold uppercase text-slate-500">
-                  Evidencia a revisar
+                  Evidencia / seguimiento
                 </p>
                 <p className="mt-1 line-clamp-3 text-[11px] leading-4 text-slate-700">
                   {selectedAccion?.evidencia_a_revisar ?? "—"}
@@ -967,7 +1097,7 @@ export default function MesaFiscalizacionPage() {
                 Subexpediente
               </ButtonLink>
               <ButtonLink href={emitirActuacionHref(selectedAccion?.oferta_id)} variant="primary">
-                Emitir
+                Preparar actuación
               </ButtonLink>
             </div>
           </section>
@@ -975,9 +1105,9 @@ export default function MesaFiscalizacionPage() {
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
               <div>
-                <h2 className="text-[14px] font-semibold leading-5">Carga administrativa global por decisión</h2>
+                <h2 className="text-[14px] font-semibold leading-5">Carga administrativa global</h2>
                 <p className="text-[10.5px] leading-4 text-slate-500">
-                  Resumen global de decisiones de toda la resolución.
+                  Resumen de decisiones calculado desde backend para toda la resolución.
                 </p>
               </div>
 
@@ -990,27 +1120,41 @@ export default function MesaFiscalizacionPage() {
             </div>
 
             <div className="grid gap-1.5 p-2.5 sm:grid-cols-2">
-              {decisiones.map((decision) => (
-                <div
-                  key={`${decision.decision_recomendada}-${decision.prioridad_operativa}`}
-                  className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
-                >
-                  <p className="line-clamp-2 text-[11px] font-semibold leading-4 text-slate-900">
-                    {decision.decision_recomendada}
-                  </p>
-                  <div className="mt-1.5 flex items-end justify-between gap-2">
-                    <div>
-                      <p className="text-[16px] font-semibold leading-5">{num(decision.acciones)}</p>
-                      <p className="text-[10.5px] leading-4 text-slate-500">
-                        {num(decision.entidades_afectadas)} entidades
+              {decisiones.map((decision) => {
+                const decisionConRiesgo = Number(decision.importe_en_riesgo ?? 0) > 0;
+
+                return (
+                  <div
+                    key={`${decision.decision_recomendada}-${decision.prioridad_operativa}`}
+                    className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+                  >
+                    <p className="line-clamp-2 text-[11px] font-semibold leading-4 text-slate-900">
+                      {label(decision.decision_recomendada)}
+                    </p>
+                    <div className="mt-1.5 flex items-end justify-between gap-2">
+                      <div>
+                        <p className="text-[16px] font-semibold leading-5">{num(decision.acciones)}</p>
+                        <p className="text-[10.5px] leading-4 text-slate-500">
+                          {num(decision.entidades_afectadas)} entidades
+                        </p>
+                      </div>
+                      <p
+                        className={`text-right text-[10.5px] font-semibold leading-4 ${
+                          decisionConRiesgo ? "text-red-700" : "text-emerald-700"
+                        }`}
+                      >
+                        {euro(decision.importe_en_riesgo)}
                       </p>
                     </div>
-                    <p className="text-right text-[10.5px] font-semibold leading-4 text-red-700">
-                      {euro(decision.importe_en_riesgo)}
-                    </p>
                   </div>
+                );
+              })}
+
+              {decisiones.length === 0 ? (
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-6 text-center text-xs text-slate-500 sm:col-span-2">
+                  No hay decisiones globales cargadas desde backend.
                 </div>
-              ))}
+              ) : null}
             </div>
           </section>
         </section>
