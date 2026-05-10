@@ -155,8 +155,8 @@ export default function NuevoAvisoInstitucionalPage() {
       requiere_revision: form.requiere_revision,
       requiere_confirmacion: form.requiere_confirmacion,
 
-      fuente_origen: "demo_institucional",
-      tipo_dato: "simulacion_controlada",
+      fuente_origen: "alta_manual_institucional",
+      tipo_dato: "registro_manual_institucional",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

@@ -26,6 +26,16 @@ type EntidadRow = {
   tipo_entidad: string | null;
 };
 
+type DocumentoNormativoRow = {
+  id: number;
+  tipo_oferta: string;
+  fase: string;
+  subfase: string | null;
+  nombre_funcional: string;
+  obligatoriedad: string;
+  riesgo_si_falta: string;
+};
+
 type FormConvocatoria = {
   codigo: string;
   nombre: string;
@@ -500,7 +510,7 @@ export default function NuevaOfertaFormativaPage() {
         documento_origen: nullable(formConvocatoria.documento_origen),
         estado: "vigente",
         fuente_dato: "alta_manual_frontend",
-        tipo_dato: "manual",
+        tipo_dato: "registro_manual_institucional",
         nivel_confianza: "validacion_usuario",
         observaciones_trazabilidad: trazabilidad,
       })
@@ -608,7 +618,7 @@ export default function NuevaOfertaFormativaPage() {
         alumnos_previstos: alumnos,
         estado: "concedida",
         fuente_dato: "alta_manual_frontend",
-        tipo_dato: "manual",
+        tipo_dato: "registro_manual_institucional",
         nivel_confianza: "validacion_usuario",
         observaciones_trazabilidad:
           "Vínculo convocatoria-entidad creado desde alta manual de oferta formativa.",
@@ -712,6 +722,101 @@ export default function NuevaOfertaFormativaPage() {
     if (update.error) throw new Error(update.error.message);
   }
 
+  async function crearEjecucionInicial({
+    ofertaId,
+    codigoAccion,
+    denominacion,
+  }: {
+    ofertaId: number;
+    codigoAccion: string;
+    denominacion: string;
+  }) {
+    const insert = await supabase.from("ejecucion_acciones").insert({
+      oferta_concedida_id: ofertaId,
+      fecha_inicio_real: null,
+      fecha_fin_real: null,
+      estado_ejecucion: "no_iniciada",
+      alumnos_inicio: 0,
+      alumnos_activos: 0,
+      bajas: 0,
+      aptos: 0,
+      no_aptos: 0,
+      asistencia_media: null,
+      porcentaje_ejecucion: 0,
+      importe_ejecutado: 0,
+      importe_riesgo_manual: null,
+      incidencia_detectada: false,
+      motivo_alerta: null,
+      observaciones:
+        "Ejecución inicial creada desde alta manual institucional. Acción no iniciada y sin importe ejecutado.",
+      fuente_dato: "alta_manual_frontend",
+      tipo_dato: "registro_manual_institucional",
+      nivel_confianza: "validacion_usuario",
+      escenario_demo: "alta_manual_institucional",
+      regla_alerta_aplicada: "control_ordinario_sin_alerta",
+      observaciones_trazabilidad: `Registro inicial no iniciado para ${codigoAccion || "acción sin código"} · ${denominacion}.`,
+    });
+
+    if (insert.error) throw new Error(insert.error.message);
+  }
+
+  async function crearRecepcionDocumentalInicial({
+    ofertaId,
+    subexpedienteId,
+    tipoOferta,
+  }: {
+    ofertaId: number;
+    subexpedienteId: number;
+    tipoOferta: "AF" | "CP";
+  }) {
+    const documentosRes = await supabase
+      .from("cat_documentos_normativos")
+      .select("id,tipo_oferta,fase,subfase,nombre_funcional,obligatoriedad,riesgo_si_falta")
+      .eq("activo", true)
+      .in("tipo_oferta", tipoOferta === "CP" ? ["ambos", "CP"] : ["ambos"])
+      .order("fase", { ascending: true })
+      .order("orden", { ascending: true });
+
+    if (documentosRes.error) throw new Error(documentosRes.error.message);
+
+    const documentos = (documentosRes.data ?? []) as DocumentoNormativoRow[];
+
+    if (documentos.length === 0) {
+      throw new Error(
+        "No se encontraron documentos normativos activos para crear la recepción documental inicial."
+      );
+    }
+
+    const rows = documentos.map((doc) => ({
+      oferta_id: ofertaId,
+      subexpediente_id: subexpedienteId,
+      documento_normativo_id: doc.id,
+      fase: doc.fase,
+      subfase: doc.subfase,
+      nombre_documento: doc.nombre_funcional,
+      estado_documental: "no_aplica",
+      obligatoriedad: doc.obligatoriedad,
+      riesgo_actual: doc.riesgo_si_falta,
+      fecha_limite: null,
+      fecha_recepcion: null,
+      fecha_revision: null,
+      tecnico_revisor: null,
+      observaciones:
+        "Control documental inicial creado desde alta manual institucional. Estado inicial no aplica hasta comunicación o inicio efectivo.",
+      requiere_subsanacion: false,
+      fecha_requerimiento: null,
+      fecha_subsanacion: null,
+      comunicado_ente_fiscalizador: false,
+      fuente_dato: "alta_manual_frontend",
+      tipo_dato: "registro_manual_institucional",
+      nivel_confianza: "validacion_usuario",
+    }));
+
+    const insert = await supabase.from("recepcion_documentacion").insert(rows);
+
+    if (insert.error) throw new Error(insert.error.message);
+  }
+
   async function guardarAlta() {
     setError(null);
     setOkMsg(null);
@@ -760,7 +865,7 @@ export default function NuevaOfertaFormativaPage() {
           fecha_fin_prevista: nullableDate(formOferta.fecha_fin_prevista),
           observaciones: nullable(formOferta.observaciones),
           fuente_dato: "alta_manual_frontend",
-          tipo_dato: "manual",
+          tipo_dato: "registro_manual_institucional",
           nivel_confianza: "validacion_usuario",
           observaciones_trazabilidad:
             "Oferta concedida creada manualmente desde Coforma Institucional Demo.",
@@ -776,18 +881,48 @@ export default function NuevaOfertaFormativaPage() {
         .from("subexpedientes_accion")
         .insert({
           oferta_concedida_id: ofertaId,
+          estado_operativo_administrativo: "pendiente_ejecutar",
+          prioridad_tecnica: "control_ordinario",
           fecha_inicio_prevista: nullableDate(formOferta.fecha_inicio_prevista),
+          fecha_inicio_comunicada: null,
+          fecha_inicio_validada: null,
           fecha_fin_prevista: nullableDate(formOferta.fecha_fin_prevista),
+          fecha_fin_comunicada: null,
+          fecha_fin_validada: null,
+          captacion_suficiente: null,
+          motivo_retraso: null,
+          documentacion_estado: "pendiente_inicio",
+          incidencias_abiertas: 0,
+          requerimientos_pendientes: 0,
+          riesgo_administrativo: "bajo",
+          riesgo_economico: "bajo",
+          unidad_responsable: null,
+          tecnico_asignado: null,
           observaciones_administrativas:
-            "Subexpediente creado automáticamente desde alta manual de oferta formativa.",
+            "Subexpediente creado automáticamente desde alta manual institucional. Nace como pendiente de ejecutar, no devengado y bajo control ordinario.",
           fuente_dato: "alta_manual_frontend",
-          tipo_dato: "subexpediente_administrativo_demo",
+          tipo_dato: "registro_manual_institucional",
           nivel_confianza: "validacion_usuario",
+          estado_pago_administrativo: "no_devengado",
         })
         .select("id")
         .single();
 
       if (insertSubexpediente.error) throw new Error(insertSubexpediente.error.message);
+
+      const subexpedienteId = Number(insertSubexpediente.data.id);
+
+      await crearEjecucionInicial({
+        ofertaId,
+        codigoAccion: limpiarTexto(formOferta.codigo_accion),
+        denominacion: limpiarTexto(formOferta.denominacion),
+      });
+
+      await crearRecepcionDocumentalInicial({
+        ofertaId,
+        subexpedienteId,
+        tipoOferta: formOferta.tipo_oferta,
+      });
 
       await actualizarTotalesConvocatoriaEntidad({
         convocatoriaEntidadId: vinculo.id,
@@ -804,8 +939,6 @@ export default function NuevaOfertaFormativaPage() {
         sumarEntidad: vinculo.creada,
         importeNuevaOferta: importeConcedido,
       });
-
-      const subexpedienteId = Number(insertSubexpediente.data.id);
 
       setOkMsg(`Alta creada correctamente. Subexpediente ${subexpedienteId}.`);
       router.push(`/subexpedientes-accion/${ofertaId}`);
@@ -1165,7 +1298,7 @@ export default function NuevaOfertaFormativaPage() {
 
         <Card
           title="3. Acción concedida AF/CP"
-          subtitle="La acción crea también su subexpediente administrativo inicial."
+          subtitle="La acción crea también su subexpediente, ejecución inicial no iniciada y matriz documental inicial."
         >
           <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-6">
             <div>
@@ -1324,7 +1457,8 @@ export default function NuevaOfertaFormativaPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <p className="text-[11px] leading-5 text-slate-500">
-              Guardará convocatoria, entidad, vínculo, oferta concedida y subexpediente.
+              Guardará convocatoria, entidad, vínculo, oferta concedida, subexpediente,
+              ejecución inicial no iniciada y matriz documental inicial en estado no aplica.
               Reutiliza registros existentes cuando coinciden código, CIF o vínculo.
             </p>
 
