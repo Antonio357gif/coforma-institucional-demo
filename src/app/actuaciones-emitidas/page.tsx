@@ -80,6 +80,14 @@ function label(value: string | null | undefined) {
   return String(value ?? "—").replaceAll("_", " ");
 }
 
+function titleLabel(value: string | null | undefined) {
+  const raw = String(value ?? "—").replaceAll("_", " ").trim();
+
+  if (raw === "—") return raw;
+
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
 function canalLabel(value: string | null | undefined) {
   if (value === "bandeja_institucional_demo") return "Bandeja institucional interna";
   if (value === "api_bidireccional") return "API bidireccional";
@@ -109,11 +117,17 @@ function estadoCanalLabel(value: string | null | undefined) {
 function badgeClass(value: string | null | undefined) {
   const normalizado = normalize(value);
 
-  if (normalizado.includes("alta") || normalizado.includes("no_enviada")) {
+  if (normalizado.includes("alta") || normalizado.includes("riesgo") || normalizado.includes("reintegro")) {
     return "border-red-200 bg-red-50 text-red-800";
   }
 
-  if (normalizado.includes("media") || normalizado.includes("pendiente")) {
+  if (
+    normalizado.includes("media") ||
+    normalizado.includes("pendiente") ||
+    normalizado.includes("no_enviada") ||
+    normalizado.includes("revision") ||
+    normalizado.includes("revisión")
+  ) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
 
@@ -121,15 +135,26 @@ function badgeClass(value: string | null | undefined) {
     return "border-blue-200 bg-blue-50 text-blue-800";
   }
 
-  if (normalizado.includes("respondida") || normalizado.includes("enviada")) {
+  if (
+    normalizado.includes("respondida") ||
+    normalizado.includes("enviada") ||
+    normalizado.includes("normal") ||
+    normalizado.includes("ordinario")
+  ) {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
   }
 
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
-function riesgoTone(value: number | null | undefined) {
+function controlEconomicoTone(value: number | null | undefined) {
   return Number(value ?? 0) > 0 ? "text-red-700" : "text-emerald-700";
+}
+
+function controlEconomicoDetail(value: number | null | undefined) {
+  return Number(value ?? 0) > 0
+    ? "importe asociado a revisión"
+    : "sin revisión económica activa";
 }
 
 function Kpi({
@@ -313,14 +338,14 @@ function ActuacionesEmitidasPageContent() {
   const resumen = useMemo(() => {
     return filtradas.reduce(
       (acc, row) => {
-        acc.riesgo += Number(row.importe_en_riesgo ?? 0);
+        acc.controlEconomico += Number(row.importe_en_riesgo ?? 0);
         if (row.estado === "emitida") acc.emitidas++;
         if (row.estado_canal === "registrada_no_enviada") acc.registradasNoEnviadas++;
         if (row.canal_comunicacion === "bandeja_institucional_demo") acc.bandejaInterna++;
         return acc;
       },
       {
-        riesgo: 0,
+        controlEconomico: 0,
         emitidas: 0,
         registradasNoEnviadas: 0,
         bandejaInterna: 0,
@@ -400,7 +425,11 @@ function ActuacionesEmitidasPageContent() {
           <Kpi label="Emitidas" value={num(resumen.emitidas)} detail="actos administrativos registrados" />
           <Kpi label="Bandeja interna" value={num(resumen.bandejaInterna)} detail="canal institucional interno" />
           <Kpi label="Pendientes de envío" value={num(resumen.registradasNoEnviadas)} detail="canal oficial no ejecutado" />
-          <Kpi label="Revisión/Riesgo" value={euro(resumen.riesgo)} detail="importe asociado a subexpedientes" />
+          <Kpi
+            label="Control económico"
+            value={euro(resumen.controlEconomico)}
+            detail={controlEconomicoDetail(resumen.controlEconomico)}
+          />
         </section>
 
         {tieneFiltroEntidad ? (
@@ -539,7 +568,7 @@ function ActuacionesEmitidasPageContent() {
                   <th className="px-2 py-2">Estado canal</th>
                   <th className="px-2 py-2">Emisión</th>
                   <th className="px-2 py-2">Límite</th>
-                  <th className="px-2 py-2 text-right">Rev./Riesgo</th>
+                  <th className="px-2 py-2 text-right">Control económico</th>
                   <th className="px-2 py-2">Opciones</th>
                 </tr>
               </thead>
@@ -551,7 +580,7 @@ function ActuacionesEmitidasPageContent() {
                       <p className="font-semibold leading-4 text-slate-950">{row.tipo_actuacion}</p>
                       <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{row.asunto}</p>
                       <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(row.prioridad)}`}>
-                        {label(row.prioridad)}
+                        {titleLabel(row.prioridad)}
                       </span>
                     </td>
 
@@ -583,7 +612,7 @@ function ActuacionesEmitidasPageContent() {
                     <td className="px-2 py-1 text-[10px] leading-4">{fecha(row.fecha_emision)}</td>
                     <td className="px-2 py-1 text-[10px] leading-4">{fechaCorta(row.fecha_limite_respuesta)}</td>
 
-                    <td className={`px-2 py-1 text-right font-semibold ${riesgoTone(row.importe_en_riesgo)}`}>
+                    <td className={`px-2 py-1 text-right font-semibold ${controlEconomicoTone(row.importe_en_riesgo)}`}>
                       {euro(row.importe_en_riesgo)}
                     </td>
 
@@ -593,7 +622,7 @@ function ActuacionesEmitidasPageContent() {
                           href={`/actuaciones-emitidas/${row.id}`}
                           className="rounded-lg bg-[#183B63] px-2 py-1 text-center text-[10px] font-semibold text-white hover:bg-[#122f4f]"
                         >
-                          Ver emisión
+                          Ver trazabilidad
                         </Link>
 
                         <Link

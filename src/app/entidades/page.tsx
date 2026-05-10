@@ -68,6 +68,16 @@ function badgeClass(value: string) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function economicControlClass(value: number | null | undefined) {
+  const amount = value ?? 0;
+
+  if (amount > 0) {
+    return "text-red-700";
+  }
+
+  return "text-emerald-700";
+}
+
 function Kpi({
   label,
   value,
@@ -225,7 +235,7 @@ export default function EntidadesPage() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Entidades beneficiarias</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Expedientes principales de entidades con acciones concedidas, riesgo e incidencias.
+              Expedientes principales de entidades con acciones concedidas, seguimiento ordinario y trazabilidad institucional.
             </p>
           </div>
 
@@ -266,16 +276,20 @@ export default function EntidadesPage() {
             href="/oferta-formativa"
           />
           <Kpi
-            label="Importe en riesgo"
+            label="Control económico"
             value={euro(resumen.riesgo)}
-            detail={`${num(resumen.alertasAltas)} alertas altas`}
+            detail={
+              resumen.riesgo > 0
+                ? `${num(resumen.alertasAltas)} controles críticos activos`
+                : "sin revisión económica activa"
+            }
             href="/acciones"
           />
           <Kpi
-            label="Seguimiento"
-            value={num(resumen.alertasMedias)}
-            detail="alertas medias"
-            href="/alertas"
+            label="Control ordinario"
+            value={num(entidadesFiltradas.length)}
+            detail="entidades bajo seguimiento ordinario"
+            href="/decisiones"
           />
         </section>
 
@@ -295,7 +309,7 @@ export default function EntidadesPage() {
 
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Riesgo global
+                Nivel de control
               </label>
               <select
                 value={riesgoFiltro}
@@ -331,7 +345,7 @@ export default function EntidadesPage() {
             <div>
               <h2 className="text-[14px] font-semibold leading-5">Expedientes de entidad</h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Listado de entidades beneficiarias. Clic en una fila para abrir detalle.
+                Listado de entidades beneficiarias con expediente principal, acciones concedidas y lectura de control.
               </p>
             </div>
 
@@ -378,11 +392,11 @@ export default function EntidadesPage() {
                   <th className="px-2 py-1.5">Ubicación</th>
                   <th className="px-2 py-1.5 text-right">Acciones</th>
                   <th className="px-2 py-1.5 text-right">Concedido</th>
-                  <th className="px-2 py-1.5 text-right">Riesgo</th>
+                  <th className="px-2 py-1.5 text-right">Control económico</th>
                   <th className="px-2 py-1.5 text-right">Alumnos activos</th>
                   <th className="px-2 py-1.5 text-right">Bajas</th>
-                  <th className="px-2 py-1.5">Riesgo global</th>
-                  <th className="px-2 py-1.5">Prioridad</th>
+                  <th className="px-2 py-1.5">Nivel de control</th>
+                  <th className="px-2 py-1.5">Lectura institucional</th>
                 </tr>
               </thead>
 
@@ -416,7 +430,7 @@ export default function EntidadesPage() {
                       {euro(entidad.importe_concedido)}
                     </td>
 
-                    <td className="px-2 py-1 text-right font-medium text-red-700">
+                    <td className={`px-2 py-1 text-right font-medium ${economicControlClass(entidad.importe_en_riesgo)}`}>
                       {euro(entidad.importe_en_riesgo)}
                       <p className="text-[10px] font-normal leading-4 text-slate-500">
                         {pct(entidad.porcentaje_importe_en_riesgo)}

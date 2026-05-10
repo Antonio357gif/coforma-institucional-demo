@@ -67,6 +67,30 @@ function label(value: string | null | undefined) {
   return String(value ?? "—").replaceAll("_", " ");
 }
 
+function titleLabel(value: string | null | undefined) {
+  const raw = String(value ?? "—").replaceAll("_", " ").trim();
+
+  if (raw === "—") return raw;
+
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function estadoOperativoLabel(value: string | null | undefined) {
+  const normalizado = normalize(value);
+
+  const estados: Record<string, string> = {
+    en_ejecucion: "En ejecución",
+    pendiente_ejecutar: "Pendiente de ejecutar",
+    no_iniciada: "No iniciada",
+    finalizada: "Finalizada",
+    en_ejecucion_con_incidencia: "En ejecución con incidencia",
+    finalizada_pendiente_justificacion: "Finalizada pendiente de justificación",
+    riesgo_reintegro: "Riesgo de reintegro",
+  };
+
+  return estados[normalizado] ?? titleLabel(value);
+}
+
 function canalLabel(value: string | null | undefined) {
   if (value === "bandeja_institucional_demo") return "Bandeja institucional interna";
   if (value === "api_bidireccional") return "API bidireccional";
@@ -99,8 +123,7 @@ function badgeClass(value: string | null | undefined) {
   if (
     normalizado.includes("alta") ||
     normalizado.includes("riesgo") ||
-    normalizado.includes("reintegro") ||
-    normalizado.includes("no_enviada")
+    normalizado.includes("reintegro")
   ) {
     return "border-red-200 bg-red-50 text-red-700";
   }
@@ -109,7 +132,8 @@ function badgeClass(value: string | null | undefined) {
     normalizado.includes("media") ||
     normalizado.includes("pendiente") ||
     normalizado.includes("revisión") ||
-    normalizado.includes("revision")
+    normalizado.includes("revision") ||
+    normalizado.includes("no_enviada")
   ) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
@@ -122,19 +146,25 @@ function badgeClass(value: string | null | undefined) {
     return "border-blue-200 bg-blue-50 text-blue-800";
   }
 
-  if (normalizado.includes("respondida")) {
+  if (
+    normalizado.includes("respondida") ||
+    normalizado.includes("normal") ||
+    normalizado.includes("ordinario")
+  ) {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
   }
 
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
-function riesgoTone(value: number | null | undefined) {
+function controlEconomicoTone(value: number | null | undefined) {
   return Number(value ?? 0) > 0 ? "risk" : "ok";
 }
 
-function riesgoDetail(value: number | null | undefined) {
-  return Number(value ?? 0) > 0 ? "importe asociado a revisión" : "sin riesgo económico activo";
+function controlEconomicoDetail(value: number | null | undefined) {
+  return Number(value ?? 0) > 0
+    ? "importe asociado a revisión"
+    : "sin revisión económica activa";
 }
 
 function Kpi({
@@ -295,7 +325,7 @@ export default function ActuacionEmitidaDetallePage() {
               actuacion.prioridad
             )}`}
           >
-            Prioridad: {label(actuacion.prioridad)}
+            Prioridad: {titleLabel(actuacion.prioridad)}
           </span>
         </div>
 
@@ -338,7 +368,7 @@ export default function ActuacionEmitidaDetallePage() {
         <section className="grid gap-2 lg:grid-cols-5">
           <Kpi
             label="Estado"
-            value={label(actuacion.estado)}
+            value={titleLabel(actuacion.estado)}
             detail="estado administrativo"
             tone="ok"
           />
@@ -351,13 +381,13 @@ export default function ActuacionEmitidaDetallePage() {
             label="Estado canal"
             value={estadoCanalLabel(actuacion.estado_canal)}
             detail="situación de envío"
-            tone="warn"
+            tone={actuacion.estado_canal === "registrada_no_enviada" ? "warn" : "default"}
           />
           <Kpi
-            label="Revisión/Riesgo"
+            label="Control económico"
             value={euro(actuacion.importe_en_riesgo)}
-            detail={riesgoDetail(actuacion.importe_en_riesgo)}
-            tone={riesgoTone(actuacion.importe_en_riesgo)}
+            detail={controlEconomicoDetail(actuacion.importe_en_riesgo)}
+            tone={controlEconomicoTone(actuacion.importe_en_riesgo)}
           />
           <Kpi
             label="Referencia externa"
@@ -417,7 +447,7 @@ export default function ActuacionEmitidaDetallePage() {
                 {actuacion.tipo_dato ?? "—"}
               </p>
               <p className="text-[10px] leading-4 text-slate-500">
-                Estado operativo: {label(actuacion.estado_operativo_administrativo)}
+                Estado operativo: {estadoOperativoLabel(actuacion.estado_operativo_administrativo)}
               </p>
             </div>
           </div>

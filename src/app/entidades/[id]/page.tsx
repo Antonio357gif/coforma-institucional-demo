@@ -71,6 +71,34 @@ function numberValue(row: OfertaRow, keys: string[]) {
   return 0;
 }
 
+function formatEstado(value: string) {
+  const normalizado = value.trim().toLowerCase();
+
+  const estados: Record<string, string> = {
+    en_ejecucion: "En ejecución",
+    pendiente_ejecutar: "Pendiente de ejecutar",
+    no_iniciada: "No iniciada",
+    finalizada: "Finalizada",
+    en_ejecucion_con_incidencia: "En ejecución con incidencia",
+    finalizada_pendiente_justificacion: "Finalizada pendiente de justificación",
+    riesgo_reintegro: "Riesgo de reintegro",
+    justificada: "Justificada",
+    incidencia: "Incidencia",
+    programada: "Programada",
+    sin_estado: "Sin estado",
+  };
+
+  if (estados[normalizado]) {
+    return estados[normalizado];
+  }
+
+  return value
+    .replaceAll("_", " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^./, (char) => char.toUpperCase());
+}
+
 function badgeClass(value: string) {
   const normalizado = value.toLowerCase();
 
@@ -91,6 +119,16 @@ function badgeClass(value: string) {
   }
 
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function economicControlClass(value: number | null | undefined) {
+  const amount = value ?? 0;
+
+  if (amount > 0) {
+    return "text-red-700";
+  }
+
+  return "text-emerald-700";
 }
 
 function DataCard({
@@ -174,7 +212,7 @@ export default function ExpedienteEntidadPage() {
     }
   }, [entidadId]);
 
-  const accionesPrioritarias = useMemo(() => {
+  const accionesConControlEspecifico = useMemo(() => {
     return acciones.filter((row) => {
       const estado = text(row, ["estado_operativo_administrativo", "estado_operativo", "estado_ejecucion", "estado"], "").toLowerCase();
       const riesgo = numberValue(row, ["importe_en_riesgo", "riesgo_economico"]);
@@ -236,7 +274,7 @@ export default function ExpedienteEntidadPage() {
           </Link>
 
           <span className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${badgeClass(entidad.nivel_riesgo_global)}`}>
-            Riesgo global: {entidad.nivel_riesgo_global}
+            Nivel de control: {entidad.nivel_riesgo_global}
           </span>
         </div>
 
@@ -269,9 +307,13 @@ export default function ExpedienteEntidadPage() {
           />
           <DataCard label="Importe concedido" value={euro(entidad.importe_concedido)} />
           <DataCard
-            label="Importe en riesgo"
+            label="Control económico"
             value={euro(entidad.importe_en_riesgo)}
-            detail={pct(entidad.porcentaje_importe_en_riesgo)}
+            detail={
+              entidad.importe_en_riesgo > 0
+                ? pct(entidad.porcentaje_importe_en_riesgo)
+                : "sin revisión económica activa"
+            }
           />
           <DataCard
             label="Alumnado activo"
@@ -288,30 +330,30 @@ export default function ExpedienteEntidadPage() {
         <section className="grid gap-2 lg:grid-cols-[0.55fr_1.45fr]">
           <div className="space-y-1.5">
             <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-              <h3 className="text-[13px] font-semibold leading-5">Decisión principal</h3>
+              <h3 className="text-[13px] font-semibold leading-5">Lectura institucional</h3>
               <p className="mt-1 line-clamp-4 text-[11px] leading-4 text-slate-700">
                 {entidad.decision_principal}
               </p>
 
               <div className="mt-2 grid gap-1.5">
                 <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
-                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Alertas altas</p>
-                  <p className="mt-0.5 text-[14px] font-semibold leading-4 text-red-700">
+                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Controles críticos activos</p>
+                  <p className={`mt-0.5 text-[14px] font-semibold leading-4 ${entidad.alertas_altas > 0 ? "text-red-700" : "text-emerald-700"}`}>
                     {num(entidad.alertas_altas)}
                   </p>
                 </div>
 
                 <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
-                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Alertas medias</p>
-                  <p className="mt-0.5 text-[14px] font-semibold leading-4 text-amber-700">
+                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Seguimientos preventivos</p>
+                  <p className={`mt-0.5 text-[14px] font-semibold leading-4 ${entidad.alertas_medias > 0 ? "text-amber-700" : "text-emerald-700"}`}>
                     {num(entidad.alertas_medias)}
                   </p>
                 </div>
 
                 <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
-                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Acciones prioritarias</p>
-                  <p className="mt-0.5 text-[14px] font-semibold leading-4">
-                    {num(accionesPrioritarias.length)}
+                  <p className="text-[8.5px] font-semibold uppercase text-slate-500">Controles específicos</p>
+                  <p className={`mt-0.5 text-[14px] font-semibold leading-4 ${accionesConControlEspecifico.length > 0 ? "text-amber-700" : "text-emerald-700"}`}>
+                    {num(accionesConControlEspecifico.length)}
                   </p>
                 </div>
               </div>
@@ -336,7 +378,7 @@ export default function ExpedienteEntidadPage() {
                     <th className="px-2 py-1.5">Denominación</th>
                     <th className="px-2 py-1.5">Estado</th>
                     <th className="px-2 py-1.5 text-right">Concedido</th>
-                    <th className="px-2 py-1.5 text-right">Riesgo</th>
+                    <th className="px-2 py-1.5 text-right">Control económico</th>
                   </tr>
                 </thead>
 
@@ -344,13 +386,14 @@ export default function ExpedienteEntidadPage() {
                   {acciones.map((row, index) => {
                     const ofertaId = text(row, ["oferta_id", "id"], String(index));
                     const estado = text(row, ["estado_operativo_administrativo", "estado_operativo", "estado_ejecucion", "estado"], "sin estado");
+                    const controlEconomico = numberValue(row, ["importe_en_riesgo", "riesgo_economico"]);
 
                     return (
                       <tr
                         key={`${ofertaId}-${index}`}
                         className="cursor-pointer border-t border-slate-100 hover:bg-blue-50"
                         onClick={() => {
-                          if (ofertaId) window.location.href = `/oferta-formativa/${ofertaId}`;
+                          if (ofertaId) window.location.href = `/subexpedientes-accion/${ofertaId}`;
                         }}
                       >
                         <td className="px-2 py-1 font-semibold leading-4">
@@ -369,14 +412,14 @@ export default function ExpedienteEntidadPage() {
                         </td>
                         <td className="px-2 py-1">
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(estado)}`}>
-                            {estado}
+                            {formatEstado(estado)}
                           </span>
                         </td>
                         <td className="px-2 py-1 text-right font-medium">
                           {euro(numberValue(row, ["importe_concedido", "importe_total_concedido"]))}
                         </td>
-                        <td className="px-2 py-1 text-right font-medium text-red-700">
-                          {euro(numberValue(row, ["importe_en_riesgo", "riesgo_economico"]))}
+                        <td className={`px-2 py-1 text-right font-medium ${economicControlClass(controlEconomico)}`}>
+                          {euro(controlEconomico)}
                         </td>
                       </tr>
                     );
