@@ -85,11 +85,19 @@ type DocumentacionResumen = {
 
 type Tone = "blue" | "green" | "red" | "amber" | "slate" | "violet" | "teal";
 
-type Modulo = {
+type NavChild = {
   label: string;
-  short: string;
+  href: string;
+  description: string;
+};
+
+type NavArea = {
+  label: string;
+  icon: string;
   href: string;
   active?: boolean;
+  description: string;
+  children: NavChild[];
 };
 
 function euro(value: number | null | undefined) {
@@ -199,23 +207,55 @@ function toneClasses(tone: Tone) {
   };
 }
 
-function RailItem({ modulo }: { modulo: Modulo }) {
+function RailArea({ area }: { area: NavArea }) {
   return (
-    <Link
-      href={modulo.href}
-      title={modulo.label}
-      aria-label={modulo.label}
-      className={`group relative flex h-9 w-9 items-center justify-center rounded-xl text-[10px] font-bold transition ${
-        modulo.active
-          ? "bg-blue-600 text-white shadow-sm"
-          : "text-blue-100 hover:bg-white/10 hover:text-white"
-      }`}
-    >
-      {modulo.short}
-      <span className="pointer-events-none absolute left-[46px] top-1/2 z-30 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-slate-950 px-2.5 py-1.5 text-[11px] font-medium text-white shadow-lg group-hover:block">
-        {modulo.label}
-      </span>
-    </Link>
+    <div className="group relative">
+      <Link
+        href={area.href}
+        title={area.label}
+        aria-label={area.label}
+        className={`flex h-10 w-10 items-center justify-center rounded-2xl text-[17px] font-bold transition ${
+          area.active
+            ? "bg-blue-600 text-white shadow-sm"
+            : "text-blue-100 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        <span aria-hidden="true">{area.icon}</span>
+      </Link>
+
+      <div className="pointer-events-none absolute left-[52px] top-1/2 z-50 hidden w-[270px] -translate-y-1/2 group-hover:block group-focus-within:block">
+        <div className="pointer-events-auto rounded-2xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl">
+          <div className="border-b border-slate-100 px-2 py-2">
+            <p className="text-[12px] font-black text-slate-950">{area.label}</p>
+            <p className="mt-0.5 text-[10px] leading-4 text-slate-500">{area.description}</p>
+          </div>
+
+          <div className="mt-1 space-y-1">
+            <Link
+              href={area.href}
+              className="block rounded-xl bg-blue-50 px-2.5 py-2 text-[11px] font-black text-blue-800 hover:bg-blue-100"
+            >
+              Abrir área principal
+            </Link>
+
+            {area.children.map((child) => (
+              <Link
+                key={child.href}
+                href={child.href}
+                className="block rounded-xl px-2.5 py-2 hover:bg-slate-50"
+              >
+                <span className="block text-[11px] font-bold leading-4 text-slate-900">
+                  {child.label}
+                </span>
+                <span className="block text-[10px] leading-4 text-slate-500">
+                  {child.description}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -248,7 +288,9 @@ function KpiCell({
       </p>
       <p
         className={`mt-0.5 font-black ${
-          isMoneyValue ? "break-words text-[9px] leading-[1.05]" : "truncate text-[11px] leading-none"
+          isMoneyValue
+            ? "break-words text-[9px] leading-[1.08]"
+            : "truncate text-[10px] leading-[1.15]"
         } ${palette.text}`}
       >
         {value}
@@ -302,9 +344,11 @@ function KpiCard({
           {mainValue}
         </p>
 
-        <p className="mt-1 break-words text-[11px] leading-4 text-slate-600">
-          {subtitle}
-        </p>
+        {subtitle ? (
+          <p className="mt-1 break-words text-[11px] leading-4 text-slate-600">
+            {subtitle}
+          </p>
+        ) : null}
 
         <div className="mt-2 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
@@ -583,16 +627,173 @@ export default function DashboardPage() {
     loadDashboard();
   }, []);
 
-  const modulos: Modulo[] = useMemo(
+  const navAreas: NavArea[] = useMemo(
     () => [
-      { label: "Dashboard", short: "DG", href: "/dashboard", active: true },
-      { label: "Mesa de fiscalización", short: "MF", href: "/mesa-fiscalizacion" },
-      { label: "Usuarios demo", short: "UD", href: "/usuarios-demo" },
-      { label: "Oferta formativa", short: "OF", href: "/oferta-formativa" },
-      { label: "Entidades", short: "EN", href: "/entidades" },
-      { label: "Alertas", short: "AL", href: "/alertas" },
-      { label: "Justificación económica", short: "JE", href: "/justificacion-economica" },
-      { label: "Datos operativos", short: "DO", href: "/actuaciones-emitidas" },
+      {
+        label: "Dashboard",
+        icon: "🏠",
+        href: "/dashboard",
+        active: true,
+        description: "Foto madre ejecutiva de la resolución.",
+        children: [
+          {
+            label: "Vista ejecutiva",
+            href: "/dashboard",
+            description: "KPIs principales, estado económico, documentación e impacto.",
+          },
+        ],
+      },
+      {
+        label: "Fiscalización",
+        icon: "🧭",
+        href: "/mesa-fiscalizacion",
+        description: "Ruta central: entidad, acción, subexpediente y decisión.",
+        children: [
+          {
+            label: "Mesa de fiscalización",
+            href: "/mesa-fiscalizacion",
+            description: "Pantalla operativa de revisión institucional.",
+          },
+          {
+            label: "Entidades beneficiarias",
+            href: "/entidades",
+            description: "Expedientes principales por entidad.",
+          },
+          {
+            label: "Oferta formativa",
+            href: "/oferta-formativa",
+            description: "Acciones AF/CP concedidas.",
+          },
+        ],
+      },
+      {
+        label: "Documentación",
+        icon: "📁",
+        href: "/recepcion-documentacion",
+        description: "Inicio, seguimiento, finalización, justificación y cierre.",
+        children: [
+          {
+            label: "Recepción documental",
+            href: "/recepcion-documentacion",
+            description: "Control documental por fases y subexpedientes.",
+          },
+          {
+            label: "Trazabilidad técnica",
+            href: "/trazabilidad-tecnica",
+            description: "Evidencia técnica de carga y coherencia.",
+          },
+        ],
+      },
+      {
+        label: "Económico",
+        icon: "€",
+        href: "/justificacion-economica",
+        description: "Importes, ejecución, pendiente y justificación.",
+        children: [
+          {
+            label: "Justificación económica",
+            href: "/justificacion-economica",
+            description: "Lectura económica de las acciones.",
+          },
+          {
+            label: "Decisiones económicas",
+            href: "/decisiones",
+            description: "Criterios y decisión administrativa asociada.",
+          },
+        ],
+      },
+      {
+        label: "Actuaciones",
+        icon: "✅",
+        href: "/actuaciones-emitidas",
+        description: "Decisión recomendada, actuación y expediente administrativo.",
+        children: [
+          {
+            label: "Decisiones",
+            href: "/decisiones",
+            description: "Carga de decisiones administrativas.",
+          },
+          {
+            label: "Acciones",
+            href: "/acciones",
+            description: "Preparación de actuaciones.",
+          },
+          {
+            label: "Actuaciones emitidas",
+            href: "/actuaciones-emitidas",
+            description: "Actuaciones registradas y trazadas.",
+          },
+        ],
+      },
+      {
+        label: "Comunicaciones",
+        icon: "📣",
+        href: "/avisos-institucionales",
+        description: "Avisos extraordinarios, expediente y canal de comunicación.",
+        children: [
+          {
+            label: "Avisos institucionales",
+            href: "/avisos-institucionales",
+            description: "Bandeja de avisos internos extraordinarios.",
+          },
+          {
+            label: "Nuevo aviso",
+            href: "/avisos-institucionales/nuevo",
+            description: "Crear aviso trazado desde origen.",
+          },
+          {
+            label: "Comunicaciones / canal",
+            href: "/comunicaciones-canal",
+            description: "Estado de canal, emisión y referencia externa.",
+          },
+        ],
+      },
+      {
+        label: "Auditoría",
+        icon: "🧾",
+        href: "/auditoria-intervencion",
+        description: "Cierre defendible: auditoría, alertas y trazabilidad.",
+        children: [
+          {
+            label: "Auditoría / intervención",
+            href: "/auditoria-intervencion",
+            description: "Lectura de auditoría institucional.",
+          },
+          {
+            label: "Alertas / controles",
+            href: "/alertas",
+            description: "Tipologías, revisión histórica y controles.",
+          },
+          {
+            label: "Trazabilidad técnica",
+            href: "/trazabilidad-tecnica",
+            description: "Trazabilidad de datos y coherencia backend.",
+          },
+        ],
+      },
+      {
+        label: "Sistema demo",
+        icon: "🔌",
+        href: "/conexiones",
+        description: "Accesos, conexiones previstas e integraciones futuras.",
+        children: [
+          {
+            label: "Conexiones",
+            href: "/conexiones",
+            description: "APIs previstas, canales e integraciones.",
+          },
+          {
+            label: "Usuarios demo",
+            href: "/usuarios-demo",
+            description: "Accesos nominales para la demo institucional.",
+          },
+          {
+            label: "Login",
+            href: "/login",
+            description: "Entrada controlada a la demo.",
+          },
+        ],
+      },
     ],
     []
   );
@@ -650,11 +851,6 @@ export default function DashboardPage() {
     ofertaResumen.importe_concedido_total
   );
 
-  const riesgoImportePct = pct(
-    ofertaResumen.importe_revision_riesgo_concedido,
-    ofertaResumen.importe_concedido_total
-  );
-
   const avanceEconomicoPct = pct(
     ofertaResumen.importe_ejecutado_total,
     ofertaResumen.importe_concedido_total
@@ -688,13 +884,13 @@ export default function DashboardPage() {
           </div>
 
           <nav className="flex flex-1 flex-col items-center gap-2 py-4">
-            {modulos.map((modulo) => (
-              <RailItem key={modulo.href} modulo={modulo} />
+            {navAreas.map((area) => (
+              <RailArea key={area.href} area={area} />
             ))}
           </nav>
 
           <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[11px] font-bold">
-            MP
+            CI
           </div>
         </aside>
 
@@ -763,18 +959,21 @@ export default function DashboardPage() {
               />
 
               <KpiCard
-                title="Riesgo y revisión"
-                mainValue={euro(ofertaResumen.importe_revision_riesgo_concedido)}
-                subtitle={`${riesgoImportePct}% del importe concedido`}
-                href="/alertas"
-                tone="red"
-                icon="!"
-                percentValue={riesgoImportePct}
+                title="Estado operativo"
+                mainValue={num(totalAcciones)}
+                subtitle=""
+                href="/oferta-formativa"
+                tone="amber"
+                icon="☷"
+                percentValue={pct(
+                  ofertaResumen.en_ejecucion + ofertaResumen.finalizadas_total,
+                  totalAcciones
+                )}
                 cells={[
+                  { label: "En ejecución", value: num(ofertaResumen.en_ejecucion), tone: "green" },
+                  { label: "Finalizadas", value: num(ofertaResumen.finalizadas_total), tone: "slate" },
+                  { label: "Pendientes", value: num(ofertaResumen.pendientes_ejecutar), tone: "blue" },
                   { label: "Rev./Riesgo", value: num(revisionRiesgoAcciones), tone: "red" },
-                  { label: "Req.", value: num(ofertaResumen.requerimientos_pendientes), tone: "red" },
-                  { label: "Alertas altas", value: num(resumen.alertas_altas), tone: "red" },
-                  { label: "Alertas medias", value: num(resumen.alertas_medias), tone: "amber" },
                 ]}
               />
 
