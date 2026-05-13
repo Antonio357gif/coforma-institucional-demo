@@ -223,8 +223,9 @@ function RailArea({ area }: { area: NavArea }) {
         <span aria-hidden="true">{area.icon}</span>
       </Link>
 
-      <div className="pointer-events-none absolute left-[52px] top-1/2 z-50 hidden w-[270px] -translate-y-1/2 group-hover:block group-focus-within:block">
-        <div className="pointer-events-auto rounded-2xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl">
+      <div className="pointer-events-auto absolute left-[20px] top-1/2 z-50 hidden w-[330px] -translate-y-1/2 pl-10 group-hover:block group-focus-within:block">
+  <div className="absolute left-0 top-0 h-full w-12" />
+  <div className="relative w-[270px] rounded-2xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl">
           <div className="border-b border-slate-100 px-2 py-2">
             <p className="text-[12px] font-black text-slate-950">{area.label}</p>
             <p className="mt-0.5 text-[10px] leading-4 text-slate-500">{area.description}</p>

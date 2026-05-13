@@ -11,13 +11,14 @@ type UsuarioDemo = {
   usuario: string;
   password_demo: string;
   activo: boolean;
+  rol: string | null;
 };
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [usuario, setUsuario] = useState("tecnico.sce.demo");
-  const [password, setPassword] = useState("coforma-demo");
+  const [usuario, setUsuario] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,19 +30,16 @@ export default function LoginPage() {
     const usuarioLimpio = usuario.trim().toLowerCase();
     const passwordLimpia = password.trim();
 
-    try {
-      // Acceso técnico inicial de respaldo para no bloquear la demo.
-      if (
-        usuarioLimpio === "tecnico.sce.demo" &&
-        passwordLimpia === "coforma-demo"
-      ) {
-        router.push("/dashboard");
-        return;
-      }
+    if (!usuarioLimpio || !passwordLimpia) {
+      setError("Introduce usuario y contraseña para acceder.");
+      setLoading(false);
+      return;
+    }
 
+    try {
       const { data, error: supabaseError } = await supabase
         .from("usuarios_demo_institucionales")
-        .select("id, nombre, usuario, password_demo, activo")
+        .select("id, nombre, usuario, password_demo, activo, rol")
         .eq("usuario", usuarioLimpio)
         .eq("activo", true)
         .maybeSingle<UsuarioDemo>();
@@ -71,134 +69,140 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#edf3f8] text-slate-950">
-      <section className="flex min-h-screen items-center justify-center px-6 py-10">
-        <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="bg-[#183B63] p-8 text-white lg:p-10">
-            <div className="inline-flex items-center gap-4 rounded-3xl border border-white/15 bg-white px-5 py-4 shadow-sm">
-              <img
-                src="/coforma-logo.png"
-                alt="Coforma"
-                className="h-20 w-auto object-contain"
-              />
+    <main className="min-h-screen bg-[#edf3f8] px-4 py-4 text-slate-950">
+      <section className="flex min-h-[calc(100vh-32px)] items-center justify-center">
+        <div className="grid w-full max-w-[760px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg md:grid-cols-[0.82fr_1fr]">
+          <aside className="bg-[#183B63] px-5 py-5 text-white">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-20 items-center justify-center rounded-xl border border-white/15 bg-white shadow-sm">
+                <img
+                  src="/coforma-logo.png"
+                  alt="Coforma"
+                  className="h-8 w-auto object-contain"
+                />
+              </div>
+
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
+                  Coforma Institucional
+                </p>
+                <p className="mt-0.5 text-[11px] text-blue-100">
+                  FPED 2025
+                </p>
+              </div>
             </div>
 
-            <p className="mt-7 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200">
-              Coforma Institucional
-            </p>
-
-            <h1 className="mt-5 text-3xl font-semibold leading-tight">
-              Acceso a fiscalización FPED 2025
+            <h1 className="mt-5 text-[21px] font-semibold leading-tight">
+              Acceso institucional
             </h1>
 
-            <p className="mt-4 max-w-xl text-sm leading-6 text-blue-100">
-              Entorno demo para seguimiento institucional de resolución oficial,
-              entidades beneficiarias, acciones concedidas, ejecución, incidencias,
-              requerimientos y trazabilidad administrativa.
+            <p className="mt-2 text-[12px] leading-5 text-blue-100">
+              Fiscalización de resolución oficial, entidades, subexpedientes,
+              ejecución y trazabilidad.
             </p>
 
-            <div className="mt-8 rounded-2xl border border-white/15 bg-white/10 p-5">
-              <p className="text-sm font-semibold">Modelo de trabajo</p>
-              <p className="mt-2 text-sm leading-6 text-blue-100">
-                Resolución oficial → expediente de entidad → subexpedientes AF/CP
-                → alumnado → documentación → incidencias → decisiones.
-              </p>
-            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-2">
+                <p className="text-[15px] font-semibold text-white">106</p>
+                <p className="text-[9px] leading-3 text-blue-100">entidades</p>
+              </div>
 
-            <div className="mt-8 grid gap-3 text-xs text-blue-100 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-                <p className="text-lg font-semibold text-white">30</p>
-                <p>entidades</p>
+              <div className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-2">
+                <p className="text-[15px] font-semibold text-white">2053</p>
+                <p className="text-[9px] leading-3 text-blue-100">acciones</p>
               </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-                <p className="text-lg font-semibold text-white">528</p>
-                <p>acciones</p>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-                <p className="text-lg font-semibold text-white">FPED 2025</p>
-                <p>resolución</p>
+
+              <div className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-2">
+                <p className="text-[15px] font-semibold text-white">FPED</p>
+                <p className="text-[9px] leading-3 text-blue-100">2025</p>
               </div>
             </div>
-          </div>
 
-          <div className="p-8 lg:p-10">
-            <div className="mb-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Acceso restringido
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold text-slate-950">
-                Entrar al entorno institucional
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Acceso demo para presentación institucional. Los asistentes pueden
-                entrar con usuarios nominales creados desde el módulo de accesos
-                demo institucionales.
-              </p>
-            </div>
+            <p className="mt-4 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] leading-4 text-blue-100">
+              Resolución → entidad → subexpediente → decisión → actuación.
+            </p>
+          </aside>
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Usuario demo
-                </label>
-                <input
-                  type="text"
-                  value={usuario}
-                  onChange={(event) => setUsuario(event.target.value)}
-                  className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none focus:border-blue-400 focus:bg-white"
-                  autoComplete="username"
-                />
+          <section className="flex items-center px-6 py-5">
+            <div className="w-full">
+              <div className="mb-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Acceso restringido
+                </p>
+
+                <h2 className="mt-1 text-[22px] font-semibold text-slate-950">
+                  Entrar al entorno
+                </h2>
+
+                <p className="mt-1 text-[12px] leading-5 text-slate-600">
+                  Solo usuarios autorizados desde accesos demo.
+                </p>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Contraseña demo
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none focus:border-blue-400 focus:bg-white"
-                  autoComplete="current-password"
-                />
-              </div>
-
-              {error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-800">
-                  {error}
+              <form
+                className="space-y-2.5"
+                onSubmit={handleSubmit}
+                autoComplete="off"
+              >
+                <div>
+                  <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    Usuario
+                  </label>
+                  <input
+                    type="text"
+                    value={usuario}
+                    onChange={(event) => setUsuario(event.target.value)}
+                    className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                    autoComplete="off"
+                    placeholder="Usuario autorizado"
+                  />
                 </div>
-              ) : null}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex h-11 w-full items-center justify-center rounded-xl bg-[#183B63] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#102c4c] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading
-                  ? "Validando acceso..."
-                  : "Acceder al dashboard institucional"}
-              </button>
-            </form>
+                <div>
+                  <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    Contraseña
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                    autoComplete="new-password"
+                    placeholder="Contraseña"
+                  />
+                </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-              <Link
-                href="/usuarios-demo"
-                className="font-semibold text-[#183B63] hover:underline"
-              >
-                Gestionar accesos demo
-              </Link>
+                {error ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] leading-4 text-red-800">
+                    {error}
+                  </div>
+                ) : null}
 
-              <span className="text-slate-400">Contraseña común: Demo1234</span>
-            </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex h-9 w-full items-center justify-center rounded-lg bg-[#183B63] px-3 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[#102c4c] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? "Validando..." : "Acceder"}
+                </button>
+              </form>
 
-            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
-              <p className="font-semibold">Nota de demo</p>
-              <p className="mt-1">
-                La concesión procede de carga oficial validada. La ejecución está
-                marcada como simulación controlada para demo institucional.
+              <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
+                <Link
+                  href="/usuarios-demo"
+                  className="font-semibold text-[#183B63] hover:underline"
+                >
+                  Gestionar accesos
+                </Link>
+
+                <span className="text-slate-400">Usuario activo</span>
+              </div>
+
+              <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] leading-4 text-emerald-900">
+                Entorno demo basado en resolución oficial trazada.
               </p>
             </div>
-          </div>
+          </section>
         </div>
       </section>
     </main>

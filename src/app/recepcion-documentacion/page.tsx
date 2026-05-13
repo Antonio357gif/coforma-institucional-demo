@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 const VERSION_RECEPCION_DOCUMENTACION =
-  "2026-05-08-original-base-mesa-operativa-backend-saneado";
+  "2026-05-13-v2-filtro-finalizacion-validada-backend";
 
 type ResumenDocumental = {
   documentos_total: number;
@@ -56,6 +56,8 @@ type AccionResumenRow = {
   oferta_municipio: string | null;
   oferta_fecha_inicio_prevista: string | null;
   oferta_fecha_fin_prevista: string | null;
+  oferta_fecha_inicio_validada: string | null;
+  oferta_fecha_fin_validada: string | null;
 
   convocatoria_id: number | null;
   convocatoria_codigo: string | null;
@@ -174,6 +176,13 @@ type SelectOption = {
 
 type FaseKey = "inicio" | "seguimiento" | "finalizacion" | "justificacion" | "cierre";
 
+type FinalizacionFiltro =
+  | "todas"
+  | "vencidas"
+  | "proximos_7"
+  | "proximos_15"
+  | "proximos_30";
+
 const PAGE_SIZE_OPTIONS = [15, 25, 50];
 
 const faseOrder: FaseKey[] = [
@@ -235,6 +244,14 @@ const lecturaOptions: SelectOption[] = [
   { value: "subsanacion_pendiente", label: "Subsanación" },
   { value: "documentacion_validada", label: "Validada" },
   { value: "seguimiento_documental", label: "Seguimiento" },
+];
+
+const finalizacionOptions: SelectOption[] = [
+  { value: "todas", label: "Todas" },
+  { value: "vencidas", label: "Vencidas" },
+  { value: "proximos_7", label: "Próx. 7 días" },
+  { value: "proximos_15", label: "Próx. 15 días" },
+  { value: "proximos_30", label: "Próx. 30 días" },
 ];
 
 const pagoOptions: SelectOption[] = [
@@ -575,7 +592,7 @@ function accionSemantica(accion: AccionResumenRow | null) {
   }
 
   if (accion.estado_operativo_administrativo === "en_ejecucion") {
-    return "En ejecución: inicio validado, seguimiento recibido/validado y fases posteriores no aplican. Pago no abonado o en revisión parcial.";
+    return "En ejecución: inicio validado, seguimiento recibido/validado y fases posteriores no aplican hasta cierre. Pago no abonado o en revisión parcial.";
   }
 
   if (accion.estado_operativo_administrativo === "pendiente_ejecutar") {
@@ -633,6 +650,8 @@ export default function RecepcionDocumentacionPage() {
   const [tipoFiltro, setTipoFiltro] = useState("todos");
   const [estadoOperativoFiltro, setEstadoOperativoFiltro] = useState("todos");
   const [lecturaFiltro, setLecturaFiltro] = useState("todos");
+  const [finalizacionFiltro, setFinalizacionFiltro] =
+    useState<FinalizacionFiltro>("todas");
   const [soloRiesgoActivo, setSoloRiesgoActivo] = useState(false);
 
   const [pagina, setPagina] = useState(1);
@@ -673,6 +692,9 @@ export default function RecepcionDocumentacionPage() {
     if (lecturaFiltro !== "todos") {
       activos.push(`Lectura: ${labelFromOptions(lecturaOptions, lecturaFiltro)}`);
     }
+    if (finalizacionFiltro !== "todas") {
+      activos.push(`Fin validada: ${labelFromOptions(finalizacionOptions, finalizacionFiltro)}`);
+    }
     if (soloRiesgoActivo) activos.push("Riesgo activo");
 
     return activos;
@@ -681,6 +703,7 @@ export default function RecepcionDocumentacionPage() {
     tipoFiltro,
     estadoOperativoFiltro,
     lecturaFiltro,
+    finalizacionFiltro,
     soloRiesgoActivo,
   ]);
 
@@ -719,7 +742,7 @@ export default function RecepcionDocumentacionPage() {
 
     try {
       const { data, error } = await supabase.rpc(
-        "get_recepcion_documentacion_acciones_pagina_filtrada",
+        "get_recepcion_documentacion_acciones_pagina_filtrada_v2",
         {
           p_limit: pageSize + 1,
           p_offset: inicio,
@@ -729,6 +752,7 @@ export default function RecepcionDocumentacionPage() {
           p_lectura_documental: lecturaFiltro,
           p_solo_riesgo_activo: soloRiesgoActivo,
           p_solo_pago_pendiente: false,
+          p_finalizacion_validada: finalizacionFiltro,
         }
       );
 
@@ -823,6 +847,7 @@ export default function RecepcionDocumentacionPage() {
     tipoFiltro,
     estadoOperativoFiltro,
     lecturaFiltro,
+    finalizacionFiltro,
     soloRiesgoActivo,
   ]);
 
@@ -847,6 +872,7 @@ export default function RecepcionDocumentacionPage() {
     setTipoFiltro("todos");
     setEstadoOperativoFiltro("todos");
     setLecturaFiltro("todos");
+    setFinalizacionFiltro("todas");
     setSoloRiesgoActivo(false);
     setPagina(1);
     setSelectedAccion(null);
@@ -1168,7 +1194,7 @@ export default function RecepcionDocumentacionPage() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Recepción documental</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Mesa operativa de documentación, trazabilidad técnica y estado de pago por subexpediente.
+              Mesa operativa de documentación, trazabilidad técnica, fechas de control y estado de pago por subexpediente.
             </p>
           </div>
 
@@ -1304,11 +1330,11 @@ export default function RecepcionDocumentacionPage() {
           />
 
           <KpiCard
-            label="Recibidos"
-            value={resumenDisponible ? num(resumenCalculado.recibidos) : "—"}
-            detail="seguimiento aportado"
-            tone="blue"
-          />
+  label="Recibidos pendientes"
+  value={resumenDisponible ? num(resumenCalculado.recibidos) : "—"}
+  detail="aportados sin validar"
+  tone="blue"
+/>
 
           <KpiCard
             label="En revisión"
@@ -1353,7 +1379,7 @@ export default function RecepcionDocumentacionPage() {
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.35fr_0.55fr_0.9fr_0.9fr_auto_auto]">
+          <div className="grid gap-2 lg:grid-cols-[1.25fr_0.45fr_0.75fr_0.75fr_0.75fr_auto_auto]">
             <div>
               <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -1436,6 +1462,27 @@ export default function RecepcionDocumentacionPage() {
                 className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
               >
                 {lecturaOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Fin validada
+              </label>
+              <select
+                value={finalizacionFiltro}
+                onChange={(event) => {
+                  setFinalizacionFiltro(event.target.value as FinalizacionFiltro);
+                  setPagina(1);
+                  setSelectedAccion(null);
+                }}
+                className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-blue-400 focus:bg-white"
+              >
+                {finalizacionOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -1600,7 +1647,10 @@ export default function RecepcionDocumentacionPage() {
                               {clean(accion.denominacion)}
                             </p>
                             <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
-                              Fechas comunicadas/validadas: Inicio {formatDate(accion.oferta_fecha_inicio_prevista)} · Fin {formatDate(accion.oferta_fecha_fin_prevista)}
+                              Fin prevista: {formatDate(accion.oferta_fecha_fin_prevista)} · Fin validada:{" "}
+                              <span className="font-semibold text-slate-700">
+                                {formatDate(accion.oferta_fecha_fin_validada)}
+                              </span>
                             </p>
                           </td>
 
@@ -1748,7 +1798,11 @@ export default function RecepcionDocumentacionPage() {
                         {clean(selectedAccion.codigo_accion)} · {clean(selectedAccion.tipo_oferta)} · {clean(selectedAccion.denominacion)}
                       </p>
                       <p className="mt-0.5 text-[10px] text-slate-500">
-                        Fechas comunicadas/validadas: Inicio {formatDate(selectedAccion.oferta_fecha_inicio_prevista)} · Fin {formatDate(selectedAccion.oferta_fecha_fin_prevista)} · {eur(selectedAccion.importe_concedido)}
+                        Fin prevista: {formatDate(selectedAccion.oferta_fecha_fin_prevista)} · Fin validada:{" "}
+                        <span className="font-semibold text-slate-700">
+                          {formatDate(selectedAccion.oferta_fecha_fin_validada)}
+                        </span>{" "}
+                        · {eur(selectedAccion.importe_concedido)}
                       </p>
                     </div>
 
@@ -2165,7 +2219,7 @@ export default function RecepcionDocumentacionPage() {
                 Regla operativa
               </p>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Finalizadas: documentación validada y pago pagado. En ejecución: inicio/seguimiento vivo y pago no abonado o en revisión parcial. Pendientes de ejecutar: fases no aplican y pago no devengado. Las fechas se leen como comunicadas/validadas por la entidad y fiscalizadas por SCE, no como planificación del SCE.
+                Finalizadas: documentación validada y pago pagado. En ejecución: inicio/seguimiento vivo y pago no abonado o en revisión parcial. Pendientes de ejecutar: fases no aplican y pago no devengado. Las fechas se leen como previstas o validadas por el expediente; el filtro de finalización trabaja sobre fecha fin validada.
               </p>
             </div>
 

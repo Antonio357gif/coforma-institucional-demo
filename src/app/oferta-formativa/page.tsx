@@ -26,6 +26,13 @@ type OfertaResumen = {
   entidades_con_incidencias_o_riesgo: number;
 };
 
+type FinalizacionFiltro =
+  | "todas"
+  | "vencidas"
+  | "proximos_7"
+  | "proximos_15"
+  | "proximos_30";
+
 function euro(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
@@ -62,6 +69,47 @@ function numberValue(row: OfertaRow, keys: string[]) {
 
 function normalizar(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase();
+}
+
+function fechaValue(row: OfertaRow, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key];
+
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      const fecha = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+
+      if (!Number.isNaN(fecha.getTime())) {
+        return fecha;
+      }
+    }
+  }
+
+  return null;
+}
+
+function fechaCorta(row: OfertaRow, keys: string[]) {
+  const fecha = fechaValue(row, keys);
+
+  if (!fecha) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  }).format(fecha);
+}
+
+function hoySinHora() {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  return hoy;
+}
+
+function diasEntre(fecha: Date, referencia: Date) {
+  const msDia = 24 * 60 * 60 * 1000;
+  return Math.floor((fecha.getTime() - referencia.getTime()) / msDia);
 }
 
 function estadoLabel(estado: string | null | undefined) {
@@ -206,6 +254,8 @@ export default function OfertaFormativaPage() {
   const [entidadFiltro, setEntidadFiltro] = useState("todos");
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const [tipoFiltro, setTipoFiltro] = useState("todos");
+  const [finalizacionFiltro, setFinalizacionFiltro] =
+    useState<FinalizacionFiltro>("todas");
   const [soloRequerimientos, setSoloRequerimientos] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(1);
@@ -267,16 +317,33 @@ export default function OfertaFormativaPage() {
     const entidad = params.get("entidad");
     const tipo = params.get("tipo");
     const requerimientos = params.get("requerimientos");
+    const finalizacion = params.get("finalizacion") as FinalizacionFiltro | null;
 
     if (estado) setEstadoFiltro(estado);
     if (entidad) setEntidadFiltro(entidad);
     if (tipo) setTipoFiltro(tipo.toUpperCase());
+    if (
+      finalizacion === "vencidas" ||
+      finalizacion === "proximos_7" ||
+      finalizacion === "proximos_15" ||
+      finalizacion === "proximos_30"
+    ) {
+      setFinalizacionFiltro(finalizacion);
+    }
     if (requerimientos === "1" || requerimientos === "true") setSoloRequerimientos(true);
   }, []);
 
   useEffect(() => {
     setPagina(1);
-  }, [entidadFiltro, estadoFiltro, tipoFiltro, soloRequerimientos, busqueda, pageSize]);
+  }, [
+    entidadFiltro,
+    estadoFiltro,
+    tipoFiltro,
+    finalizacionFiltro,
+    soloRequerimientos,
+    busqueda,
+    pageSize,
+  ]);
 
   const entidades = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -304,17 +371,21 @@ export default function OfertaFormativaPage() {
       }
     });
 
-    return Array.from(set).sort((a, b) => estadoFiltroLabel(a).localeCompare(estadoFiltroLabel(b), "es"));
+    return Array.from(set).sort((a, b) =>
+      estadoFiltroLabel(a).localeCompare(estadoFiltroLabel(b), "es")
+    );
   }, [rows]);
 
   const filteredRows = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
+    const hoy = hoySinHora();
 
     return rows.filter((row) => {
       const entidadId = text(row, ["entidad_id"], "");
       const estado = estadoParaFiltro(row);
       const tipo = text(row, ["tipo_oferta", "tipo", "tipo_accion"], "").toUpperCase();
       const requerimientosPendientes = numberValue(row, ["requerimientos_pendientes"]);
+      const finValidada = fechaValue(row, ["fecha_fin_validada"]);
 
       const textoBusqueda = [
         text(row, ["entidad_nombre", "entidad", "nombre_entidad"], ""),
@@ -326,6 +397,8 @@ export default function OfertaFormativaPage() {
         text(row, ["municipio", "entidad_municipio"], ""),
         text(row, ["isla", "entidad_isla"], ""),
         estadoLabel(estado),
+        fechaCorta(row, ["fecha_fin_prevista"]),
+        fechaCorta(row, ["fecha_fin_validada"]),
       ]
         .join(" ")
         .toLowerCase();
@@ -336,9 +409,50 @@ export default function OfertaFormativaPage() {
       const pasaRequerimientos = !soloRequerimientos || requerimientosPendientes > 0;
       const pasaBusqueda = term === "" || textoBusqueda.includes(term);
 
-      return pasaEntidad && pasaEstado && pasaTipo && pasaRequerimientos && pasaBusqueda;
+      let pasaFinalizacion = true;
+
+      if (finalizacionFiltro !== "todas") {
+        if (!finValidada) {
+          pasaFinalizacion = false;
+        } else {
+          const dias = diasEntre(finValidada, hoy);
+
+          if (finalizacionFiltro === "vencidas") {
+            pasaFinalizacion = dias < 0;
+          }
+
+          if (finalizacionFiltro === "proximos_7") {
+            pasaFinalizacion = dias >= 0 && dias <= 7;
+          }
+
+          if (finalizacionFiltro === "proximos_15") {
+            pasaFinalizacion = dias >= 0 && dias <= 15;
+          }
+
+          if (finalizacionFiltro === "proximos_30") {
+            pasaFinalizacion = dias >= 0 && dias <= 30;
+          }
+        }
+      }
+
+      return (
+        pasaEntidad &&
+        pasaEstado &&
+        pasaTipo &&
+        pasaFinalizacion &&
+        pasaRequerimientos &&
+        pasaBusqueda
+      );
     });
-  }, [rows, entidadFiltro, estadoFiltro, tipoFiltro, soloRequerimientos, busqueda]);
+  }, [
+    rows,
+    entidadFiltro,
+    estadoFiltro,
+    tipoFiltro,
+    finalizacionFiltro,
+    soloRequerimientos,
+    busqueda,
+  ]);
 
   const totalPaginas = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const paginaSegura = Math.min(pagina, totalPaginas);
@@ -353,6 +467,7 @@ export default function OfertaFormativaPage() {
     setEntidadFiltro("todos");
     setEstadoFiltro("todos");
     setTipoFiltro("todos");
+    setFinalizacionFiltro("todas");
     setSoloRequerimientos(false);
     setBusqueda("");
     setPagina(1);
@@ -402,7 +517,7 @@ export default function OfertaFormativaPage() {
 
             <h1 className="mt-1 text-xl font-semibold">Oferta formativa concedida</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Mesa operativa de subexpedientes AF/CP concedidos, estados y controles administrativos.
+              Mesa operativa de subexpedientes AF/CP concedidos, estados, fechas de control y seguimiento administrativo.
             </p>
           </div>
 
@@ -429,6 +544,12 @@ export default function OfertaFormativaPage() {
             {soloRequerimientos ? (
               <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-semibold text-red-800 shadow-sm">
                 Filtro activo: requerimientos pendientes
+              </span>
+            ) : null}
+
+            {finalizacionFiltro !== "todas" ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-800 shadow-sm">
+                Filtro activo: finalización validada
               </span>
             ) : null}
 
@@ -508,7 +629,7 @@ export default function OfertaFormativaPage() {
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.25fr_0.95fr_0.75fr_0.55fr_auto_auto]">
+          <div className="grid gap-2 lg:grid-cols-[1.2fr_0.9fr_0.65fr_0.5fr_0.7fr_auto_auto]">
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -572,6 +693,23 @@ export default function OfertaFormativaPage() {
               </select>
             </div>
 
+            <div>
+              <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+                Fin validada
+              </label>
+              <select
+                value={finalizacionFiltro}
+                onChange={(event) => setFinalizacionFiltro(event.target.value as FinalizacionFiltro)}
+                className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
+              >
+                <option value="todas">Todas</option>
+                <option value="vencidas">Vencidas</option>
+                <option value="proximos_7">Próx. 7 días</option>
+                <option value="proximos_15">Próx. 15 días</option>
+                <option value="proximos_30">Próx. 30 días</option>
+              </select>
+            </div>
+
             <div className="flex items-end">
               <button
                 type="button"
@@ -599,23 +737,20 @@ export default function OfertaFormativaPage() {
         </section>
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
-            <div>
-              <h2 className="text-[14px] font-semibold leading-5">Acciones concedidas</h2>
-              <p className="text-[10.5px] leading-4 text-slate-500">
-                Cada fila representa un subexpediente de la resolución. Clic para abrir detalle.
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 text-xs">
+            <p className="font-semibold text-slate-700">
+              {num(filteredRows.length)} acciones encontradas
+            </p>
 
-            <div className="flex flex-wrap items-center gap-2 text-[10.5px] text-slate-600">
+            <div className="flex items-center gap-2 text-[10px] text-slate-500">
               <span>
-                Página {num(paginaSegura)} de {num(totalPaginas)}
+                Página {paginaSegura} de {totalPaginas}
               </span>
 
               <select
                 value={pageSize}
                 onChange={(event) => setPageSize(Number(event.target.value))}
-                className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-[10.5px]"
+                className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-[10px] outline-none focus:border-blue-400"
               >
                 <option value={25}>25 filas</option>
                 <option value={50}>50 filas</option>
@@ -652,6 +787,8 @@ export default function OfertaFormativaPage() {
                   <th className="px-2 py-1.5">Especialidad</th>
                   <th className="px-2 py-1.5">Denominación</th>
                   <th className="px-2 py-1.5">Estado</th>
+                  <th className="px-2 py-1.5">Fin prevista</th>
+                  <th className="px-2 py-1.5">Fin validada</th>
                   <th className="px-2 py-1.5 text-right">Concedido</th>
                   <th className="px-2 py-1.5 text-right">Rev./Riesgo</th>
                   <th className="px-2 py-1.5 text-right">Inc.</th>
@@ -690,7 +827,7 @@ export default function OfertaFormativaPage() {
                         {text(row, ["codigo_especialidad", "especialidad"])}
                       </td>
 
-                      <td className="max-w-[280px] px-2 py-1">
+                      <td className="max-w-[260px] px-2 py-1">
                         <p className="line-clamp-1 text-slate-700">
                           {text(row, ["denominacion", "nombre_accion", "nombre"])}
                         </p>
@@ -700,6 +837,14 @@ export default function OfertaFormativaPage() {
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estadoClass(estado)}`}>
                           {estadoVisible}
                         </span>
+                      </td>
+
+                      <td className="whitespace-nowrap px-2 py-1 text-slate-600">
+                        {fechaCorta(row, ["fecha_fin_prevista"])}
+                      </td>
+
+                      <td className="whitespace-nowrap px-2 py-1 font-semibold text-slate-800">
+                        {fechaCorta(row, ["fecha_fin_validada"])}
                       </td>
 
                       <td className="px-2 py-1 text-right font-medium">
@@ -723,7 +868,7 @@ export default function OfertaFormativaPage() {
 
                 {rowsPagina.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-3 py-8 text-center text-xs text-slate-500">
+                    <td colSpan={12} className="px-3 py-8 text-center text-xs text-slate-500">
                       No hay acciones que coincidan con los filtros aplicados.
                     </td>
                   </tr>
