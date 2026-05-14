@@ -73,7 +73,7 @@ type OfertaResumen = {
 type DocumentacionResumen = {
   documentos_total: number;
   no_recibidos: number;
-  recibidos: number;
+  recibidos_pendientes: number;
   en_revision: number;
   validados: number;
   no_aplica: number;
@@ -633,7 +633,7 @@ export default function DashboardPage() {
       setDocumentacionLoading(true);
 
       const { data: documentacionData, error: documentacionLoadError } = await supabase
-        .from("v_recepcion_documentacion_resumen")
+        .from("resumen_documental_institucional")
         .select("*")
         .single();
 
@@ -1038,8 +1038,8 @@ export default function DashboardPage() {
                 percentValue={documentacionDisponible ? documentacionOperativaPct : undefined}
                 cells={[
                   {
-                    label: "Recibidos",
-                    value: documentacionDisponible ? num(documentacionResumen.recibidos) : "—",
+                    label: "Recibidos pendientes",
+                    value: documentacionDisponible ? num(documentacionResumen.recibidos_pendientes) : "—",
                     tone: "blue",
                   },
                   {
