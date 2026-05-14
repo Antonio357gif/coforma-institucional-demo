@@ -224,8 +224,8 @@ function RailArea({ area }: { area: NavArea }) {
       </Link>
 
       <div className="pointer-events-auto absolute left-[20px] top-1/2 z-50 hidden w-[330px] -translate-y-1/2 pl-10 group-hover:block group-focus-within:block">
-  <div className="absolute left-0 top-0 h-full w-12" />
-  <div className="relative w-[270px] rounded-2xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl">
+        <div className="absolute left-0 top-0 h-full w-12" />
+        <div className="relative w-[270px] rounded-2xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl">
           <div className="border-b border-slate-100 px-2 py-2">
             <p className="text-[12px] font-black text-slate-950">{area.label}</p>
             <p className="mt-0.5 text-[10px] leading-4 text-slate-500">{area.description}</p>
@@ -326,7 +326,7 @@ function KpiCard({
   return (
     <Link
       href={href}
-      className={`relative flex h-[218px] min-w-0 flex-col justify-between overflow-hidden rounded-2xl border ${palette.border} bg-white p-3 shadow-sm transition after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full hover:-translate-y-0.5 hover:shadow-md ${palette.bottom}`}
+      className={`relative flex min-h-[218px] min-w-0 flex-col justify-between overflow-hidden rounded-2xl border ${palette.border} bg-white p-3 shadow-sm transition after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full hover:-translate-y-0.5 hover:shadow-md ${palette.bottom}`}
     >
       <div className="min-w-0">
         <div className="flex items-start gap-2">
@@ -597,21 +597,28 @@ export default function DashboardPage() {
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [ofertaResumen, setOfertaResumen] = useState<OfertaResumen | null>(null);
   const [documentacionResumen, setDocumentacionResumen] = useState<DocumentacionResumen | null>(null);
+  const [documentacionLoading, setDocumentacionLoading] = useState(false);
+  const [documentacionError, setDocumentacionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let activo = true;
+
     async function loadDashboard() {
       setLoading(true);
       setError(null);
+      setDocumentacionError(null);
+      setDocumentacionResumen(null);
 
-      const [resumenRes, ofertaRes, documentacionRes] = await Promise.all([
+      const [resumenRes, ofertaRes] = await Promise.all([
         supabase.from("v_fiscalizacion_resumen").select("*").single(),
         supabase.from("v_oferta_formativa_resumen_institucional").select("*").single(),
-        supabase.from("v_recepcion_documentacion_resumen").select("*").single(),
       ]);
 
-      const firstError = resumenRes.error || ofertaRes.error || documentacionRes.error;
+      const firstError = resumenRes.error || ofertaRes.error;
+
+      if (!activo) return;
 
       if (firstError) {
         setError(firstError.message);
@@ -621,11 +628,33 @@ export default function DashboardPage() {
 
       setResumen(resumenRes.data as Resumen);
       setOfertaResumen(ofertaRes.data as OfertaResumen);
-      setDocumentacionResumen(documentacionRes.data as DocumentacionResumen);
       setLoading(false);
+
+      setDocumentacionLoading(true);
+
+      const { data: documentacionData, error: documentacionLoadError } = await supabase
+        .from("v_recepcion_documentacion_resumen")
+        .select("*")
+        .single();
+
+      if (!activo) return;
+
+      if (documentacionLoadError) {
+        setDocumentacionError(documentacionLoadError.message);
+        setDocumentacionResumen(null);
+        setDocumentacionLoading(false);
+        return;
+      }
+
+      setDocumentacionResumen(documentacionData as DocumentacionResumen);
+      setDocumentacionLoading(false);
     }
 
     loadDashboard();
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
   const navAreas: NavArea[] = useMemo(
@@ -809,7 +838,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (error || !resumen || !ofertaResumen || !documentacionResumen) {
+  if (error || !resumen || !ofertaResumen) {
     return (
       <main className="min-h-screen bg-[#edf3f8] p-4 text-slate-950">
         <section className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
@@ -822,15 +851,26 @@ export default function DashboardPage() {
     );
   }
 
+  const documentacionDisponible = documentacionResumen !== null;
+  const documentacionPendiente = documentacionLoading && !documentacionResumen;
+  const documentacionAviso =
+    documentacionError && !documentacionResumen
+      ? "Resumen documental pendiente de recarga"
+      : documentacionPendiente
+        ? "Cargando resumen documental..."
+        : null;
+
   const totalAcciones = ofertaResumen.acciones_total || resumen.acciones_concedidas || 1;
 
   const revisionRiesgoAcciones =
     ofertaResumen.en_ejecucion_con_incidencia + ofertaResumen.riesgo_reintegro;
 
-  const documentacionOperativaPct = pct(
-    documentacionResumen.documentos_total - documentacionResumen.no_recibidos,
-    documentacionResumen.documentos_total
-  );
+  const documentacionOperativaPct = documentacionDisponible
+    ? pct(
+        documentacionResumen.documentos_total - documentacionResumen.no_recibidos,
+        documentacionResumen.documentos_total
+      )
+    : 0;
 
   const ejecucionEconomicaPct = pct(
     ofertaResumen.importe_en_ejecucion_concedido,
@@ -927,6 +967,12 @@ export default function DashboardPage() {
           </header>
 
           <div className="space-y-3 px-5 py-3">
+            {documentacionAviso ? (
+              <section className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900 shadow-sm">
+                {documentacionAviso}. El resto del dashboard se mantiene operativo.
+              </section>
+            ) : null}
+
             <section className="grid grid-cols-5 gap-3">
               <KpiCard
                 title="Resolución concedida"
@@ -980,17 +1026,37 @@ export default function DashboardPage() {
 
               <KpiCard
                 title="Documentación"
-                mainValue={num(documentacionResumen.documentos_total)}
-                subtitle={`${num(documentacionResumen.no_recibidos)} sin recibir · ${num(documentacionResumen.validados)} validados`}
+                mainValue={documentacionDisponible ? num(documentacionResumen.documentos_total) : "—"}
+                subtitle={
+                  documentacionDisponible
+                    ? `${num(documentacionResumen.no_recibidos)} sin recibir · ${num(documentacionResumen.validados)} validados`
+                    : "resumen documental pendiente"
+                }
                 href="/recepcion-documentacion"
                 tone="blue"
                 icon="≡"
-                percentValue={documentacionOperativaPct}
+                percentValue={documentacionDisponible ? documentacionOperativaPct : undefined}
                 cells={[
-                  { label: "Recibidos", value: num(documentacionResumen.recibidos), tone: "blue" },
-                  { label: "Validados", value: num(documentacionResumen.validados), tone: "green" },
-                  { label: "No aplica", value: num(documentacionResumen.no_aplica), tone: "slate" },
-                  { label: "Sin recibir", value: num(documentacionResumen.no_recibidos), tone: "amber" },
+                  {
+                    label: "Recibidos",
+                    value: documentacionDisponible ? num(documentacionResumen.recibidos) : "—",
+                    tone: "blue",
+                  },
+                  {
+                    label: "Validados",
+                    value: documentacionDisponible ? num(documentacionResumen.validados) : "—",
+                    tone: "green",
+                  },
+                  {
+                    label: "No aplica",
+                    value: documentacionDisponible ? num(documentacionResumen.no_aplica) : "—",
+                    tone: "slate",
+                  },
+                  {
+                    label: "Sin recibir",
+                    value: documentacionDisponible ? num(documentacionResumen.no_recibidos) : "—",
+                    tone: "amber",
+                  },
                 ]}
               />
 
@@ -1037,8 +1103,16 @@ export default function DashboardPage() {
                     href="/recepcion-documentacion"
                     tone="green"
                     label="Documentación"
-                    helper={`${num(documentacionResumen.validados)} validados · ${num(documentacionResumen.no_recibidos)} sin recibir`}
-                    value={num(documentacionResumen.riesgo_activo_alto_critico)}
+                    helper={
+                      documentacionDisponible
+                        ? `${num(documentacionResumen.validados)} validados · ${num(documentacionResumen.no_recibidos)} sin recibir`
+                        : "resumen pendiente"
+                    }
+                    value={
+                      documentacionDisponible
+                        ? num(documentacionResumen.riesgo_activo_alto_critico)
+                        : "—"
+                    }
                   />
                   <ControlTile
                     href="/alertas"
