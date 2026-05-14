@@ -1306,3 +1306,19 @@ Después se crea este documento específico:
 
 El objetivo es que cualquier cambio futuro en la arquitectura institucional se pueda razonar desde este mapa y no desde memoria dispersa de chat.
 
+
+---
+
+## Actualización 14/05/2026 - Dashboard documental persistido
+
+El dashboard institucional /dashboard queda actualizado para consumir el resumen documental desde la tabla persistida public.resumen_documental_institucional.
+
+Deja de consumir directamente public.v_recepcion_documentacion_resumen, evitando que el dashboard ejecutivo dependa de una vista documental pesada en cada carga.
+
+La tabla public.resumen_documental_institucional se alimenta mediante public.refresh_resumen_documental_institucional(), calculando desde tablas base y dejando trazabilidad de origen_calculo, version_regla, calculado_en y registros_procesados.
+
+Valores validados en la carga inicial: documentos_total 78377, recibidos_pendientes 19637, validados 22838, no_aplica 35902, no_recibidos 0, ofertas 2053, subexpedientes 2053, entidades 106, registros_procesados 78377.
+
+Criterio arquitectónico confirmado: Dashboard = resumen ejecutivo persistido; Listado/documentación = consulta paginada y filtrada; Ficha = detalle puntual; Auditoría = trazabilidad bajo demanda.
+
+Cambio validado en localhost y desplegado en producción mediante el commit 524e6f3 - Leer resumen documental persistido en dashboard.
