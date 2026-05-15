@@ -1322,3 +1322,39 @@ Valores validados en la carga inicial: documentos_total 78377, recibidos_pendien
 Criterio arquitectónico confirmado: Dashboard = resumen ejecutivo persistido; Listado/documentación = consulta paginada y filtrada; Ficha = detalle puntual; Auditoría = trazabilidad bajo demanda.
 
 Cambio validado en localhost y desplegado en producción mediante el commit 524e6f3 - Leer resumen documental persistido en dashboard.
+
+---
+
+## Actualización 14/05/2026 - Control técnico de refresco documental
+
+Se añade una vía operativa controlada para refrescar el resumen documental persistido desde la propia demo institucional.
+
+Backend incorporado:
+- public.refrescar_resumen_documental_institucional_rpc()
+
+Esta RPC ejecuta public.refresh_resumen_documental_institucional() y devuelve evidencia del cálculo actualizado: convocatoria_codigo, documentos_total, recibidos_pendientes, validados, no_aplica, riesgo_activo_alto_critico, ofertas, subexpedientes, entidades, registros_procesados, version_regla y calculado_en.
+
+Frontend incorporado:
+- src/app/trazabilidad-tecnica/page.tsx
+
+La página /trazabilidad-tecnica incorpora un bloque de control técnico llamado Resumen documental persistido. Desde este bloque se puede consultar el estado actual de public.resumen_documental_institucional, ver la última fecha de cálculo y ejecutar el refresco mediante la RPC trazada.
+
+Criterio semántico corregido:
+- No se usa el concepto registros madre.
+- La lectura pasa a controles documentales trazados.
+- La página mantiene la lógica de trazabilidad documental viva, no de foto madre estática.
+
+Valores validados en local:
+- documentos_total: 78377
+- recibidos_pendientes: 19637
+- validados: 22838
+- no_aplica: 35902
+- riesgo_activo_alto_critico: 0
+- registros_procesados: 78377
+- ofertas/subexpedientes: 2053 / 2053
+- entidades: 106
+
+Estado local:
+- Build correcto.
+- Validación visual correcta en /trazabilidad-tecnica.
+- Pendiente de subir en una tanda conjunta junto con los próximos cambios coherentes.

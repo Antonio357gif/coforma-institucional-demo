@@ -1,13 +1,29 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 type FiltroRow = {
   filtro: string;
   valor: string;
   registros: number;
+};
+
+type ResumenDocumentalPersistido = {
+  convocatoria_codigo: string;
+  documentos_total: number;
+  no_recibidos: number;
+  recibidos_pendientes: number;
+  validados: number;
+  no_aplica: number;
+  riesgo_activo_alto_critico: number;
+  ofertas: number;
+  subexpedientes: number;
+  entidades: number;
+  registros_procesados: number;
+  version_regla: string;
+  calculado_en: string;
 };
 
 type TrazaDocumental = {
@@ -236,6 +252,13 @@ export default function TrazabilidadTecnicaPage() {
   const [loadingTabla, setLoadingTabla] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [resumenDocumental, setResumenDocumental] =
+    useState<ResumenDocumentalPersistido | null>(null);
+  const [loadingResumenDocumental, setLoadingResumenDocumental] = useState(true);
+  const [refreshingResumenDocumental, setRefreshingResumenDocumental] = useState(false);
+  const [resumenDocumentalError, setResumenDocumentalError] = useState<string | null>(null);
+  const [resumenDocumentalOk, setResumenDocumentalOk] = useState<string | null>(null);
+
   const [busqueda, setBusqueda] = useState("");
   const [entidadFiltro, setEntidadFiltro] = useState("todos");
   const [tecnicoFiltro, setTecnicoFiltro] = useState("todos");
@@ -249,6 +272,58 @@ export default function TrazabilidadTecnicaPage() {
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [seleccionada, setSeleccionada] = useState<TrazaDocumental | null>(null);
+
+  const loadResumenDocumental = useCallback(async () => {
+    setLoadingResumenDocumental(true);
+    setResumenDocumentalError(null);
+
+    const { data, error: resumenError } = await supabase
+      .from("resumen_documental_institucional")
+      .select(
+        "convocatoria_codigo, documentos_total, no_recibidos, recibidos_pendientes, validados, no_aplica, riesgo_activo_alto_critico, ofertas, subexpedientes, entidades, registros_procesados, version_regla, calculado_en"
+      )
+      .order("calculado_en", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (resumenError) {
+      setResumenDocumental(null);
+      setResumenDocumentalError(resumenError.message);
+      setLoadingResumenDocumental(false);
+      return;
+    }
+
+    setResumenDocumental(data as ResumenDocumentalPersistido | null);
+    setLoadingResumenDocumental(false);
+  }, []);
+
+  async function refrescarResumenDocumental() {
+    setRefreshingResumenDocumental(true);
+    setResumenDocumentalError(null);
+    setResumenDocumentalOk(null);
+
+    const { data, error: rpcError } = await supabase.rpc(
+      "refrescar_resumen_documental_institucional_rpc"
+    );
+
+    if (rpcError) {
+      setResumenDocumentalError(rpcError.message);
+      setRefreshingResumenDocumental(false);
+      return;
+    }
+
+    const primeraFila = Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+    if (primeraFila) {
+      setResumenDocumental(primeraFila as ResumenDocumentalPersistido);
+      setResumenDocumentalOk("Resumen documental actualizado correctamente.");
+    } else {
+      await loadResumenDocumental();
+      setResumenDocumentalOk("Refresco ejecutado. Resumen recargado desde tabla persistida.");
+    }
+
+    setRefreshingResumenDocumental(false);
+  }
 
   useEffect(() => {
     async function loadFiltros() {
@@ -274,6 +349,10 @@ export default function TrazabilidadTecnicaPage() {
 
     loadFiltros();
   }, []);
+
+  useEffect(() => {
+    loadResumenDocumental();
+  }, [loadResumenDocumental]);
 
   useEffect(() => {
     async function loadTabla() {
@@ -429,26 +508,26 @@ export default function TrazabilidadTecnicaPage() {
   );
 
   const resumenGlobal = useMemo(() => {
-  const registrosMadre = filtros
-    .filter((row) => row.filtro === "entidad")
-    .reduce((acc, row) => acc + Number(row.registros ?? 0), 0);
+    const controlesTrazados = filtros
+      .filter((row) => row.filtro === "entidad")
+      .reduce((acc, row) => acc + Number(row.registros ?? 0), 0);
 
-  return {
-    registrosMadre,
-    entidades: opcionesEntidad.length,
-    documentos: opcionesDocumento.length,
-    tecnicos: opcionesTecnico.length,
-    fases: opcionesFase.length,
-    estadosOperativos: opcionesEstadoOperativo.length,
-  };
-}, [
-  filtros,
-  opcionesEntidad.length,
-  opcionesDocumento.length,
-  opcionesTecnico.length,
-  opcionesFase.length,
-  opcionesEstadoOperativo.length,
-]);
+    return {
+      controlesTrazados,
+      entidades: opcionesEntidad.length,
+      documentos: opcionesDocumento.length,
+      tecnicos: opcionesTecnico.length,
+      fases: opcionesFase.length,
+      estadosOperativos: opcionesEstadoOperativo.length,
+    };
+  }, [
+    filtros,
+    opcionesEntidad.length,
+    opcionesDocumento.length,
+    opcionesTecnico.length,
+    opcionesFase.length,
+    opcionesEstadoOperativo.length,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -510,7 +589,7 @@ export default function TrazabilidadTecnicaPage() {
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            {num(total)} visibles · {num(resumenGlobal.registrosMadre)} registros madre
+            {num(total)} visibles · {num(resumenGlobal.controlesTrazados)} controles documentales trazados
           </div>
         </div>
       </section>
@@ -535,11 +614,125 @@ export default function TrazabilidadTecnicaPage() {
         </div>
 
         <section className="grid gap-2 lg:grid-cols-5">
-          <Kpi label="Registros madre" value={num(resumenGlobal.registrosMadre)} detail="controles documentales" />
+          <Kpi label="Controles trazados" value={num(resumenGlobal.controlesTrazados)} detail="registros documentales" />
           <Kpi label="Entidades" value={num(resumenGlobal.entidades)} detail="beneficiarias" />
           <Kpi label="Documentos" value={num(resumenGlobal.documentos)} detail="tipologías documentales" />
           <Kpi label="Técnicos/unidades" value={num(resumenGlobal.tecnicos)} detail="revisión documental" />
           <Kpi label="Fases" value={num(resumenGlobal.fases)} detail="ciclo documental" />
+        </section>
+
+        <section className="rounded-lg border border-blue-100 bg-white px-3 py-2 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-[14px] font-semibold leading-5 text-slate-950">
+                  Resumen documental persistido
+                </h2>
+                <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                  public.resumen_documental_institucional
+                </span>
+              </div>
+
+              <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
+                Control técnico del resumen ejecutivo usado por el dashboard. El refresco ejecuta la RPC trazada y devuelve evidencia de cálculo.
+              </p>
+
+              <div className="mt-2 grid gap-2 lg:grid-cols-5">
+                <Kpi
+                  label="Documentos"
+                  value={loadingResumenDocumental ? "…" : num(resumenDocumental?.documentos_total)}
+                  detail="total procesado"
+                  tone="default"
+                />
+                <Kpi
+                  label="Recibidos pendientes"
+                  value={loadingResumenDocumental ? "…" : num(resumenDocumental?.recibidos_pendientes)}
+                  detail="recibidos sin validación final"
+                  tone="warn"
+                />
+                <Kpi
+                  label="Validados"
+                  value={loadingResumenDocumental ? "…" : num(resumenDocumental?.validados)}
+                  detail="documentación validada"
+                  tone="ok"
+                />
+                <Kpi
+                  label="No aplica"
+                  value={loadingResumenDocumental ? "…" : num(resumenDocumental?.no_aplica)}
+                  detail="controles no exigibles"
+                  tone="default"
+                />
+                <Kpi
+                  label="Riesgo activo"
+                  value={loadingResumenDocumental ? "…" : num(resumenDocumental?.riesgo_activo_alto_critico)}
+                  detail="alto/crítico activo"
+                  tone={Number(resumenDocumental?.riesgo_activo_alto_critico ?? 0) > 0 ? "risk" : "ok"}
+                />
+              </div>
+
+              <div className="mt-2 grid gap-2 text-[10.5px] text-slate-600 lg:grid-cols-4">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <span className="font-semibold text-slate-800">Último cálculo:</span>{" "}
+                  {fecha(resumenDocumental?.calculado_en)}
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <span className="font-semibold text-slate-800">Registros procesados:</span>{" "}
+                  {num(resumenDocumental?.registros_procesados)}
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <span className="font-semibold text-slate-800">Ofertas/Subexp.:</span>{" "}
+                  {num(resumenDocumental?.ofertas)} / {num(resumenDocumental?.subexpedientes)}
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <span className="font-semibold text-slate-800">Entidades:</span>{" "}
+                  {num(resumenDocumental?.entidades)}
+                </div>
+              </div>
+
+              <p className="mt-1.5 truncate text-[10px] text-slate-500">
+                Regla: {clean(resumenDocumental?.version_regla, "pendiente de carga")}
+              </p>
+
+              {resumenDocumentalError ? (
+                <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10.5px] font-semibold text-red-800">
+                  {resumenDocumentalError}
+                </p>
+              ) : null}
+
+              {resumenDocumentalOk ? (
+                <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10.5px] font-semibold text-emerald-800">
+                  {resumenDocumentalOk}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-2 lg:w-[210px]">
+              <button
+                type="button"
+                onClick={refrescarResumenDocumental}
+                disabled={refreshingResumenDocumental || loadingResumenDocumental}
+                className="rounded-lg bg-[#183B63] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {refreshingResumenDocumental ? "Actualizando..." : "Actualizar resumen"}
+              </button>
+
+              <button
+                type="button"
+                onClick={loadResumenDocumental}
+                disabled={refreshingResumenDocumental || loadingResumenDocumental}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Recargar lectura
+              </button>
+
+              <Link
+                href="/dashboard"
+                className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-center text-xs font-semibold text-blue-800 hover:bg-blue-100"
+              >
+                Ver dashboard
+              </Link>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">

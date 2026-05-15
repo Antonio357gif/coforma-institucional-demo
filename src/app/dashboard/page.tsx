@@ -73,7 +73,7 @@ type OfertaResumen = {
 type DocumentacionResumen = {
   documentos_total: number;
   no_recibidos: number;
-  recibidos_pendientes: number;
+  recibidos: number;
   en_revision: number;
   validados: number;
   no_aplica: number;
@@ -1039,7 +1039,7 @@ export default function DashboardPage() {
                 cells={[
                   {
                     label: "Recibidos pendientes",
-                    value: documentacionDisponible ? num(documentacionResumen.recibidos_pendientes) : "—",
+                    value: documentacionDisponible ? num(documentacionResumen.recibidos) : "—",
                     tone: "blue",
                   },
                   {
