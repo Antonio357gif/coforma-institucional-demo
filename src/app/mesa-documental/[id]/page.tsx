@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_MESA_DOCUMENTAL =
-  "2026-05-20-v4-mesa-documental-correccion-operativa";
+  "2026-05-20-v5-mesa-documental-rpc-trazabilidad";
 
 type RecepcionRow = {
   recepcion_id: number;
@@ -404,6 +404,43 @@ function appendObservation(base: string | null | undefined, note: string) {
   return `${current}\n${stampedNote}`;
 }
 
+function getTipoMovimiento(row: RecepcionRow, draft: DraftRow) {
+  if (row.estado_documental !== draft.estado_documental) {
+    if (draft.estado_documental === "recibido") return "registrar_recepcion";
+    if (draft.estado_documental === "validado") return "validar_documento";
+    if (draft.estado_documental === "subsanable") return "marcar_subsanacion";
+    if (draft.estado_documental === "no_aplica") return "marcar_no_aplica";
+    if (draft.estado_documental === "en_revision") return "reabrir_revision";
+    if (draft.estado_documental === "rechazado") return "rechazar_documento";
+    if (draft.estado_documental === "vencido") return "marcar_vencido";
+  }
+
+  return "actualizacion_documental";
+}
+
+function getMotivoCambio(row: RecepcionRow, draft: DraftRow) {
+  const estadoAnterior = labelFromOptions(estadoOptions, row.estado_documental);
+  const estadoNuevo = labelFromOptions(estadoOptions, draft.estado_documental);
+
+  if (row.estado_documental !== draft.estado_documental) {
+    return `Cambio documental desde mesa: ${estadoAnterior} → ${estadoNuevo}.`;
+  }
+
+  if ((row.tecnico_revisor ?? "") !== draft.tecnico_revisor) {
+    return "Actualización de técnico revisor desde mesa documental.";
+  }
+
+  if ((row.observaciones ?? "") !== draft.observaciones) {
+    return "Actualización de observaciones desde mesa documental.";
+  }
+
+  if (Boolean(row.comunicado_ente_fiscalizador) !== draft.comunicado_ente_fiscalizador) {
+    return "Actualización de comunicación al ente fiscalizador desde mesa documental.";
+  }
+
+  return "Actualización documental desde mesa documental.";
+}
+
 export default function MesaDocumentalPage() {
   const params = useParams();
   const id = getInitialId(params?.id as string | string[] | undefined);
@@ -664,71 +701,85 @@ export default function MesaDocumentalPage() {
             ? defaultTecnicoForRow(row)
             : null;
 
-    const updatePayload: Record<string, any> = {
-      estado_documental: draft.estado_documental,
-      observaciones:
-        draft.observaciones.trim() === "" ? null : draft.observaciones.trim(),
-      tecnico_revisor: tecnicoFinal,
-      comunicado_ente_fiscalizador:
-        draft.estado_documental === "no_aplica"
-          ? false
-          : draft.comunicado_ente_fiscalizador,
-      updated_at: nowIso,
-    };
+    const observacionesFinal =
+      draft.observaciones.trim() === "" ? null : draft.observaciones.trim();
+
+    let comunicadoNuevo =
+      draft.estado_documental === "no_aplica"
+        ? false
+        : draft.comunicado_ente_fiscalizador;
+
+    let requiereSubsanacionNuevo = row.requiere_subsanacion;
+    let fechaRecepcionNueva = row.fecha_recepcion;
+    let fechaRevisionNueva = row.fecha_revision;
+    let fechaRequerimientoNueva = row.fecha_requerimiento;
+    let fechaSubsanacionNueva = row.fecha_subsanacion;
 
     if (estadoConRecepcion && !row.fecha_recepcion) {
-      updatePayload.fecha_recepcion = nowIso;
+      fechaRecepcionNueva = nowIso;
     }
 
     if (estadoConRevision) {
-      updatePayload.fecha_revision = nowIso;
+      fechaRevisionNueva = nowIso;
     }
 
     if (draft.estado_documental === "recibido") {
-      updatePayload.requiere_subsanacion = false;
+      requiereSubsanacionNuevo = false;
     }
 
     if (
       draft.estado_documental === "subsanable" ||
       draft.estado_documental === "rechazado"
     ) {
-      updatePayload.requiere_subsanacion = true;
+      requiereSubsanacionNuevo = true;
 
       if (!row.fecha_requerimiento) {
-        updatePayload.fecha_requerimiento = today;
+        fechaRequerimientoNueva = today;
       }
     }
 
     if (draft.estado_documental === "validado") {
-      updatePayload.requiere_subsanacion = false;
+      requiereSubsanacionNuevo = false;
 
       if (row.estado_documental === "subsanable" || row.requiere_subsanacion) {
-        updatePayload.fecha_subsanacion = today;
+        if (!row.fecha_subsanacion) {
+          fechaSubsanacionNueva = today;
+        }
       }
 
       if (!row.fecha_recepcion) {
-        updatePayload.fecha_recepcion = nowIso;
+        fechaRecepcionNueva = nowIso;
       }
 
       if (!row.fecha_revision) {
-        updatePayload.fecha_revision = nowIso;
+        fechaRevisionNueva = nowIso;
       }
     }
 
     if (draft.estado_documental === "no_aplica") {
-      updatePayload.fecha_recepcion = null;
-      updatePayload.fecha_revision = null;
-      updatePayload.tecnico_revisor = null;
-      updatePayload.comunicado_ente_fiscalizador = false;
-      updatePayload.requiere_subsanacion = false;
-      updatePayload.fecha_requerimiento = null;
-      updatePayload.fecha_subsanacion = null;
+      fechaRecepcionNueva = null;
+      fechaRevisionNueva = null;
+      fechaRequerimientoNueva = null;
+      fechaSubsanacionNueva = null;
+      comunicadoNuevo = false;
+      requiereSubsanacionNuevo = false;
     }
 
-    const { error } = await supabase
-      .from("recepcion_documentacion")
-      .update(updatePayload)
-      .eq("id", row.recepcion_id);
+    const { error } = await supabase.rpc("registrar_movimiento_documental_v1", {
+      p_recepcion_documentacion_id: row.recepcion_id,
+      p_estado_nuevo: draft.estado_documental,
+      p_tecnico_nuevo: tecnicoFinal,
+      p_observaciones_nuevas: observacionesFinal,
+      p_requiere_subsanacion_nuevo: requiereSubsanacionNuevo,
+      p_comunicado_ente_fiscalizador_nuevo: comunicadoNuevo,
+      p_fecha_recepcion_nueva: fechaRecepcionNueva,
+      p_fecha_revision_nueva: fechaRevisionNueva,
+      p_fecha_requerimiento_nueva: fechaRequerimientoNueva,
+      p_fecha_subsanacion_nueva: fechaSubsanacionNueva,
+      p_tipo_movimiento: getTipoMovimiento(row, draft),
+      p_motivo_cambio: getMotivoCambio(row, draft),
+      p_origen: "mesa_documental",
+    });
 
     if (error) {
       setSaveError(error.message);
@@ -955,8 +1006,8 @@ export default function MesaDocumentalPage() {
               </span>
             </p>
 
-            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-4 text-amber-900">
-              Corrección operativa disponible: si este control se validó o recibió por error, puede reabrirse o revertirse antes de guardar la nueva situación.
+            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] leading-4 text-emerald-900">
+              Trazabilidad activa: al guardar, la mesa registra movimiento histórico mediante RPC y actualiza la situación vigente del documento.
             </div>
           </div>
 
@@ -1208,8 +1259,8 @@ export default function MesaDocumentalPage() {
             </Link>
           </div>
 
-          <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-800 shadow-sm">
-            Mesa independiente · sin edición de estado de pago
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm">
+            Mesa independiente · trazabilidad histórica activa
           </span>
         </div>
 
@@ -1469,9 +1520,9 @@ export default function MesaDocumentalPage() {
           </p>
           <p className="text-[10.5px] leading-4 text-slate-500">
             Esta mesa trabaja documentación: recibir, revisar, validar, subsanar, corregir o marcar no aplica.
-            La revisión de pago se realiza en una página separada para perfiles superiores. Pendiente Vivo:
-            crear tabla histórica de movimientos documentales para registrar estado anterior, estado nuevo, técnico,
-            motivo, usuario, fecha y origen de cada corrección.
+            La revisión de pago se realiza en una página separada para perfiles superiores. Cada guardado se
+            registra ahora mediante RPC en la tabla histórica de movimientos documentales, conservando estado
+            anterior, estado nuevo, técnico, motivo, usuario, fecha y origen de cada corrección.
           </p>
         </section>
       </section>

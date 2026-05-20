@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_ESTADO_PAGO =
-  "2026-05-20-v4-estado-pago-rpc-real-corporativo";
+  "2026-05-20-v5-estado-pago-semantica-devengo";
 
 type AccionResumenRow = {
   subexpediente_id: number;
@@ -118,8 +118,8 @@ const pagoOptions: PagoOption[] = [
   },
   {
     value: "en_ejecucion_no_abonado",
-    label: "En ejecución no abonado",
-    helper: "La acción sigue en ejecución y no debe tratarse como pago final.",
+    label: "En ejecución · pendiente de devengo",
+    helper: "La acción sigue en ejecución; no existe cierre económico final ni devengo completo.",
   },
   {
     value: "no_devengado",
@@ -306,7 +306,7 @@ function decisionRecomendada(accion: AccionResumenRow | null) {
   }
 
   if (accion.estado_operativo_administrativo === "en_ejecucion") {
-    return "Mantener como en ejecución no abonado o revisión parcial, según avance económico.";
+    return "Mantener como En ejecución · pendiente de devengo o revisión parcial, según avance económico.";
   }
 
   if (
@@ -332,7 +332,7 @@ function accionSemantica(accion: AccionResumenRow | null) {
   }
 
   if (accion.estado_operativo_administrativo === "en_ejecucion") {
-    return "En ejecución: el pago no debe tratarse como cierre final; puede mantenerse como en ejecución no abonado o revisión parcial.";
+    return "En ejecución: el pago no debe tratarse como cierre final; puede mantenerse como pendiente de devengo o en revisión parcial.";
   }
 
   if (accion.estado_operativo_administrativo === "pendiente_ejecutar") {

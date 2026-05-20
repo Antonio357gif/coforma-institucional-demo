@@ -709,17 +709,22 @@ export default function DashboardPage() {
         label: "Documentación",
         icon: "📁",
         href: "/recepcion-documentacion",
-        description: "Control documental clasificado y trazado a matriz normativa.",
+        description: "Control documental clasificado, trazado y vinculado a matriz normativa.",
         children: [
           {
             label: "Recepción documental",
             href: "/recepcion-documentacion",
-            description: "Control documental por fases y subexpedientes.",
+            description: "Bandeja documental por fases y subexpedientes.",
           },
           {
             label: "Trazabilidad técnica",
             href: "/trazabilidad-tecnica",
-            description: "Evidencia técnica de carga y coherencia.",
+            description: "Histórico técnico y evidencia de movimientos documentales.",
+          },
+          {
+            label: "Matriz normativa documental",
+            href: "/matriz-normativa-documental",
+            description: "Fuente normativa FPED de cada control documental.",
           },
         ],
       },
@@ -963,8 +968,8 @@ export default function DashboardPage() {
                     Coforma Institucional
                   </p>
                   <h1 className="mt-1 text-[22px] font-black leading-none">
-  Dashboard ejecutivo institucional
-</h1>
+                    Dashboard ejecutivo institucional
+                  </h1>
                   <p className="mt-2 truncate text-sm text-blue-100">
                     {resumen.convocatoria_codigo} · {resumen.convocatoria_nombre}
                   </p>

@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
+const VERSION_TRAZABILIDAD_TECNICA =
+  "2026-05-20-v2-trazabilidad-historico-movimientos-documentales";
+
 type FiltroRow = {
   filtro: string;
   valor: string;
@@ -81,6 +84,69 @@ type TrazaDocumental = {
 
   lectura_documental: string | null;
   lectura_operativa: string | null;
+};
+
+type MovimientoDocumental = {
+  movimiento_id: number;
+  fecha_movimiento: string | null;
+  usuario_id: string | null;
+  origen: string | null;
+  tipo_movimiento: string | null;
+  motivo_cambio: string | null;
+
+  recepcion_documentacion_id: number | null;
+  oferta_id: number | null;
+  subexpediente_id: number | null;
+  documento_normativo_id: number | null;
+
+  entidad_id: number | null;
+  entidad_nombre: string | null;
+  entidad_cif: string | null;
+  entidad_isla: string | null;
+  entidad_municipio: string | null;
+
+  codigo_accion: string | null;
+  tipo_oferta: string | null;
+  codigo_especialidad: string | null;
+  denominacion: string | null;
+
+  estado_operativo_administrativo: string | null;
+  estado_pago_administrativo: string | null;
+
+  fase: string | null;
+  subfase: string | null;
+  nombre_documento: string | null;
+
+  obligatoriedad: string | null;
+  riesgo_actual: string | null;
+  criticidad_documental: string | null;
+  riesgo_activo_documental: string | null;
+  riesgo_activo_label: string | null;
+  fecha_limite: string | null;
+
+  estado_anterior: string | null;
+  estado_nuevo: string | null;
+  tecnico_anterior: string | null;
+  tecnico_nuevo: string | null;
+  observaciones_anteriores: string | null;
+  observaciones_nuevas: string | null;
+
+  requiere_subsanacion_anterior: boolean | null;
+  requiere_subsanacion_nuevo: boolean | null;
+  comunicado_ente_fiscalizador_anterior: boolean | null;
+  comunicado_ente_fiscalizador_nuevo: boolean | null;
+
+  fecha_recepcion_anterior: string | null;
+  fecha_recepcion_nueva: string | null;
+  fecha_revision_anterior: string | null;
+  fecha_revision_nueva: string | null;
+  fecha_requerimiento_anterior: string | null;
+  fecha_requerimiento_nueva: string | null;
+  fecha_subsanacion_anterior: string | null;
+  fecha_subsanacion_nueva: string | null;
+
+  fuente_nombre: string | null;
+  fuente_url: string | null;
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -168,6 +234,41 @@ function badgeClass(value: string | null | undefined) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function movimientoBadgeClass(value: string | null | undefined) {
+  const normalizado = String(value ?? "").toLowerCase();
+
+  if (
+    normalizado.includes("reabrir") ||
+    normalizado.includes("revertir") ||
+    normalizado.includes("rechazar") ||
+    normalizado.includes("vencido")
+  ) {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  if (
+    normalizado.includes("validar") ||
+    normalizado.includes("registrar") ||
+    normalizado.includes("recepcion")
+  ) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
+  if (normalizado.includes("subsanacion") || normalizado.includes("subsanación")) {
+    return "border-orange-200 bg-orange-50 text-orange-800";
+  }
+
+  return "border-blue-200 bg-blue-50 text-blue-800";
+}
+
+function estadoPagoLabel(value: string | null | undefined) {
+  if (value === "en_ejecucion_no_abonado") {
+    return "En ejecución · pendiente de devengo";
+  }
+
+  return label(value);
+}
+
 function Kpi({
   label,
   value,
@@ -248,6 +349,10 @@ export default function TrazabilidadTecnicaPage() {
   const [trazas, setTrazas] = useState<TrazaDocumental[]>([]);
   const [total, setTotal] = useState(0);
 
+  const [movimientos, setMovimientos] = useState<MovimientoDocumental[]>([]);
+  const [loadingMovimientos, setLoadingMovimientos] = useState(true);
+  const [movimientosError, setMovimientosError] = useState<string | null>(null);
+
   const [loadingFiltros, setLoadingFiltros] = useState(true);
   const [loadingTabla, setLoadingTabla] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -272,6 +377,8 @@ export default function TrazabilidadTecnicaPage() {
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [seleccionada, setSeleccionada] = useState<TrazaDocumental | null>(null);
+  const [movimientoSeleccionado, setMovimientoSeleccionado] =
+    useState<MovimientoDocumental | null>(null);
 
   const loadResumenDocumental = useCallback(async () => {
     setLoadingResumenDocumental(true);
@@ -295,6 +402,28 @@ export default function TrazabilidadTecnicaPage() {
 
     setResumenDocumental(data as ResumenDocumentalPersistido | null);
     setLoadingResumenDocumental(false);
+  }, []);
+
+  const loadMovimientos = useCallback(async () => {
+    setLoadingMovimientos(true);
+    setMovimientosError(null);
+
+    const { data, error: movimientosLoadError } = await supabase
+      .from("v_movimientos_documentacion_trazabilidad")
+      .select("*")
+      .order("fecha_movimiento", { ascending: false, nullsFirst: false })
+      .order("movimiento_id", { ascending: false })
+      .limit(50);
+
+    if (movimientosLoadError) {
+      setMovimientos([]);
+      setMovimientosError(movimientosLoadError.message);
+      setLoadingMovimientos(false);
+      return;
+    }
+
+    setMovimientos((data ?? []) as MovimientoDocumental[]);
+    setLoadingMovimientos(false);
   }, []);
 
   async function refrescarResumenDocumental() {
@@ -353,6 +482,10 @@ export default function TrazabilidadTecnicaPage() {
   useEffect(() => {
     loadResumenDocumental();
   }, [loadResumenDocumental]);
+
+  useEffect(() => {
+    loadMovimientos();
+  }, [loadMovimientos]);
 
   useEffect(() => {
     async function loadTabla() {
@@ -529,6 +662,28 @@ export default function TrazabilidadTecnicaPage() {
     opcionesEstadoOperativo.length,
   ]);
 
+  const resumenMovimientos = useMemo(() => {
+    const totalMovimientos = movimientos.length;
+    const desdeMesa = movimientos.filter((row) => row.origen === "mesa_documental").length;
+    const cambiosEstado = movimientos.filter(
+      (row) => row.estado_anterior !== row.estado_nuevo
+    ).length;
+    const actualizaciones = movimientos.filter(
+      (row) => row.estado_anterior === row.estado_nuevo
+    ).length;
+    const conSubsanacion = movimientos.filter(
+      (row) => row.requiere_subsanacion_nuevo
+    ).length;
+
+    return {
+      totalMovimientos,
+      desdeMesa,
+      cambiosEstado,
+      actualizaciones,
+      conSubsanacion,
+    };
+  }, [movimientos]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
@@ -584,12 +739,13 @@ export default function TrazabilidadTecnicaPage() {
               Trazabilidad técnica documental
             </h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Vista centralizada de entidad, subexpediente, fase, documento, técnico/unidad, lectura documental y estado operativo.
+              Vista de auditoría documental: estado vigente, resumen persistido e histórico real de movimientos registrados desde la mesa documental.
             </p>
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            {num(total)} visibles · {num(resumenGlobal.controlesTrazados)} controles documentales trazados
+            {num(total)} visibles · {num(resumenGlobal.controlesTrazados)} controles ·{" "}
+            {num(resumenMovimientos.totalMovimientos)} movimientos recientes
           </div>
         </div>
       </section>
@@ -608,8 +764,8 @@ export default function TrazabilidadTecnicaPage() {
             </Link>
           </div>
 
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Fuente: v_trazabilidad_tecnica_documental
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-0.5 text-[11px] font-semibold text-emerald-800 shadow-sm">
+            Fuentes: v_trazabilidad_tecnica_documental · v_movimientos_documentacion_trazabilidad
           </span>
         </div>
 
@@ -618,7 +774,188 @@ export default function TrazabilidadTecnicaPage() {
           <Kpi label="Entidades" value={num(resumenGlobal.entidades)} detail="beneficiarias" />
           <Kpi label="Documentos" value={num(resumenGlobal.documentos)} detail="tipologías documentales" />
           <Kpi label="Técnicos/unidades" value={num(resumenGlobal.tecnicos)} detail="revisión documental" />
-          <Kpi label="Fases" value={num(resumenGlobal.fases)} detail="ciclo documental" />
+          <Kpi label="Movimientos" value={num(resumenMovimientos.totalMovimientos)} detail="histórico reciente" tone="ok" />
+        </section>
+
+        <section className="rounded-lg border border-emerald-100 bg-white px-3 py-2 shadow-sm">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-[14px] font-semibold leading-5 text-slate-950">
+                  Histórico de movimientos documentales
+                </h2>
+                <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                  public.v_movimientos_documentacion_trazabilidad
+                </span>
+              </div>
+              <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
+                Evidencia de cambios generados desde la mesa documental: estado anterior, estado nuevo, técnico, motivo, origen y observaciones.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={loadMovimientos}
+                disabled={loadingMovimientos}
+                className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingMovimientos ? "Recargando..." : "Recargar histórico"}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-2 grid gap-2 lg:grid-cols-5">
+            <Kpi
+              label="Movimientos"
+              value={loadingMovimientos ? "…" : num(resumenMovimientos.totalMovimientos)}
+              detail="últimos 50"
+              tone="ok"
+            />
+            <Kpi
+              label="Desde mesa"
+              value={loadingMovimientos ? "…" : num(resumenMovimientos.desdeMesa)}
+              detail="origen mesa documental"
+              tone="ok"
+            />
+            <Kpi
+              label="Cambio estado"
+              value={loadingMovimientos ? "…" : num(resumenMovimientos.cambiosEstado)}
+              detail="estado anterior/nuevo"
+              tone="warn"
+            />
+            <Kpi
+              label="Actualizaciones"
+              value={loadingMovimientos ? "…" : num(resumenMovimientos.actualizaciones)}
+              detail="sin cambio de estado"
+            />
+            <Kpi
+              label="Subsanación"
+              value={loadingMovimientos ? "…" : num(resumenMovimientos.conSubsanacion)}
+              detail="marca activa"
+              tone={resumenMovimientos.conSubsanacion > 0 ? "warn" : "ok"}
+            />
+          </div>
+
+          {movimientosError ? (
+            <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10.5px] font-semibold text-red-800">
+              {movimientosError}
+            </p>
+          ) : null}
+
+          <div className="mt-2 max-h-[290px] overflow-auto rounded-lg border border-slate-200">
+            <table className="w-full border-collapse text-left text-[11px]">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-2 py-1.5">Fecha / origen</th>
+                  <th className="px-2 py-1.5">Entidad / acción</th>
+                  <th className="px-2 py-1.5">Fase / documento</th>
+                  <th className="px-2 py-1.5">Cambio</th>
+                  <th className="px-2 py-1.5">Técnico</th>
+                  <th className="px-2 py-1.5">Motivo</th>
+                  <th className="px-2 py-1.5">Opciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {loadingMovimientos ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-6 text-center text-xs text-slate-500">
+                      Cargando histórico de movimientos...
+                    </td>
+                  </tr>
+                ) : null}
+
+                {!loadingMovimientos &&
+                  movimientos.map((row) => (
+                    <tr
+                      key={`movimiento-${row.movimiento_id}`}
+                      className="border-t border-slate-100 hover:bg-emerald-50"
+                    >
+                      <td className="px-2 py-1">
+                        <p className="font-semibold leading-4 text-slate-950">
+                          {fecha(row.fecha_movimiento)}
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">
+                          {clean(row.origen)} · #{row.movimiento_id}
+                        </p>
+                      </td>
+
+                      <td className="px-2 py-1">
+                        <p className="line-clamp-1 font-semibold leading-4 text-slate-950">
+                          {clean(row.entidad_nombre, "Entidad no informada")}
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">
+                          {clean(row.entidad_cif)} · {clean(row.codigo_accion)} · {clean(row.tipo_oferta)}
+                        </p>
+                      </td>
+
+                      <td className="px-2 py-1">
+                        <p className="font-semibold leading-4 text-slate-950">
+                          {label(row.fase)}
+                        </p>
+                        <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">
+                          {clean(row.nombre_documento)}
+                        </p>
+                      </td>
+
+                      <td className="px-2 py-1">
+                        <p className="font-semibold leading-4 text-slate-950">
+                          {label(row.estado_anterior)} → {label(row.estado_nuevo)}
+                        </p>
+                        <span className={`mt-0.5 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${movimientoBadgeClass(row.tipo_movimiento)}`}>
+                          {label(row.tipo_movimiento)}
+                        </span>
+                      </td>
+
+                      <td className="px-2 py-1">
+                        <p className="font-semibold leading-4 text-slate-950">
+                          {clean(row.tecnico_anterior, "Sin asignar")} → {clean(row.tecnico_nuevo, "Sin asignar")}
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">
+                          Pago: {estadoPagoLabel(row.estado_pago_administrativo)}
+                        </p>
+                      </td>
+
+                      <td className="px-2 py-1">
+                        <p className="line-clamp-2 text-[10.5px] leading-4 text-slate-600">
+                          {clean(row.motivo_cambio)}
+                        </p>
+                      </td>
+
+                      <td className="px-2 py-1">
+                        <div className="flex flex-col gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setMovimientoSeleccionado(row)}
+                            className="rounded-md bg-[#183B63] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#122f4f]"
+                          >
+                            Ver movimiento
+                          </button>
+
+                          {row.subexpediente_id ? (
+                            <Link
+                              href={`/mesa-documental/${row.subexpediente_id}?fase=${row.fase ?? ""}&control=${row.documento_normativo_id ?? ""}`}
+                              className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-center text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                            >
+                              Mesa
+                            </Link>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                {!loadingMovimientos && movimientos.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-6 text-center text-xs text-slate-500">
+                      Todavía no hay movimientos documentales registrados en la tabla histórica.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="rounded-lg border border-blue-100 bg-white px-3 py-2 shadow-sm">
@@ -834,7 +1171,7 @@ export default function TrazabilidadTecnicaPage() {
                 Registro centralizado de trazabilidad documental
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Una línea por control documental, vinculada a entidad, subexpediente, fase, documento y técnico/unidad.
+                Estado vigente por control documental, vinculado a entidad, subexpediente, fase, documento y técnico/unidad.
               </p>
             </div>
 
@@ -1003,6 +1340,153 @@ export default function TrazabilidadTecnicaPage() {
           </div>
         </section>
       </section>
+
+      {movimientoSeleccionado ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
+          <section className="max-h-[92vh] w-full max-w-5xl overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="border-b border-slate-100 bg-[#183B63] px-5 py-3 text-white">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+                Movimiento documental histórico
+              </p>
+              <h2 className="mt-0.5 text-base font-semibold">
+                {clean(movimientoSeleccionado.nombre_documento)}
+              </h2>
+              <p className="mt-0.5 text-[11px] text-blue-100">
+                {clean(movimientoSeleccionado.entidad_nombre)} · {clean(movimientoSeleccionado.codigo_accion)} ·{" "}
+                {fecha(movimientoSeleccionado.fecha_movimiento)}
+              </p>
+            </div>
+
+            <div className="space-y-2 p-3">
+              <section className="grid gap-2 lg:grid-cols-5">
+                <Kpi
+                  label="Origen"
+                  value={clean(movimientoSeleccionado.origen)}
+                  detail={`movimiento #${movimientoSeleccionado.movimiento_id}`}
+                  tone="ok"
+                />
+                <Kpi
+                  label="Tipo"
+                  value={label(movimientoSeleccionado.tipo_movimiento)}
+                  detail="acción registrada"
+                />
+                <Kpi
+                  label="Estado anterior"
+                  value={label(movimientoSeleccionado.estado_anterior)}
+                  detail="antes del cambio"
+                />
+                <Kpi
+                  label="Estado nuevo"
+                  value={label(movimientoSeleccionado.estado_nuevo)}
+                  detail="después del cambio"
+                  tone="ok"
+                />
+                <Kpi
+                  label="Pago"
+                  value={estadoPagoLabel(movimientoSeleccionado.estado_pago_administrativo)}
+                  detail="lectura administrativa"
+                />
+              </section>
+
+              <section className="grid gap-2 lg:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                    Entidad y subexpediente
+                  </p>
+                  <p className="mt-0.5 text-[13px] font-semibold leading-4 text-slate-950">
+                    {clean(movimientoSeleccionado.entidad_nombre)}
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
+                    {clean(movimientoSeleccionado.entidad_cif)} · {clean(movimientoSeleccionado.codigo_accion)} ·{" "}
+                    {clean(movimientoSeleccionado.codigo_especialidad)} · {clean(movimientoSeleccionado.tipo_oferta)}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                    Fase y documento
+                  </p>
+                  <p className="mt-0.5 text-[13px] font-semibold leading-4 text-slate-950">
+                    {label(movimientoSeleccionado.fase)}
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
+                    {clean(movimientoSeleccionado.nombre_documento)}
+                  </p>
+                </div>
+              </section>
+
+              <section className="grid gap-2 lg:grid-cols-2">
+                <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-700">
+                    Antes
+                  </p>
+                  <p className="mt-1 text-[11px] leading-4 text-blue-950">
+                    Estado: <span className="font-semibold">{label(movimientoSeleccionado.estado_anterior)}</span>
+                  </p>
+                  <p className="text-[11px] leading-4 text-blue-950">
+                    Técnico: <span className="font-semibold">{clean(movimientoSeleccionado.tecnico_anterior, "Sin asignar")}</span>
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-[10.5px] leading-4 text-blue-900">
+                    {clean(movimientoSeleccionado.observaciones_anteriores, "Sin observaciones anteriores.")}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-700">
+                    Después
+                  </p>
+                  <p className="mt-1 text-[11px] leading-4 text-emerald-950">
+                    Estado: <span className="font-semibold">{label(movimientoSeleccionado.estado_nuevo)}</span>
+                  </p>
+                  <p className="text-[11px] leading-4 text-emerald-950">
+                    Técnico: <span className="font-semibold">{clean(movimientoSeleccionado.tecnico_nuevo, "Sin asignar")}</span>
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-[10.5px] leading-4 text-emerald-900">
+                    {clean(movimientoSeleccionado.observaciones_nuevas, "Sin observaciones nuevas.")}
+                  </p>
+                </div>
+              </section>
+
+              <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                  Motivo y evidencia
+                </p>
+                <p className="mt-0.5 text-[11px] leading-4 text-slate-700">
+                  {clean(movimientoSeleccionado.motivo_cambio)}
+                </p>
+                <p className="mt-1 text-[10.5px] leading-4 text-slate-500">
+                  Recepción: {fecha(movimientoSeleccionado.fecha_recepcion_anterior)} →{" "}
+                  {fecha(movimientoSeleccionado.fecha_recepcion_nueva)} · Revisión:{" "}
+                  {fecha(movimientoSeleccionado.fecha_revision_anterior)} →{" "}
+                  {fecha(movimientoSeleccionado.fecha_revision_nueva)}
+                </p>
+                <p className="mt-1 text-[10.5px] leading-4 text-slate-500">
+                  Usuario: {clean(movimientoSeleccionado.usuario_id, "No identificado en SQL Editor o sesión demo")}
+                </p>
+              </section>
+
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+                {movimientoSeleccionado.subexpediente_id ? (
+                  <Link
+                    href={`/mesa-documental/${movimientoSeleccionado.subexpediente_id}?fase=${movimientoSeleccionado.fase ?? ""}&control=${movimientoSeleccionado.documento_normativo_id ?? ""}`}
+                    className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                  >
+                    Abrir mesa documental
+                  </Link>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setMovimientoSeleccionado(null)}
+                  className="rounded-md bg-[#183B63] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#122f4f]"
+                >
+                  Cerrar movimiento
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {seleccionada ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
@@ -1180,6 +1664,8 @@ export default function TrazabilidadTecnicaPage() {
           </section>
         </div>
       ) : null}
+
+      <span className="hidden">{VERSION_TRAZABILIDAD_TECNICA}</span>
     </main>
   );
 }

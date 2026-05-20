@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 const VERSION_MATRIZ_NORMATIVA =
-  "2026-05-20-v2-backend-real-corporativo";
+  "2026-05-20-v3-queryparams-fase-control-mesa";
 
 type NormativaControl = {
   id: number;
@@ -177,6 +177,7 @@ export default function MatrizNormativaDocumentalPage() {
   const [rows, setRows] = useState<NormativaControl[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [faseFiltro, setFaseFiltro] = useState("todos");
   const [obligatoriedadFiltro, setObligatoriedadFiltro] = useState("todos");
   const [riesgoFiltro, setRiesgoFiltro] = useState("todos");
@@ -184,6 +185,10 @@ export default function MatrizNormativaDocumentalPage() {
   const [modalidadFiltro, setModalidadFiltro] = useState("todos");
   const [verificacionFiltro, setVerificacionFiltro] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
+
+  const [controlSeleccionadoId, setControlSeleccionadoId] = useState<number | null>(null);
+  const [faseOrigenMesa, setFaseOrigenMesa] = useState<string | null>(null);
+  const [parametrosLeidos, setParametrosLeidos] = useState(false);
 
   async function loadControles() {
     setLoading(true);
@@ -208,6 +213,41 @@ export default function MatrizNormativaDocumentalPage() {
   useEffect(() => {
     loadControles();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fase = params.get("fase");
+    const control = params.get("control");
+
+    if (fase) {
+      setFaseFiltro(fase);
+      setFaseOrigenMesa(fase);
+    }
+
+    if (control) {
+      const controlId = Number(control);
+      if (!Number.isNaN(controlId)) {
+        setControlSeleccionadoId(controlId);
+      }
+    }
+
+    setParametrosLeidos(true);
+  }, []);
+
+  useEffect(() => {
+    if (loading || !parametrosLeidos || !controlSeleccionadoId) return;
+
+    window.setTimeout(() => {
+      const element = document.getElementById(`control-normativo-${controlSeleccionadoId}`);
+
+      if (element) {
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }, 250);
+  }, [loading, parametrosLeidos, controlSeleccionadoId, filteredRowsKey(rows)]);
 
   const faseOptions = useMemo(() => {
     const existing = new Set(rows.map((row) => row.fase).filter(Boolean));
@@ -266,6 +306,7 @@ export default function MatrizNormativaDocumentalPage() {
       if (!query) return true;
 
       const searchable = [
+        row.id,
         row.fase,
         row.subfase,
         row.nombre_documento,
@@ -300,6 +341,16 @@ export default function MatrizNormativaDocumentalPage() {
     busqueda,
   ]);
 
+  const controlSeleccionado = useMemo(() => {
+    if (!controlSeleccionadoId) return null;
+    return rows.find((row) => row.id === controlSeleccionadoId) ?? null;
+  }, [rows, controlSeleccionadoId]);
+
+  const controlSeleccionadoVisible = useMemo(() => {
+    if (!controlSeleccionadoId) return false;
+    return filteredRows.some((row) => row.id === controlSeleccionadoId);
+  }, [filteredRows, controlSeleccionadoId]);
+
   const kpis = useMemo(() => {
     const activos = rows.filter((row) => row.activo !== false);
     const fases = new Set(rows.map((row) => row.fase).filter(Boolean)).size;
@@ -330,6 +381,25 @@ export default function MatrizNormativaDocumentalPage() {
     setModalidadFiltro("todos");
     setVerificacionFiltro("todos");
     setBusqueda("");
+    setControlSeleccionadoId(null);
+    setFaseOrigenMesa(null);
+
+    window.history.replaceState(null, "", "/matriz-normativa-documental");
+  }
+
+  function limpiarFocoMesaManteniendoFiltros() {
+    setControlSeleccionadoId(null);
+    setFaseOrigenMesa(null);
+
+    const params = new URLSearchParams(window.location.search);
+    params.delete("control");
+    params.delete("fase");
+
+    const nextUrl = params.toString()
+      ? `/matriz-normativa-documental?${params.toString()}`
+      : "/matriz-normativa-documental";
+
+    window.history.replaceState(null, "", nextUrl);
   }
 
   return (
@@ -386,6 +456,73 @@ export default function MatrizNormativaDocumentalPage() {
             >
               Reintentar
             </button>
+          </section>
+        ) : null}
+
+        {controlSeleccionadoId ? (
+          <section
+            className={
+              controlSeleccionado
+                ? "rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 shadow-sm"
+                : "rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 shadow-sm"
+            }
+          >
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p
+                  className={
+                    controlSeleccionado
+                      ? "text-[11px] font-semibold text-emerald-950"
+                      : "text-[11px] font-semibold text-amber-950"
+                  }
+                >
+                  Control abierto desde mesa documental
+                </p>
+                <p
+                  className={
+                    controlSeleccionado
+                      ? "mt-0.5 text-[11px] leading-4 text-emerald-900"
+                      : "mt-0.5 text-[11px] leading-4 text-amber-900"
+                  }
+                >
+                  {controlSeleccionado
+                    ? `Se ha localizado el control normativo #${controlSeleccionado.id}: ${controlSeleccionado.nombre_documento}.`
+                    : `La URL solicita el control #${controlSeleccionadoId}, pero no se ha localizado en normativa_documental_controles.`}
+                  {faseOrigenMesa ? ` Fase recibida: ${faseLabels[faseOrigenMesa] ?? faseOrigenMesa}.` : ""}
+                  {controlSeleccionado && !controlSeleccionadoVisible
+                    ? " El control existe, pero algún filtro adicional lo está ocultando."
+                    : ""}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {controlSeleccionado?.fase ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFaseFiltro(controlSeleccionado.fase);
+                      setBusqueda("");
+                      setObligatoriedadFiltro("todos");
+                      setRiesgoFiltro("todos");
+                      setTipoFiltro("todos");
+                      setModalidadFiltro("todos");
+                      setVerificacionFiltro("todos");
+                    }}
+                    className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                  >
+                    Mostrar fase del control
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={limpiarFocoMesaManteniendoFiltros}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Quitar foco de mesa
+                </button>
+              </div>
+            </div>
           </section>
         ) : null}
 
@@ -486,6 +623,7 @@ export default function MatrizNormativaDocumentalPage() {
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
                 Resultado filtrado: {loading ? "—" : num(filteredRows.length)} controles.
+                {controlSeleccionadoId ? ` Control enfocado: #${controlSeleccionadoId}.` : ""}
               </p>
             </div>
 
@@ -512,86 +650,103 @@ export default function MatrizNormativaDocumentalPage() {
 
             {!loading && filteredRows.length > 0 ? (
               <div className="space-y-2">
-                {filteredRows.map((row) => (
-                  <article
-                    key={row.id}
-                    className="grid gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 hover:bg-blue-50 lg:grid-cols-[0.9fr_1.35fr_1fr_auto]"
-                  >
-                    <div>
-                      <div className="flex flex-wrap gap-1">
-                        <SmallBadge className={faseClass(row.fase)}>
-                          {faseLabels[row.fase] ?? clean(row.fase)}
-                        </SmallBadge>
-                        <SmallBadge className={obligatoriedadClass(row.obligatoriedad)}>
-                          {clean(row.obligatoriedad)}
-                        </SmallBadge>
-                        <SmallBadge className={riesgoClass(row.riesgo_actual)}>
-                          {clean(row.riesgo_actual)}
+                {filteredRows.map((row) => {
+                  const isSelected = controlSeleccionadoId === row.id;
+
+                  return (
+                    <article
+                      key={row.id}
+                      id={`control-normativo-${row.id}`}
+                      className={
+                        isSelected
+                          ? "grid gap-2 rounded-xl border-2 border-emerald-400 bg-emerald-50 px-3 py-2 shadow-md ring-2 ring-emerald-100 lg:grid-cols-[0.9fr_1.35fr_1fr_auto]"
+                          : "grid gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 hover:bg-blue-50 lg:grid-cols-[0.9fr_1.35fr_1fr_auto]"
+                      }
+                    >
+                      <div>
+                        <div className="flex flex-wrap gap-1">
+                          <SmallBadge className={faseClass(row.fase)}>
+                            {faseLabels[row.fase] ?? clean(row.fase)}
+                          </SmallBadge>
+                          <SmallBadge className={obligatoriedadClass(row.obligatoriedad)}>
+                            {clean(row.obligatoriedad)}
+                          </SmallBadge>
+                          <SmallBadge className={riesgoClass(row.riesgo_actual)}>
+                            {clean(row.riesgo_actual)}
+                          </SmallBadge>
+                          {isSelected ? (
+                            <SmallBadge className="border-emerald-300 bg-white text-emerald-800">
+                              Control abierto desde mesa
+                            </SmallBadge>
+                          ) : null}
+                        </div>
+
+                        <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                          Subfase: <span className="font-semibold text-slate-700">{clean(row.subfase)}</span>
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">
+                          Tipo: {clean(row.aplica_tipo_oferta)} · Modalidad: {clean(row.aplica_modalidad)}
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">
+                          Plazo: {row.plazo_dias ?? "—"} {clean(row.tipo_dias, "")}
+                        </p>
+                        <p className="text-[10px] leading-4 text-slate-500">
+                          ID control: <span className="font-semibold text-slate-700">#{row.id}</span>
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[11px] font-semibold leading-4 text-slate-950">
+                          {clean(row.nombre_documento)}
+                        </p>
+                        <p className="mt-1 text-[10.5px] leading-4 text-slate-500">
+                          {clean(row.texto_justificativo, "Sin texto justificativo informado.")}
+                        </p>
+                        <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                          Exigibilidad: <span className="font-semibold text-slate-700">{clean(row.momento_exigibilidad)}</span>
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          Fuente jurídica
+                        </p>
+                        <p className="mt-1 text-[10.5px] leading-4 text-slate-700">
+                          {clean(row.fuente_juridica_tipo)} · {clean(row.fuente_juridica_titulo)}
+                        </p>
+                        <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                          Artículo/apartado: {clean(row.fuente_juridica_articulo_apartado)}
+                        </p>
+                        <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                          Fuente operativa: {clean(row.fuente_operativa)}
+                        </p>
+                        <SmallBadge className={verificacionClass(row.estado_verificacion_normativa)}>
+                          {clean(row.estado_verificacion_normativa)}
                         </SmallBadge>
                       </div>
 
-                      <p className="mt-2 text-[10px] leading-4 text-slate-500">
-                        Subfase: <span className="font-semibold text-slate-700">{clean(row.subfase)}</span>
-                      </p>
-                      <p className="text-[10px] leading-4 text-slate-500">
-                        Tipo: {clean(row.aplica_tipo_oferta)} · Modalidad: {clean(row.aplica_modalidad)}
-                      </p>
-                      <p className="text-[10px] leading-4 text-slate-500">
-                        Plazo: {row.plazo_dias ?? "—"} {clean(row.tipo_dias, "")}
-                      </p>
-                    </div>
+                      <div className="flex flex-col items-end gap-1">
+                        {row.fuente_juridica_url ? (
+                          <a
+                            href={row.fuente_juridica_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50 lg:w-[116px]"
+                          >
+                            Fuente PDF
+                          </a>
+                        ) : null}
 
-                    <div>
-                      <p className="text-[11px] font-semibold leading-4 text-slate-950">
-                        {clean(row.nombre_documento)}
-                      </p>
-                      <p className="mt-1 text-[10.5px] leading-4 text-slate-500">
-                        {clean(row.texto_justificativo, "Sin texto justificativo informado.")}
-                      </p>
-                      <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                        Exigibilidad: <span className="font-semibold text-slate-700">{clean(row.momento_exigibilidad)}</span>
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                        Fuente jurídica
-                      </p>
-                      <p className="mt-1 text-[10.5px] leading-4 text-slate-700">
-                        {clean(row.fuente_juridica_tipo)} · {clean(row.fuente_juridica_titulo)}
-                      </p>
-                      <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                        Artículo/apartado: {clean(row.fuente_juridica_articulo_apartado)}
-                      </p>
-                      <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                        Fuente operativa: {clean(row.fuente_operativa)}
-                      </p>
-                      <SmallBadge className={verificacionClass(row.estado_verificacion_normativa)}>
-                        {clean(row.estado_verificacion_normativa)}
-                      </SmallBadge>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1">
-                      {row.fuente_juridica_url ? (
-                        <a
-                          href={row.fuente_juridica_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50 lg:w-[116px]"
+                        <Link
+                          href={`/recepcion-documentacion?fase=${row.fase}`}
+                          className="w-full rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-center text-[10px] font-semibold text-blue-800 hover:bg-blue-100 lg:w-[116px]"
                         >
-                          Fuente PDF
-                        </a>
-                      ) : null}
-
-                      <Link
-                        href={`/recepcion-documentacion?fase=${row.fase}`}
-                        className="w-full rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-center text-[10px] font-semibold text-blue-800 hover:bg-blue-100 lg:w-[116px]"
-                      >
-                        Ver recepción
-                      </Link>
-                    </div>
-                  </article>
-                ))}
+                          Ver recepción
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : null}
           </div>
@@ -601,4 +756,8 @@ export default function MatrizNormativaDocumentalPage() {
       <span className="hidden">{VERSION_MATRIZ_NORMATIVA}</span>
     </main>
   );
+}
+
+function filteredRowsKey(rows: NormativaControl[]) {
+  return rows.map((row) => row.id).join("-");
 }

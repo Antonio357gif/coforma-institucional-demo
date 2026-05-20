@@ -192,12 +192,11 @@ const finalizacionOptions: SelectOption[] = [
 const pagoOptions: SelectOption[] = [
   { value: "pagado", label: "Pagado" },
   { value: "en_revision_parcial", label: "En revisión parcial" },
-  { value: "en_ejecucion_no_abonado", label: "En ejecución no abonado" },
+  { value: "en_ejecucion_no_abonado", label: "En ejecución · pendiente de devengo" },
   { value: "no_devengado", label: "No devengado" },
   { value: "retenido_revision", label: "Retenido por revisión" },
   { value: "retenido_riesgo", label: "Retenido por riesgo" },
 ];
-
 function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
 }
