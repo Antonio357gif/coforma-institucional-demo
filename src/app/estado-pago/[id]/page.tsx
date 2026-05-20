@@ -1,0 +1,809 @@
+﻿"use client";
+
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../../lib/supabaseClient";
+
+const VERSION_ESTADO_PAGO =
+  "2026-05-20-v4-estado-pago-rpc-real-corporativo";
+
+type AccionResumenRow = {
+  subexpediente_id: number;
+  oferta_id: number | null;
+  entidad_id: number | null;
+  entidad_nombre: string | null;
+  entidad_cif: string | null;
+  entidad_isla: string | null;
+  entidad_municipio: string | null;
+
+  codigo_accion: string | null;
+  denominacion: string | null;
+  tipo_oferta: string | null;
+  codigo_especialidad: string | null;
+  familia_profesional: string | null;
+  modalidad: string | null;
+  horas: number | null;
+  alumnos_previstos: number | null;
+  importe_concedido: number | string | null;
+  centro_formacion: string | null;
+  oferta_isla: string | null;
+  oferta_municipio: string | null;
+  oferta_fecha_inicio_prevista: string | null;
+  oferta_fecha_fin_prevista: string | null;
+  oferta_fecha_inicio_validada: string | null;
+  oferta_fecha_fin_validada: string | null;
+
+  convocatoria_id: number | null;
+  convocatoria_codigo: string | null;
+  convocatoria_nombre: string | null;
+
+  estado_operativo_administrativo: string | null;
+  prioridad_tecnica: string | null;
+  documentacion_estado_subexpediente: string | null;
+  riesgo_administrativo: string | null;
+  riesgo_economico: string | null;
+  requerimientos_pendientes: number | null;
+  incidencias_abiertas: number | null;
+  estado_pago_administrativo: string | null;
+
+  documentos_total: number;
+  inicio_total: number;
+  inicio_validado: number;
+  inicio_recibido: number;
+  inicio_en_revision: number;
+  inicio_no_recibido: number;
+  inicio_no_aplica: number;
+  inicio_riesgo_activo: number;
+
+  seguimiento_total: number;
+  seguimiento_validado: number;
+  seguimiento_recibido: number;
+  seguimiento_en_revision: number;
+  seguimiento_no_recibido: number;
+  seguimiento_no_aplica: number;
+  seguimiento_riesgo_activo: number;
+
+  finalizacion_total: number;
+  finalizacion_validado: number;
+  finalizacion_recibido: number;
+  finalizacion_en_revision: number;
+  finalizacion_no_recibido: number;
+  finalizacion_no_aplica: number;
+  finalizacion_riesgo_activo: number;
+
+  justificacion_total: number;
+  justificacion_validado: number;
+  justificacion_recibido: number;
+  justificacion_en_revision: number;
+  justificacion_no_recibido: number;
+  justificacion_no_aplica: number;
+  justificacion_riesgo_activo: number;
+
+  cierre_total: number;
+  cierre_validado: number;
+  cierre_recibido: number;
+  cierre_en_revision: number;
+  cierre_no_recibido: number;
+  cierre_no_aplica: number;
+  cierre_riesgo_activo: number;
+
+  documentos_validados: number;
+  documentos_recibidos: number;
+  documentos_en_revision: number;
+  documentos_no_recibidos: number;
+  documentos_no_aplica: number;
+  documentos_requieren_subsanacion: number;
+  documentos_con_riesgo_activo: number;
+
+  lectura_documental: string | null;
+};
+
+type PagoOption = {
+  value: string;
+  label: string;
+  helper: string;
+};
+
+const pagoOptions: PagoOption[] = [
+  {
+    value: "pagado",
+    label: "Pagado",
+    helper: "Pago autorizado o registrado administrativamente.",
+  },
+  {
+    value: "en_revision_parcial",
+    label: "En revisión parcial",
+    helper: "Existe revisión económica parcial o pendiente de cierre.",
+  },
+  {
+    value: "en_ejecucion_no_abonado",
+    label: "En ejecución no abonado",
+    helper: "La acción sigue en ejecución y no debe tratarse como pago final.",
+  },
+  {
+    value: "no_devengado",
+    label: "No devengado",
+    helper: "No procede pago porque no existe devengo económico suficiente.",
+  },
+  {
+    value: "retenido_revision",
+    label: "Retenido por revisión",
+    helper: "Pago retenido hasta completar revisión técnica o económica.",
+  },
+  {
+    value: "retenido_riesgo",
+    label: "Retenido por riesgo",
+    helper: "Pago retenido por riesgo administrativo, documental o económico.",
+  },
+];
+
+function getInitialId(paramsId: string | string[] | undefined) {
+  if (Array.isArray(paramsId)) return paramsId[0] ?? "";
+  return paramsId ?? "";
+}
+
+function num(value: number | string | null | undefined) {
+  return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
+}
+
+function eur(value: number | string | null | undefined) {
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(Number(value ?? 0));
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function clean(value: string | number | null | undefined, fallback = "—") {
+  if (value === null || value === undefined) return fallback;
+  const trimmed = String(value).trim();
+  return trimmed === "" ? fallback : trimmed;
+}
+
+function pagoLabel(value: string | null | undefined) {
+  return pagoOptions.find((option) => option.value === value)?.label ?? clean(value);
+}
+
+function pagoHelper(value: string | null | undefined) {
+  return pagoOptions.find((option) => option.value === value)?.helper ?? "Estado de pago no catalogado.";
+}
+
+function pagoBadgeClass(value: string | null | undefined) {
+  const pago = (value ?? "").toLowerCase();
+
+  if (pago === "pagado") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (pago === "no_devengado") return "border-slate-200 bg-slate-50 text-slate-600";
+  if (pago === "en_ejecucion_no_abonado") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (pago === "en_revision_parcial") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (pago === "retenido_revision" || pago === "retenido_riesgo") {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+
+  return "border-slate-200 bg-white text-slate-700";
+}
+
+function estadoOperativoLabel(value: string | null | undefined) {
+  if (value === "finalizada") return "Finalizada";
+  if (value === "en_ejecucion") return "En ejecución";
+  if (value === "pendiente_ejecutar") return "Pendiente de ejecutar";
+  return clean(value);
+}
+
+function operativoBadgeClass(value: string | null | undefined) {
+  const estado = (value ?? "").toLowerCase();
+
+  if (estado === "finalizada") return "border-slate-300 bg-slate-100 text-slate-800";
+  if (estado === "en_ejecucion") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (estado === "pendiente_ejecutar") return "border-blue-200 bg-blue-50 text-blue-800";
+
+  return "border-slate-200 bg-white text-slate-700";
+}
+
+function riesgoBadgeClass(value: string | null | undefined) {
+  const riesgo = (value ?? "").toLowerCase();
+
+  if (riesgo === "alto" || riesgo === "critico" || riesgo === "crítico") {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+
+  if (riesgo === "medio") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (riesgo === "bajo") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+
+  return "border-slate-200 bg-white text-slate-700";
+}
+
+function SmallBadge({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className: string;
+}) {
+  return (
+    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  detail,
+  tone = "slate",
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "blue" | "green" | "amber" | "red" | "slate" | "violet";
+}) {
+  const toneClass =
+    tone === "green"
+      ? "border-emerald-200"
+      : tone === "blue"
+        ? "border-blue-200"
+        : tone === "amber"
+          ? "border-amber-200"
+          : tone === "red"
+            ? "border-red-200"
+            : tone === "violet"
+              ? "border-violet-200"
+              : "border-slate-200";
+
+  return (
+    <div className={`rounded-xl border ${toneClass} bg-white px-3 py-2 shadow-sm`}>
+      <p className="truncate text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-[17px] font-semibold leading-5 text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-500">
+        {detail}
+      </p>
+    </div>
+  );
+}
+
+function canAutorizarPago(accion: AccionResumenRow | null) {
+  if (!accion) return false;
+
+  return (
+    accion.estado_operativo_administrativo === "finalizada" &&
+    accion.documentacion_estado_subexpediente === "validada" &&
+    Number(accion.documentos_con_riesgo_activo ?? 0) === 0 &&
+    accion.estado_pago_administrativo !== "pagado"
+  );
+}
+
+function decisionRecomendada(accion: AccionResumenRow | null) {
+  if (!accion) return "Cargando lectura económica del subexpediente.";
+
+  if (Number(accion.documentos_con_riesgo_activo ?? 0) > 0) {
+    return "Retener pago por riesgo documental activo hasta revisión técnica.";
+  }
+
+  if (Number(accion.incidencias_abiertas ?? 0) > 0 || Number(accion.requerimientos_pendientes ?? 0) > 0) {
+    return "Mantener en revisión hasta resolver incidencias o requerimientos pendientes.";
+  }
+
+  if (accion.estado_operativo_administrativo === "pendiente_ejecutar") {
+    return "No devengado: la acción no ha iniciado ejecución efectiva.";
+  }
+
+  if (accion.estado_operativo_administrativo === "en_ejecucion") {
+    return "Mantener como en ejecución no abonado o revisión parcial, según avance económico.";
+  }
+
+  if (
+    accion.estado_operativo_administrativo === "finalizada" &&
+    accion.documentacion_estado_subexpediente === "validada" &&
+    Number(accion.documentos_con_riesgo_activo ?? 0) === 0
+  ) {
+    if (accion.estado_pago_administrativo === "pagado") {
+      return "Pago ya registrado. Mantener trazabilidad y revisar solo si existe incidencia sobrevenida.";
+    }
+
+    return "Puede autorizarse pago si no existe revisión económica adicional pendiente.";
+  }
+
+  return "Revisar situación operativa, documentación y riesgo antes de autorizar pago.";
+}
+
+function accionSemantica(accion: AccionResumenRow | null) {
+  if (!accion) return "Cargando regla operativa.";
+
+  if (accion.estado_operativo_administrativo === "finalizada") {
+    return "Finalizada: la revisión de pago debe comprobar documentación validada, ausencia de riesgo activo y coherencia económica antes de autorizar o mantener el pago.";
+  }
+
+  if (accion.estado_operativo_administrativo === "en_ejecucion") {
+    return "En ejecución: el pago no debe tratarse como cierre final; puede mantenerse como en ejecución no abonado o revisión parcial.";
+  }
+
+  if (accion.estado_operativo_administrativo === "pendiente_ejecutar") {
+    return "Pendiente de ejecutar: no existe devengo económico ordinario; el estado natural es no devengado.";
+  }
+
+  return "Revise la situación operativa antes de actuar sobre el pago.";
+}
+
+export default function EstadoPagoPage() {
+  const params = useParams();
+  const id = getInitialId(params?.id as string | string[] | undefined);
+  const subexpedienteId = Number(id);
+
+  const [accion, setAccion] = useState<AccionResumenRow | null>(null);
+  const [pagoDraft, setPagoDraft] = useState("");
+  const [pagoObservacion, setPagoObservacion] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingPago, setSavingPago] = useState(false);
+  const [pagoSaved, setPagoSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagoError, setPagoError] = useState<string | null>(null);
+
+  async function loadAccion() {
+    if (!subexpedienteId || Number.isNaN(subexpedienteId)) {
+      setError("No se recibió un identificador válido de subexpediente.");
+      setAccion(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const { data, error } = await supabase.rpc(
+      "get_estado_pago_subexpediente_v1",
+      {
+        p_subexpediente_id: subexpedienteId,
+      }
+    );
+
+    if (error) {
+      setError(error.message);
+      setAccion(null);
+      setLoading(false);
+      return;
+    }
+
+    const found = Array.isArray(data) ? data[0] ?? null : data ?? null;
+
+    if (!found) {
+      setError("No se encontró el subexpediente en la lectura económica.");
+      setAccion(null);
+      setLoading(false);
+      return;
+    }
+
+    const normalized = found as AccionResumenRow;
+
+    setAccion(normalized);
+    setPagoDraft(normalized.estado_pago_administrativo ?? "");
+    setPagoObservacion("");
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadAccion();
+  }, [subexpedienteId]);
+
+  const hasPagoChanges = useMemo(() => {
+    return Boolean(accion && pagoDraft && pagoDraft !== accion.estado_pago_administrativo);
+  }, [accion, pagoDraft]);
+
+  async function guardarPago(nuevoEstado?: string, observacionForzada?: string) {
+    if (!accion) return;
+
+    const nextPago = nuevoEstado ?? pagoDraft;
+
+    if (!nextPago) {
+      setPagoError("Debe seleccionar un estado de pago.");
+      return;
+    }
+
+    setSavingPago(true);
+    setPagoSaved(false);
+    setPagoError(null);
+
+    const nowIso = new Date().toISOString();
+    const observacion =
+      observacionForzada?.trim() ||
+      pagoObservacion.trim() ||
+      `Cambio de estado de pago desde página Estado de pago: ${pagoLabel(
+        accion.estado_pago_administrativo
+      )} → ${pagoLabel(nextPago)}.`;
+
+    const { error } = await supabase
+      .from("subexpedientes_accion")
+      .update({
+        estado_pago_administrativo: nextPago,
+        observaciones_administrativas: `${observacion}\nFecha actuación: ${new Date().toLocaleString(
+          "es-ES"
+        )}.`,
+        updated_at: nowIso,
+      })
+      .eq("id", subexpedienteId);
+
+    if (error) {
+      setPagoError(error.message);
+      setSavingPago(false);
+      return;
+    }
+
+    setAccion((current) =>
+      current
+        ? {
+            ...current,
+            estado_pago_administrativo: nextPago,
+          }
+        : current
+    );
+
+    setPagoDraft(nextPago);
+    setPagoObservacion("");
+    setSavingPago(false);
+    setPagoSaved(true);
+
+    await loadAccion();
+
+    window.setTimeout(() => {
+      setPagoSaved(false);
+    }, 1800);
+  }
+
+  return (
+    <main className="min-h-screen bg-[#edf3f8] text-slate-950">
+      <section className="bg-[#183B63] px-5 py-4 text-white shadow-sm">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-200">
+              Coforma Institucional
+            </p>
+            <h1 className="mt-1 text-xl font-semibold">Estado de pago operativo</h1>
+            <p className="mt-0.5 text-xs text-blue-100">
+              Revisión económica separada para perfiles superiores: decisión de pago, retención o no devengo.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
+              Subexpediente {id || "—"}
+            </div>
+            <div className="rounded-xl border border-violet-300/30 bg-violet-400/10 px-4 py-2 text-xs font-semibold text-violet-100">
+              {loading ? "Cargando..." : pagoLabel(accion?.estado_pago_administrativo)}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl space-y-3 px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/recepcion-documentacion"
+              className="text-xs font-semibold text-blue-800 hover:text-blue-950"
+            >
+              ← Volver a recepción documental
+            </Link>
+
+            <Link
+              href={`/mesa-documental/${id}`}
+              className="text-xs font-semibold text-blue-800 hover:text-blue-950"
+            >
+              Mesa documental
+            </Link>
+
+            <Link
+              href="/matriz-normativa-documental"
+              className="text-xs font-semibold text-emerald-800 hover:text-emerald-950"
+            >
+              Matriz normativa
+            </Link>
+
+            <Link
+              href="/dashboard"
+              className="text-xs font-semibold text-blue-800 hover:text-blue-950"
+            >
+              Dashboard
+            </Link>
+          </div>
+
+          <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-semibold text-violet-800 shadow-sm">
+            Perfil superior · control económico
+          </span>
+        </div>
+
+        {error ? (
+          <section className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-800 shadow-sm">
+            No se pudo cargar el estado de pago: {error}
+            <button
+              type="button"
+              onClick={loadAccion}
+              className="ml-2 rounded-lg border border-red-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-red-800 hover:bg-red-100"
+            >
+              Reintentar
+            </button>
+          </section>
+        ) : null}
+
+        {pagoError ? (
+          <section className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-800 shadow-sm">
+            No se pudo guardar el estado de pago: {pagoError}
+            <button
+              type="button"
+              onClick={() => setPagoError(null)}
+              className="ml-2 rounded-lg border border-red-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-red-800 hover:bg-red-100"
+            >
+              Cerrar aviso
+            </button>
+          </section>
+        ) : null}
+
+        <section className="grid gap-2 lg:grid-cols-6">
+          <KpiCard
+            label="Estado pago"
+            value={loading ? "—" : pagoLabel(accion?.estado_pago_administrativo)}
+            detail={loading ? "cargando" : pagoHelper(accion?.estado_pago_administrativo)}
+            tone="violet"
+          />
+
+          <KpiCard
+            label="Importe concedido"
+            value={loading ? "—" : eur(accion?.importe_concedido)}
+            detail="referencia económica"
+            tone="green"
+          />
+
+          <KpiCard
+            label="Operativo"
+            value={loading ? "—" : estadoOperativoLabel(accion?.estado_operativo_administrativo)}
+            detail="estado administrativo"
+            tone="blue"
+          />
+
+          <KpiCard
+            label="Documentación"
+            value={loading ? "—" : clean(accion?.documentacion_estado_subexpediente)}
+            detail={
+              loading
+                ? "cargando"
+                : `${num(accion?.documentos_validados)} val. · ${num(
+                    accion?.documentos_con_riesgo_activo
+                  )} riesgo`
+            }
+            tone={Number(accion?.documentos_con_riesgo_activo ?? 0) > 0 ? "red" : "green"}
+          />
+
+          <KpiCard
+            label="Incidencias"
+            value={loading ? "—" : num(accion?.incidencias_abiertas)}
+            detail={`${num(accion?.requerimientos_pendientes)} requerimientos`}
+            tone={Number(accion?.incidencias_abiertas ?? 0) > 0 ? "red" : "slate"}
+          />
+
+          <KpiCard
+            label="Riesgo económico"
+            value={loading ? "—" : clean(accion?.riesgo_economico)}
+            detail={`admin: ${clean(accion?.riesgo_administrativo)}`}
+            tone={
+              ["alto", "critico", "crítico"].includes(
+                String(accion?.riesgo_economico ?? "").toLowerCase()
+              )
+                ? "red"
+                : "slate"
+            }
+          />
+        </section>
+
+        <section className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 shadow-sm">
+          <p className="text-[11px] font-semibold text-violet-950">
+            Decisión recomendada
+          </p>
+          <p className="mt-0.5 text-[11px] leading-4 text-violet-900">
+            {decisionRecomendada(accion)}
+          </p>
+        </section>
+
+        <section className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h2 className="text-[14px] font-semibold leading-5 text-slate-950">
+                  Subexpediente
+                </h2>
+                <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                  Datos de contexto económico y documental para decidir el estado de pago.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-1">
+                <SmallBadge className={operativoBadgeClass(accion?.estado_operativo_administrativo)}>
+                  {estadoOperativoLabel(accion?.estado_operativo_administrativo)}
+                </SmallBadge>
+                <SmallBadge className={pagoBadgeClass(accion?.estado_pago_administrativo)}>
+                  {pagoLabel(accion?.estado_pago_administrativo)}
+                </SmallBadge>
+                <SmallBadge className={riesgoBadgeClass(accion?.riesgo_economico)}>
+                  Riesgo econ.: {clean(accion?.riesgo_economico)}
+                </SmallBadge>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2 text-[11px] text-slate-600 md:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="font-semibold text-slate-900">{clean(accion?.entidad_nombre)}</p>
+                <p className="mt-0.5">{clean(accion?.entidad_cif)} · {clean(accion?.entidad_isla)}</p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="font-semibold text-slate-900">
+                  {clean(accion?.codigo_accion)} · {clean(accion?.tipo_oferta)}
+                </p>
+                <p className="mt-0.5">{clean(accion?.codigo_especialidad)} · {clean(accion?.modalidad)}</p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 md:col-span-2">
+                <p className="font-semibold text-slate-900">{clean(accion?.denominacion)}</p>
+                <p className="mt-0.5">
+                  Inicio validado: {formatDate(accion?.oferta_fecha_inicio_validada)} · Fin validada:{" "}
+                  {formatDate(accion?.oferta_fecha_fin_validada)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+              <p className="text-[11px] font-semibold text-blue-950">
+                Regla operativa
+              </p>
+              <p className="mt-0.5 text-[11px] leading-4 text-blue-900">
+                {accionSemantica(accion)}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+            <h2 className="text-[14px] font-semibold leading-5 text-slate-950">
+              Actualizar estado de pago
+            </h2>
+            <p className="mt-1 text-[11px] leading-4 text-slate-500">
+              Esta acción queda separada de la mesa documental porque corresponde a revisión económica o perfil superior.
+            </p>
+
+            <div className="mt-3 grid gap-2">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Estado de pago administrativo
+              </label>
+              <select
+                value={pagoDraft}
+                onChange={(event) => setPagoDraft(event.target.value)}
+                className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none focus:border-blue-400"
+              >
+                <option value="">Seleccione estado</option>
+                {pagoOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <textarea
+                value={pagoObservacion}
+                onChange={(event) => setPagoObservacion(event.target.value)}
+                rows={4}
+                placeholder="Observación económica/administrativa del cambio de pago..."
+                className="w-full resize-none rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] leading-4 outline-none focus:border-blue-400"
+              />
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={savingPago || !hasPagoChanges}
+                  onClick={() => guardarPago()}
+                  className={
+                    hasPagoChanges
+                      ? "rounded-lg bg-[#183B63] px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#102a47] disabled:opacity-60"
+                      : "rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-400"
+                  }
+                >
+                  {savingPago ? "Guardando..." : pagoSaved ? "Guardado" : "Guardar estado de pago"}
+                </button>
+
+                {canAutorizarPago(accion) ? (
+                  <button
+                    type="button"
+                    disabled={savingPago}
+                    onClick={() =>
+                      guardarPago(
+                        "pagado",
+                        "Pago autorizado desde página Estado de pago tras documentación completa validada y sin riesgo activo."
+                      )
+                    }
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+                  >
+                    Autorizar pago
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  disabled={savingPago}
+                  onClick={() =>
+                    guardarPago(
+                      "retenido_revision",
+                      "Pago retenido por revisión económica/administrativa pendiente."
+                    )
+                  }
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+                >
+                  Retener revisión
+                </button>
+
+                <button
+                  type="button"
+                  disabled={savingPago}
+                  onClick={() =>
+                    guardarPago(
+                      "retenido_riesgo",
+                      "Pago retenido por riesgo administrativo/económico activo."
+                    )
+                  }
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-800 hover:bg-red-100 disabled:opacity-60"
+                >
+                  Retener riesgo
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-semibold text-slate-800">
+                Trazabilidad de responsabilidad
+              </p>
+              <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
+                La mesa documental trabaja controles técnicos. Esta página concentra la decisión de pago para evitar que un técnico documental modifique estados económicos sin una pantalla específica.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/mesa-documental/${id}`}
+                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-800 hover:bg-blue-100"
+              >
+                Volver a mesa documental
+              </Link>
+
+              {accion?.oferta_id ? (
+                <Link
+                  href={`/subexpedientes-accion/${accion.oferta_id}`}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Ver subexpediente
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <span className="hidden">{VERSION_ESTADO_PAGO}</span>
+    </main>
+  );
+}

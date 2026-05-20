@@ -71,16 +71,21 @@ type OfertaResumen = {
 };
 
 type DocumentacionResumen = {
-  documentos_total: number;
-  no_recibidos: number;
-  recibidos: number;
-  en_revision: number;
-  validados: number;
-  no_aplica: number;
-  riesgo_activo_alto_critico: number;
-  ofertas: number;
-  subexpedientes: number;
-  entidades: number;
+  total_documentos: number;
+  documentos_validados: number;
+  documentos_recibidos: number;
+  documentos_no_aplica: number;
+  documentos_estado_no_controlado: number;
+  porcentaje_documentacion_clasificada: number;
+  porcentaje_documentacion_validada: number;
+  porcentaje_documentacion_recibida_pendiente_revision: number;
+  porcentaje_documentacion_no_aplica: number;
+  controles_normativos: number;
+  controles_con_fuente_manual_fped: number;
+  controles_verificados_parcial_manual_fped: number;
+  controles_pendientes_verificacion: number;
+  lectura_institucional: string;
+  nota_institucional: string;
 };
 
 type Tone = "blue" | "green" | "red" | "amber" | "slate" | "violet" | "teal";
@@ -121,6 +126,10 @@ function pct(part: number | null | undefined, total: number | null | undefined) 
 
 function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
+}
+
+function safePercent(value: number | null | undefined) {
+  return clamp(Math.round(Number(value ?? 0)));
 }
 
 function toneClasses(tone: Tone) {
@@ -633,7 +642,7 @@ export default function DashboardPage() {
       setDocumentacionLoading(true);
 
       const { data: documentacionData, error: documentacionLoadError } = await supabase
-        .from("resumen_documental_institucional")
+        .from("v_dashboard_control_documental_normativo")
         .select("*")
         .single();
 
@@ -700,7 +709,7 @@ export default function DashboardPage() {
         label: "Documentación",
         icon: "📁",
         href: "/recepcion-documentacion",
-        description: "Inicio, seguimiento, finalización, justificación y cierre.",
+        description: "Control documental clasificado y trazado a matriz normativa.",
         children: [
           {
             label: "Recepción documental",
@@ -718,12 +727,12 @@ export default function DashboardPage() {
         label: "Económico",
         icon: "€",
         href: "/justificacion-economica",
-        description: "Importes, ejecución, pendiente y justificación.",
+        description: "Importes concedidos, avance registrado y situación económica.",
         children: [
           {
-            label: "Justificación económica",
+            label: "Avance económico",
             href: "/justificacion-economica",
-            description: "Lectura económica de las acciones.",
+            description: "Lectura económica registrada, no cierre justificativo final.",
           },
           {
             label: "Decisiones económicas",
@@ -855,9 +864,9 @@ export default function DashboardPage() {
   const documentacionPendiente = documentacionLoading && !documentacionResumen;
   const documentacionAviso =
     documentacionError && !documentacionResumen
-      ? "Resumen documental pendiente de recarga"
+      ? "Resumen documental/normativo pendiente de recarga"
       : documentacionPendiente
-        ? "Cargando resumen documental..."
+        ? "Cargando resumen documental/normativo..."
         : null;
 
   const totalAcciones = ofertaResumen.acciones_total || resumen.acciones_concedidas || 1;
@@ -865,11 +874,16 @@ export default function DashboardPage() {
   const revisionRiesgoAcciones =
     ofertaResumen.en_ejecucion_con_incidencia + ofertaResumen.riesgo_reintegro;
 
-  const documentacionOperativaPct = documentacionDisponible
-    ? pct(
-        documentacionResumen.documentos_total - documentacionResumen.no_recibidos,
-        documentacionResumen.documentos_total
-      )
+  const documentacionClasificadaPct = documentacionDisponible
+    ? safePercent(documentacionResumen.porcentaje_documentacion_clasificada)
+    : 0;
+
+  const documentacionValidadaPct = documentacionDisponible
+    ? safePercent(documentacionResumen.porcentaje_documentacion_validada)
+    : 0;
+
+  const documentacionRecibidaPct = documentacionDisponible
+    ? safePercent(documentacionResumen.porcentaje_documentacion_recibida_pendiente_revision)
     : 0;
 
   const ejecucionEconomicaPct = pct(
@@ -910,6 +924,11 @@ export default function DashboardPage() {
     1
   );
 
+  const notaTrazabilidad =
+    documentacionDisponible && documentacionResumen.nota_institucional
+      ? `${ofertaResumen.nota_trazabilidad || resumen.nota_trazabilidad} · ${documentacionResumen.nota_institucional}`
+      : ofertaResumen.nota_trazabilidad || resumen.nota_trazabilidad;
+
   return (
     <main className="min-h-screen bg-[#edf3f8] text-slate-950">
       <div className="flex min-h-screen">
@@ -943,9 +962,9 @@ export default function DashboardPage() {
                   <p className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">
                     Coforma Institucional
                   </p>
-                  <h1 className="mt-1 text-[27px] font-black leading-none">
-                    Dashboard ejecutivo institucional
-                  </h1>
+                  <h1 className="mt-1 text-[22px] font-black leading-none">
+  Dashboard ejecutivo institucional
+</h1>
                   <p className="mt-2 truncate text-sm text-blue-100">
                     {resumen.convocatoria_codigo} · {resumen.convocatoria_nombre}
                   </p>
@@ -1025,36 +1044,36 @@ export default function DashboardPage() {
               />
 
               <KpiCard
-                title="Documentación"
-                mainValue={documentacionDisponible ? num(documentacionResumen.documentos_total) : "—"}
+                title="Control documental"
+                mainValue={documentacionDisponible ? num(documentacionResumen.total_documentos) : "—"}
                 subtitle={
                   documentacionDisponible
-                    ? `${num(documentacionResumen.no_recibidos)} sin recibir · ${num(documentacionResumen.validados)} validados`
-                    : "resumen documental pendiente"
+                    ? `${documentacionClasificadaPct}% clasificado · ${num(documentacionResumen.documentos_validados)} validados`
+                    : "resumen documental/normativo pendiente"
                 }
                 href="/recepcion-documentacion"
                 tone="blue"
                 icon="≡"
-                percentValue={documentacionDisponible ? documentacionOperativaPct : undefined}
+                percentValue={documentacionDisponible ? documentacionClasificadaPct : undefined}
                 cells={[
                   {
-                    label: "Recibidos pendientes",
-                    value: documentacionDisponible ? num(documentacionResumen.recibidos) : "—",
+                    label: "Recibidos",
+                    value: documentacionDisponible ? num(documentacionResumen.documentos_recibidos) : "—",
                     tone: "blue",
                   },
                   {
                     label: "Validados",
-                    value: documentacionDisponible ? num(documentacionResumen.validados) : "—",
+                    value: documentacionDisponible ? num(documentacionResumen.documentos_validados) : "—",
                     tone: "green",
                   },
                   {
                     label: "No aplica",
-                    value: documentacionDisponible ? num(documentacionResumen.no_aplica) : "—",
+                    value: documentacionDisponible ? num(documentacionResumen.documentos_no_aplica) : "—",
                     tone: "slate",
                   },
                   {
-                    label: "Sin recibir",
-                    value: documentacionDisponible ? num(documentacionResumen.no_recibidos) : "—",
+                    label: "Sin clasificar",
+                    value: documentacionDisponible ? num(documentacionResumen.documentos_estado_no_controlado) : "—",
                     tone: "amber",
                   },
                 ]}
@@ -1105,12 +1124,12 @@ export default function DashboardPage() {
                     label="Documentación"
                     helper={
                       documentacionDisponible
-                        ? `${num(documentacionResumen.validados)} validados · ${num(documentacionResumen.no_recibidos)} sin recibir`
+                        ? `${documentacionClasificadaPct}% clasificada · ${num(documentacionResumen.controles_normativos)} controles FPED`
                         : "resumen pendiente"
                     }
                     value={
                       documentacionDisponible
-                        ? num(documentacionResumen.riesgo_activo_alto_critico)
+                        ? num(documentacionResumen.controles_pendientes_verificacion)
                         : "—"
                     }
                   />
@@ -1124,8 +1143,8 @@ export default function DashboardPage() {
                   <ControlTile
                     href="/justificacion-economica"
                     tone="violet"
-                    label="Justificación"
-                    helper={`${euro(ofertaResumen.importe_ejecutado_total)} · ${avanceEconomicoPct}% avance`}
+                    label="Avance económico"
+                    helper={`${euro(ofertaResumen.importe_ejecutado_total)} · ${avanceEconomicoPct}% registrado`}
                     value={`${avanceEconomicoPct}%`}
                   />
                 </div>
@@ -1214,33 +1233,38 @@ export default function DashboardPage() {
                     />
                   </FocusPanel>
 
-                  <FocusPanel title="Carga administrativa">
+                  <FocusPanel title="Control documental">
                     <div className="space-y-1.5">
                       <BarRow
-                        label="Requerimientos"
-                        value={ofertaResumen.requerimientos_pendientes}
-                        max={maxCargaAdministrativa}
-                        tone="violet"
+                        label="Validados"
+                        value={documentacionDisponible ? documentacionResumen.documentos_validados : 0}
+                        max={documentacionDisponible ? documentacionResumen.total_documentos : 1}
+                        tone="green"
                       />
                       <BarRow
-                        label="Incidencias"
-                        value={ofertaResumen.incidencias_abiertas}
-                        max={maxCargaAdministrativa}
+                        label="Recibidos"
+                        value={documentacionDisponible ? documentacionResumen.documentos_recibidos : 0}
+                        max={documentacionDisponible ? documentacionResumen.total_documentos : 1}
                         tone="blue"
                       />
                       <BarRow
-                        label="Alertas altas"
-                        value={resumen.alertas_altas}
-                        max={maxCargaAdministrativa}
-                        tone="red"
+                        label="No aplica"
+                        value={documentacionDisponible ? documentacionResumen.documentos_no_aplica : 0}
+                        max={documentacionDisponible ? documentacionResumen.total_documentos : 1}
+                        tone="slate"
                       />
                       <BarRow
-                        label="Alertas medias"
-                        value={resumen.alertas_medias}
-                        max={maxCargaAdministrativa}
+                        label="Sin clasificar"
+                        value={documentacionDisponible ? documentacionResumen.documentos_estado_no_controlado : 0}
+                        max={documentacionDisponible ? documentacionResumen.total_documentos : 1}
                         tone="amber"
                       />
                     </div>
+                    {documentacionDisponible ? (
+                      <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                        {documentacionValidadaPct}% validada · {documentacionRecibidaPct}% recibida pendiente de revisión.
+                      </p>
+                    ) : null}
                   </FocusPanel>
 
                   <FocusPanel title="Impacto potencial estimado">
@@ -1264,7 +1288,7 @@ export default function DashboardPage() {
                         tone="amber"
                       />
                       <BarRow
-                        label="Avance €"
+                        label="Avance econ."
                         value={Math.round(ofertaResumen.importe_ejecutado_total)}
                         max={Math.round(ofertaResumen.importe_concedido_total)}
                         tone="blue"
@@ -1278,15 +1302,15 @@ export default function DashboardPage() {
                   <span className="font-black text-slate-900">
                     {euro(ofertaResumen.importe_ejecutado_total)}
                   </span>{" "}
-                  ({avanceEconomicoPct}% sobre lo concedido). Dato auxiliar separado del reparto
-                  institucional de la resolución.
+                  ({avanceEconomicoPct}% sobre lo concedido). No equivale a justificación final
+                  validada ni a cierre administrativo del subexpediente.
                 </div>
               </div>
             </section>
 
             <NoteCard
               title="Nota de trazabilidad"
-              text={ofertaResumen.nota_trazabilidad || resumen.nota_trazabilidad}
+              text={notaTrazabilidad}
               href="/trazabilidad-tecnica"
             />
           </div>
