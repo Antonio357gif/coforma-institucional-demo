@@ -703,6 +703,16 @@ export default function DashboardPage() {
             href: "/oferta-formativa",
             description: "Acciones AF/CP concedidas.",
           },
+          {
+            label: "Distribución territorial",
+            href: "/distribucion-territorial",
+            description: "Lectura por isla, municipio, estado operativo e importes.",
+          },
+          {
+            label: "Planning de ejecución",
+            href: "/planificacion-ejecucion",
+            description: "Vista anual, mensual y semanal de AF/CP con calendario no lectivo.",
+          },
         ],
       },
       {
@@ -715,6 +725,11 @@ export default function DashboardPage() {
             label: "Recepción documental",
             href: "/recepcion-documentacion",
             description: "Bandeja documental por fases y subexpedientes.",
+          },
+          {
+            label: "Documentación por fases",
+            href: "/documentacion-fases",
+            description: "Control documental por fases, accionables y derivaciones.",
           },
           {
             label: "Trazabilidad técnica",
