@@ -283,6 +283,7 @@ async function fetchAllAccionesTemporales() {
       .select("*")
       .order("prioridad_temporal", { ascending: true })
       .order("fecha_fin_prevista", { ascending: true })
+      .order("oferta_id", { ascending: true })
       .range(from, to);
 
     if (error) throw error;
