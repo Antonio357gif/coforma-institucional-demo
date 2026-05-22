@@ -216,8 +216,6 @@ function esNoLectivo(
   isla?: string | null,
   municipio?: string | null
 ) {
-  const day = date.getDay();
-  if (day === 0 || day === 6) return true;
 
   const iso = isoDate(date);
   const islaNorm = normalize(isla);
@@ -808,9 +806,9 @@ export default function PlanificacionEjecucionPage() {
             detail="pintables en planning"
           />
           <KpiCard
-            label="Sin fecha completa"
+            label="Sin fecha comunicada"
             value={loading ? "…" : num(resumenConvocatoria.sinFechaCompleta)}
-            detail="pendientes de planificación"
+            detail="pendientes de inicio"
           />
           <KpiCard
             label="En ejecución"
@@ -832,9 +830,9 @@ export default function PlanificacionEjecucionPage() {
         {!loading && resumenConvocatoria.sinFechaCompleta > 0 ? (
           <section className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 shadow-sm">
             <span className="font-bold">
-              {num(resumenConvocatoria.sinFechaCompleta)} acciones concedidas sin fecha completa.
+              {num(resumenConvocatoria.sinFechaCompleta)} acciones pendientes de ejecutar sin comunicación temporal de inicio/fin.
             </span>{" "}
-            No desaparecen del control: quedan identificadas como pendiente de planificación temporal, aunque no puedan dibujarse como barra de inicio-fin.
+            No desaparecen del control: quedan identificadas como pendientes de comunicación de arranque por parte de la entidad beneficiaria.
             {accionesSinFechaFiltradas.length !== resumenConvocatoria.sinFechaCompleta ? (
               <span> Con los filtros actuales: {num(accionesSinFechaFiltradas.length)}.</span>
             ) : null}{" "}
