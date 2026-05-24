@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 const VERSION_RECEPCION_DOCUMENTACION =
-  "2026-05-20-v1-bandeja-documental-sin-mesa-embebida";
+  "2026-05-24-v2-bandeja-documental-lectura-fiscalizadora";
 
 type ResumenDocumental = {
   documentos_total: number;
@@ -31,6 +31,19 @@ type ResumenDocumental = {
   riesgo_activo_alto_critico: number;
   riesgo_prioritario_alto_critico: number;
   riesgo_vencido_alto_critico: number;
+};
+
+type FaseResumenRow = {
+  fase: string | null;
+  controles_total: number | null;
+  controles_validados: number | null;
+  controles_recibidos: number | null;
+  controles_no_aplica: number | null;
+  controles_accionables: number | null;
+  controles_documentales_independientes: number | null;
+  controles_integrados: number | null;
+  controles_obligatorios_operativos: number | null;
+  controles_condicionados_integrados_tecnicos: number | null;
 };
 
 type AccionResumenRow = {
@@ -81,6 +94,8 @@ type AccionResumenRow = {
   inicio_no_recibido: number;
   inicio_no_aplica: number;
   inicio_riesgo_activo: number;
+  inicio_independientes?: number | null;
+  inicio_integrados?: number | null;
 
   seguimiento_total: number;
   seguimiento_validado: number;
@@ -89,6 +104,8 @@ type AccionResumenRow = {
   seguimiento_no_recibido: number;
   seguimiento_no_aplica: number;
   seguimiento_riesgo_activo: number;
+  seguimiento_independientes?: number | null;
+  seguimiento_integrados?: number | null;
 
   finalizacion_total: number;
   finalizacion_validado: number;
@@ -97,6 +114,8 @@ type AccionResumenRow = {
   finalizacion_no_recibido: number;
   finalizacion_no_aplica: number;
   finalizacion_riesgo_activo: number;
+  finalizacion_independientes?: number | null;
+  finalizacion_integrados?: number | null;
 
   justificacion_total: number;
   justificacion_validado: number;
@@ -105,6 +124,8 @@ type AccionResumenRow = {
   justificacion_no_recibido: number;
   justificacion_no_aplica: number;
   justificacion_riesgo_activo: number;
+  justificacion_independientes?: number | null;
+  justificacion_integrados?: number | null;
 
   cierre_total: number;
   cierre_validado: number;
@@ -113,6 +134,8 @@ type AccionResumenRow = {
   cierre_no_recibido: number;
   cierre_no_aplica: number;
   cierre_riesgo_activo: number;
+  cierre_independientes?: number | null;
+  cierre_integrados?: number | null;
 
   documentos_validados: number;
   documentos_recibidos: number;
@@ -121,6 +144,11 @@ type AccionResumenRow = {
   documentos_no_aplica: number;
   documentos_requieren_subsanacion: number;
   documentos_con_riesgo_activo: number;
+
+  documentos_independientes?: number | null;
+  controles_integrados?: number | null;
+  obligaciones_operativas?: number | null;
+  controles_condicionados_integrados_tecnicos?: number | null;
 
   lectura_documental: string | null;
 };
@@ -197,6 +225,7 @@ const pagoOptions: SelectOption[] = [
   { value: "retenido_revision", label: "Retenido por revisión" },
   { value: "retenido_riesgo", label: "Retenido por riesgo" },
 ];
+
 function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
 }
@@ -233,6 +262,10 @@ function clean(value: string | null | undefined, fallback = "—") {
   return trimmed === "" ? fallback : trimmed;
 }
 
+function safeNumber(value: number | null | undefined) {
+  return Number(value ?? 0);
+}
+
 function faseStats(row: AccionResumenRow, fase: FaseKey) {
   if (fase === "inicio") {
     return {
@@ -243,6 +276,8 @@ function faseStats(row: AccionResumenRow, fase: FaseKey) {
       noRecibido: row.inicio_no_recibido,
       noAplica: row.inicio_no_aplica,
       riesgoActivo: row.inicio_riesgo_activo,
+      independientes: row.inicio_independientes ?? row.inicio_total,
+      integrados: row.inicio_integrados ?? 0,
     };
   }
 
@@ -255,6 +290,8 @@ function faseStats(row: AccionResumenRow, fase: FaseKey) {
       noRecibido: row.seguimiento_no_recibido,
       noAplica: row.seguimiento_no_aplica,
       riesgoActivo: row.seguimiento_riesgo_activo,
+      independientes: row.seguimiento_independientes ?? row.seguimiento_total,
+      integrados: row.seguimiento_integrados ?? 0,
     };
   }
 
@@ -267,6 +304,8 @@ function faseStats(row: AccionResumenRow, fase: FaseKey) {
       noRecibido: row.finalizacion_no_recibido,
       noAplica: row.finalizacion_no_aplica,
       riesgoActivo: row.finalizacion_riesgo_activo,
+      independientes: row.finalizacion_independientes ?? row.finalizacion_total,
+      integrados: row.finalizacion_integrados ?? 0,
     };
   }
 
@@ -279,6 +318,8 @@ function faseStats(row: AccionResumenRow, fase: FaseKey) {
       noRecibido: row.justificacion_no_recibido,
       noAplica: row.justificacion_no_aplica,
       riesgoActivo: row.justificacion_riesgo_activo,
+      independientes: row.justificacion_independientes ?? row.justificacion_total,
+      integrados: row.justificacion_integrados ?? 0,
     };
   }
 
@@ -290,6 +331,8 @@ function faseStats(row: AccionResumenRow, fase: FaseKey) {
     noRecibido: row.cierre_no_recibido,
     noAplica: row.cierre_no_aplica,
     riesgoActivo: row.cierre_riesgo_activo,
+    independientes: row.cierre_independientes ?? row.cierre_total,
+    integrados: row.cierre_integrados ?? 0,
   };
 }
 
@@ -441,6 +484,7 @@ function KpiCard({
 
 export default function RecepcionDocumentacionPage() {
   const [resumen, setResumen] = useState<ResumenDocumental | null>(null);
+  const [fasesResumen, setFasesResumen] = useState<FaseResumenRow[]>([]);
   const [resumenIntentos, setResumenIntentos] = useState(0);
   const [acciones, setAcciones] = useState<AccionResumenRow[]>([]);
   const [loadingAcciones, setLoadingAcciones] = useState(true);
@@ -465,26 +509,61 @@ export default function RecepcionDocumentacionPage() {
   const inicio = (pagina - 1) * pageSize;
   const resumenDisponible = resumen !== null && !resumenError;
 
+  const resumenFiscalizador = useMemo(() => {
+    return fasesResumen.reduce(
+      (acc, row) => {
+        acc.total += safeNumber(row.controles_total);
+        acc.independientes += safeNumber(row.controles_documentales_independientes);
+        acc.integrados += safeNumber(row.controles_integrados);
+        acc.obligaciones += safeNumber(row.controles_obligatorios_operativos);
+        acc.condicionadosTecnicos += safeNumber(
+          row.controles_condicionados_integrados_tecnicos
+        );
+        acc.accionables += safeNumber(row.controles_accionables);
+        acc.validados += safeNumber(row.controles_validados);
+        acc.recibidos += safeNumber(row.controles_recibidos);
+        acc.noAplica += safeNumber(row.controles_no_aplica);
+
+        return acc;
+      },
+      {
+        total: 0,
+        independientes: 0,
+        integrados: 0,
+        obligaciones: 0,
+        condicionadosTecnicos: 0,
+        accionables: 0,
+        validados: 0,
+        recibidos: 0,
+        noAplica: 0,
+      }
+    );
+  }, [fasesResumen]);
+
   const resumenCalculado = useMemo(() => {
     return {
-      total: resumen?.documentos_total ?? 0,
+      total: resumenFiscalizador.total || resumen?.documentos_total || 0,
       noRecibidos: resumen?.no_recibidos ?? 0,
-      recibidos: resumen?.recibidos ?? 0,
+      recibidos: resumenFiscalizador.recibidos || resumen?.recibidos || 0,
       enRevision: resumen?.en_revision ?? 0,
-      validados: resumen?.validados ?? 0,
+      validados: resumenFiscalizador.validados || resumen?.validados || 0,
       subsanables: resumen?.subsanables ?? 0,
       vencidos: resumen?.vencidos ?? 0,
-      noAplica: resumen?.no_aplica ?? 0,
+      noAplica: resumenFiscalizador.noAplica || resumen?.no_aplica || 0,
       riesgoActivoAltoCritico: resumen?.riesgo_activo_alto_critico ?? 0,
       riesgoPrioritarioAltoCritico: resumen?.riesgo_prioritario_alto_critico ?? 0,
       riesgoVencidoAltoCritico: resumen?.riesgo_vencido_alto_critico ?? 0,
       ofertas: resumen?.ofertas ?? 0,
       subexpedientes: resumen?.subexpedientes ?? 0,
       entidades: resumen?.entidades ?? 0,
-      obligatorios: resumen?.obligatorios ?? 0,
-      condicionales: resumen?.condicionales ?? 0,
+      obligatorios: resumenFiscalizador.obligaciones || resumen?.obligatorios || 0,
+      condicionales:
+        resumenFiscalizador.condicionadosTecnicos || resumen?.condicionales || 0,
+      independientes: resumenFiscalizador.independientes,
+      integrados: resumenFiscalizador.integrados,
+      accionables: resumenFiscalizador.accionables,
     };
-  }, [resumen]);
+  }, [resumen, resumenFiscalizador]);
 
   const filtrosActivos = useMemo(() => {
     const activos: string[] = [];
@@ -541,6 +620,16 @@ export default function RecepcionDocumentacionPage() {
     setLoadingResumen(false);
   }
 
+  async function loadFasesResumen() {
+    const { data } = await supabase
+      .from("v_documentacion_fases_resumen")
+      .select(
+        "fase,controles_total,controles_validados,controles_recibidos,controles_no_aplica,controles_accionables,controles_documentales_independientes,controles_integrados,controles_obligatorios_operativos,controles_condicionados_integrados_tecnicos"
+      );
+
+    setFasesResumen((data ?? []) as FaseResumenRow[]);
+  }
+
   async function loadAcciones() {
     setLoadingAcciones(true);
     setAccionesError(null);
@@ -575,8 +664,10 @@ export default function RecepcionDocumentacionPage() {
       setAcciones(loadedVisible);
       setHasNextPage(loadedFull.length > pageSize);
       setLoadingAcciones(false);
-    } catch (err: any) {
-      setAccionesError(err?.message ?? "No se pudo cargar la bandeja documental.");
+    } catch (err: unknown) {
+      setAccionesError(
+        err instanceof Error ? err.message : "No se pudo cargar la bandeja documental."
+      );
       setAcciones([]);
       setHasNextPage(false);
       setLoadingAcciones(false);
@@ -585,6 +676,7 @@ export default function RecepcionDocumentacionPage() {
 
   useEffect(() => {
     loadResumen(0);
+    loadFasesResumen();
   }, []);
 
   useEffect(() => {
@@ -637,7 +729,7 @@ export default function RecepcionDocumentacionPage() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Recepción documental</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Bandeja documental global por subexpediente. La mesa técnica, el estado de pago y la matriz normativa se trabajan en páginas independientes.
+              Bandeja fiscalizadora por subexpediente: controles totales, documentos independientes, controles integrados y derivación técnica.
             </p>
           </div>
 
@@ -647,7 +739,7 @@ export default function RecepcionDocumentacionPage() {
             </div>
             <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-100">
               {resumenDisponible
-                ? `Control documental sobre ${num(resumenCalculado.total)} registros`
+                ? `Universo fiscalizador: ${num(resumenCalculado.total)} controles`
                 : "Resumen global no cargado todavía"}
             </div>
           </div>
@@ -703,10 +795,17 @@ export default function RecepcionDocumentacionPage() {
             </span>
 
             <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-800 shadow-sm">
-              Bandeja paginada · datos globales desde vista resumen
+              Bandeja paginada · lectura desde vistas de backend
             </span>
           </div>
         </div>
+
+        <section className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] leading-5 text-emerald-950 shadow-sm">
+          <span className="font-black">Lectura institucional:</span>{" "}
+          la recepción documental muestra el universo de controles fiscalizadores por subexpediente.
+          El total de controles se separa en documentos o unidades independientes y controles integrados
+          dentro de otros documentos. No todo control equivale a un documento autónomo.
+        </section>
 
         {resumenError ? (
           <section className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 shadow-sm">
@@ -742,15 +841,37 @@ export default function RecepcionDocumentacionPage() {
 
         <section className="grid gap-2 lg:grid-cols-7">
           <KpiCard
-            label="Controles documentales"
+            label="Universo fiscalizador"
             value={resumenDisponible ? num(resumenCalculado.total) : "—"}
-            detail={
-              resumenDisponible
-                ? `${num(resumenCalculado.obligatorios)} oblig. · ${num(
-                    resumenCalculado.condicionales
-                  )} cond.`
-                : "pendiente de resumen"
-            }
+            detail="controles documentales"
+          />
+
+          <KpiCard
+            label="Documentos independientes"
+            value={resumenDisponible ? num(resumenCalculado.independientes) : "—"}
+            detail="computan como unidad propia"
+            tone="blue"
+          />
+
+          <KpiCard
+            label="Controles integrados"
+            value={resumenDisponible ? num(resumenCalculado.integrados) : "—"}
+            detail="incluidos en otros documentos"
+            tone="slate"
+          />
+
+          <KpiCard
+            label="Obligaciones operativas"
+            value={resumenDisponible ? num(resumenCalculado.obligatorios) : "—"}
+            detail="según matriz normativa"
+            tone="green"
+          />
+
+          <KpiCard
+            label="Condicionales / técnicos"
+            value={resumenDisponible ? num(resumenCalculado.condicionales) : "—"}
+            detail="dependen de fase o incidencia"
+            tone="amber"
           />
 
           <KpiCard
@@ -758,27 +879,6 @@ export default function RecepcionDocumentacionPage() {
             value={resumenDisponible ? num(resumenCalculado.recibidos) : "—"}
             detail="aportados sin validar"
             tone="blue"
-          />
-
-          <KpiCard
-            label="En revisión"
-            value={resumenDisponible ? num(resumenCalculado.enRevision) : "—"}
-            detail="pendientes de validar"
-            tone="amber"
-          />
-
-          <KpiCard
-            label="Validados"
-            value={resumenDisponible ? num(resumenCalculado.validados) : "—"}
-            detail="documentación conforme"
-            tone="green"
-          />
-
-          <KpiCard
-            label="No aplica"
-            value={resumenDisponible ? num(resumenCalculado.noAplica) : "—"}
-            detail="fases no procedentes"
-            tone="slate"
           />
 
           <KpiCard
@@ -792,13 +892,6 @@ export default function RecepcionDocumentacionPage() {
                 : "pendiente"
             }
             tone="red"
-          />
-
-          <KpiCard
-            label="Lectura técnica"
-            value="Bandeja"
-            detail="documental + derivación"
-            tone="blue"
           />
         </section>
 
@@ -957,7 +1050,7 @@ export default function RecepcionDocumentacionPage() {
                 Bandeja documental por subexpediente
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Una línea por subexpediente. Desde aquí se accede a la mesa documental, al estado de pago o al subexpediente.
+                Una línea por subexpediente. El total distingue controles fiscalizadores, documentos independientes e integrados.
               </p>
             </div>
 
@@ -1010,7 +1103,7 @@ export default function RecepcionDocumentacionPage() {
                   <th className="w-[30%] px-2 py-1.5">Entidad / acción</th>
                   <th className="w-[14%] px-2 py-1.5">Estado</th>
                   <th className="w-[28%] px-2 py-1.5">Fases</th>
-                  <th className="w-[16%] px-2 py-1.5">Documentos</th>
+                  <th className="w-[16%] px-2 py-1.5">Controles</th>
                   <th className="w-[12%] px-2 py-1.5 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -1034,6 +1127,14 @@ export default function RecepcionDocumentacionPage() {
 
                 {!loadingAcciones &&
                   acciones.map((accion) => {
+                    const documentosIndependientes =
+                      accion.documentos_independientes ?? accion.documentos_total;
+                    const controlesIntegrados = accion.controles_integrados ?? 0;
+                    const obligacionesOperativas =
+                      accion.obligaciones_operativas ?? 0;
+                    const controlesCondicionados =
+                      accion.controles_condicionados_integrados_tecnicos ?? 0;
+
                     return (
                       <tr
                         key={accion.subexpediente_id}
@@ -1081,19 +1182,31 @@ export default function RecepcionDocumentacionPage() {
 
                         <td className="px-2 py-1.5 align-top">
                           <div className="grid grid-cols-1 gap-1">
-                            {faseOrder.map((fase) => (
-                              <Link
-                                key={`${accion.subexpediente_id}-${fase}`}
-                                href={`/mesa-documental/${accion.subexpediente_id}?fase=${fase}`}
-                                className={`flex items-center justify-between rounded-lg border px-2 py-0.5 text-[10px] font-semibold hover:brightness-95 ${faseResumenClass(
-                                  accion,
-                                  fase
-                                )}`}
-                              >
-                                <span>{labelFromOptions(faseOptions, fase)}</span>
-                                <span>{faseResumenText(accion, fase)}</span>
-                              </Link>
-                            ))}
+                            {faseOrder.map((fase) => {
+                              const stats = faseStats(accion, fase);
+
+                              return (
+                                <Link
+                                  key={`${accion.subexpediente_id}-${fase}`}
+                                  href={`/mesa-documental/${accion.subexpediente_id}?fase=${fase}`}
+                                  className={`rounded-lg border px-2 py-0.5 text-[10px] font-semibold hover:brightness-95 ${faseResumenClass(
+                                    accion,
+                                    fase
+                                  )}`}
+                                  title={`${num(stats.independientes)} independientes · ${num(stats.integrados)} integrados`}
+                                >
+                                  <span className="flex items-center justify-between">
+                                    <span>{labelFromOptions(faseOptions, fase)}</span>
+                                    <span>{faseResumenText(accion, fase)}</span>
+                                  </span>
+                                  {stats.integrados > 0 ? (
+                                    <span className="mt-0.5 block text-[9px] font-medium opacity-80">
+                                      {num(stats.independientes)} ind. · {num(stats.integrados)} integr.
+                                    </span>
+                                  ) : null}
+                                </Link>
+                              );
+                            })}
                           </div>
                         </td>
 
@@ -1101,17 +1214,23 @@ export default function RecepcionDocumentacionPage() {
                           <p className="font-semibold text-slate-900">
                             {num(accion.documentos_total)} controles
                           </p>
-                          <p className="text-[10px] leading-4 text-slate-500">
-                            {num(accion.documentos_validados)} validados
+                          <p className="text-[10px] leading-4 text-blue-700">
+                            {num(documentosIndependientes)} independientes
                           </p>
                           <p className="text-[10px] leading-4 text-slate-500">
-                            {num(accion.documentos_recibidos)} recibidos
+                            {num(controlesIntegrados)} integrados
+                          </p>
+                          <p className="text-[10px] leading-4 text-emerald-700">
+                            {num(obligacionesOperativas)} obligaciones
+                          </p>
+                          <p className="text-[10px] leading-4 text-amber-700">
+                            {num(controlesCondicionados)} cond./téc.
+                          </p>
+                          <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                            {num(accion.documentos_validados)} val. · {num(accion.documentos_recibidos)} recib.
                           </p>
                           <p className="text-[10px] leading-4 text-slate-500">
-                            {num(accion.documentos_en_revision)} en revisión
-                          </p>
-                          <p className="text-[10px] leading-4 text-slate-500">
-                            {num(accion.documentos_no_aplica)} no aplica
+                            {num(accion.documentos_en_revision)} rev. · {num(accion.documentos_no_aplica)} no aplica
                           </p>
                           {accion.documentos_con_riesgo_activo > 0 ? (
                             <p className="mt-0.5 text-[10px] font-semibold text-red-700">
@@ -1165,7 +1284,7 @@ export default function RecepcionDocumentacionPage() {
                 Regla operativa
               </p>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Recepción documental localiza el subexpediente. La mesa documental trabaja la validación técnica. El estado de pago se revisa en una página separada para perfiles superiores. La matriz normativa justifica el control documental.
+                Recepción documental localiza el subexpediente y separa controles totales, documentos independientes, controles integrados y obligaciones operativas. La mesa documental trabaja la validación técnica. La matriz normativa justifica cada control.
               </p>
             </div>
 

@@ -836,7 +836,7 @@ export default function PlanificacionEjecucionPage() {
             {accionesSinFechaFiltradas.length !== resumenConvocatoria.sinFechaCompleta ? (
               <span> Con los filtros actuales: {num(accionesSinFechaFiltradas.length)}.</span>
             ) : null}{" "}
-            No lectivos activos registrados: {num(festivos.length)}.
+            Calendario no lectivo configurado por ambito territorial: fines de semana y festivos se aplican segun isla/municipio de cada accion.
           </section>
         ) : null}
 

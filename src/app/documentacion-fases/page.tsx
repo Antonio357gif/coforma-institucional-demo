@@ -22,6 +22,10 @@ type FaseResumen = {
   controles_accionables_riesgo: number | null;
   subexpedientes_afectados: number | null;
   entidades_afectadas: number | null;
+  controles_documentales_independientes: number | null;
+  controles_integrados: number | null;
+  controles_obligatorios_operativos: number | null;
+  controles_condicionados_integrados_tecnicos: number | null;
 };
 
 type DocumentoAccionable = {
@@ -79,7 +83,7 @@ type FaseConfig = {
   description: string;
 };
 
-const VERSION_DOCUMENTACION_FASES = "2026-05-21-v3-bandeja-compacta";
+const VERSION_DOCUMENTACION_FASES = "2026-05-24-v4-lectura-fiscalizadora-backend";
 
 const fases: FaseConfig[] = [
   {
@@ -180,17 +184,27 @@ function lecturaFase(row: FaseResumen) {
   const accionables = Number(row.controles_accionables ?? 0);
   const noAplica = Number(row.controles_no_aplica ?? 0);
   const total = Number(row.controles_total ?? 0);
+  const integrados = Number(row.controles_integrados ?? 0);
+  const independientes = Number(row.controles_documentales_independientes ?? 0);
+
+  if (fase === "seguimiento" && integrados > 0) {
+    return "Incluye controles integrados: no todos equivalen a documento autónomo.";
+  }
 
   if (accionables > 0 && fase === "seguimiento") {
     return "Fase con mayor carga técnica viva.";
   }
 
   if (accionables > 0) {
-    return "Existen documentos recibidos pendientes.";
+    return "Existen documentos recibidos pendientes de revisión.";
   }
 
   if (total > 0 && noAplica / total > 0.5) {
     return "Predomina no aplica: no es incidencia viva.";
+  }
+
+  if (independientes > 0) {
+    return "Carga documental clasificada por matriz normativa.";
   }
 
   return "Sin carga accionable viva.";
@@ -232,21 +246,36 @@ function FaseCard({ row }: { row: FaseResumen }) {
         </div>
 
         <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-800">
-          {num(row.controles_total)}
+          {num(row.controles_total)} total
         </span>
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-1 text-[10px]">
+        <div className="rounded-lg bg-blue-50 px-2 py-1 text-blue-800">
+          <span className="font-black">{num(row.controles_documentales_independientes)}</span> indep.
+        </div>
+        <div className="rounded-lg bg-slate-50 px-2 py-1 text-slate-700">
+          <span className="font-black">{num(row.controles_integrados)}</span> integr.
+        </div>
         <div className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-800">
+          <span className="font-black">{num(row.controles_obligatorios_operativos)}</span> oblig.
+        </div>
+        <div className="rounded-lg bg-amber-50 px-2 py-1 text-amber-800">
+          <span className="font-black">{num(row.controles_condicionados_integrados_tecnicos)}</span> cond./téc.
+        </div>
+      </div>
+
+      <div className="mt-1 grid grid-cols-2 gap-1 text-[10px]">
+        <div className="rounded-lg bg-emerald-50/70 px-2 py-1 text-emerald-800">
           <span className="font-black">{num(row.controles_validados)}</span> val.
         </div>
-        <div className="rounded-lg bg-blue-50 px-2 py-1 text-blue-800">
+        <div className="rounded-lg bg-blue-50/80 px-2 py-1 text-blue-800">
           <span className="font-black">{num(row.controles_recibidos)}</span> recib.
         </div>
         <div className="rounded-lg bg-slate-50 px-2 py-1 text-slate-700">
           <span className="font-black">{num(row.controles_no_aplica)}</span> no aplica
         </div>
-        <div className="rounded-lg bg-amber-50 px-2 py-1 text-amber-800">
+        <div className="rounded-lg bg-amber-50/80 px-2 py-1 text-amber-800">
           <span className="font-black">{num(row.controles_accionables)}</span> acc.
         </div>
       </div>
@@ -489,6 +518,38 @@ export default function DocumentacionFasesPage() {
     [resumen]
   );
 
+  const totalDocumentalesIndependientes = useMemo(
+    () =>
+      resumen.reduce(
+        (acc, row) => acc + Number(row.controles_documentales_independientes ?? 0),
+        0
+      ),
+    [resumen]
+  );
+
+  const totalIntegrados = useMemo(
+    () => resumen.reduce((acc, row) => acc + Number(row.controles_integrados ?? 0), 0),
+    [resumen]
+  );
+
+  const totalObligatoriosOperativos = useMemo(
+    () =>
+      resumen.reduce(
+        (acc, row) => acc + Number(row.controles_obligatorios_operativos ?? 0),
+        0
+      ),
+    [resumen]
+  );
+
+  const totalCondicionadosIntegradosTecnicos = useMemo(
+    () =>
+      resumen.reduce(
+        (acc, row) => acc + Number(row.controles_condicionados_integrados_tecnicos ?? 0),
+        0
+      ),
+    [resumen]
+  );
+
   const totalAccionables = useMemo(
     () => resumen.reduce((acc, row) => acc + Number(row.controles_accionables ?? 0), 0),
     [resumen]
@@ -496,11 +557,6 @@ export default function DocumentacionFasesPage() {
 
   const totalRiesgoActivo = useMemo(
     () => resumen.reduce((acc, row) => acc + Number(row.controles_riesgo_activo ?? 0), 0),
-    [resumen]
-  );
-
-  const totalNoAplica = useMemo(
-    () => resumen.reduce((acc, row) => acc + Number(row.controles_no_aplica ?? 0), 0),
     [resumen]
   );
 
@@ -531,7 +587,7 @@ export default function DocumentacionFasesPage() {
               Documentación por fases
             </h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Análisis fiscalizador de carga documental viva por fase, con derivación a mesa y matriz normativa.
+              Lectura fiscalizadora real de controles documentales por fase: documentos independientes, controles integrados, obligaciones operativas y derivación técnica.
             </p>
           </div>
 
@@ -590,29 +646,48 @@ export default function DocumentacionFasesPage() {
           </section>
         ) : null}
 
-        <section className="grid gap-2 md:grid-cols-5">
+        <section className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] leading-5 text-emerald-950 shadow-sm">
+          <span className="font-black">Lectura institucional:</span> el backend distingue universo de controles
+          fiscalizadores, documentos independientes, controles integrados, obligaciones operativas y
+          controles condicionales o técnicos. No todo control equivale a un documento autónomo ni todo
+          control aplica en todas las fases.
+        </section>
+
+        <section className="grid gap-2 md:grid-cols-2 lg:grid-cols-7">
           <KpiCard
-            label="Controles documentales"
+            label="Universo fiscalizador"
             value={loadingResumen ? "…" : num(totalControles)}
-            detail="universo documental"
+            detail="controles documentales"
           />
 
           <KpiCard
-            label="Accionables"
-            value={loadingResumen ? "…" : num(totalAccionables)}
-            detail="requieren revisión técnica"
+            label="Documentos independientes"
+            value={loadingResumen ? "…" : num(totalDocumentalesIndependientes)}
+            detail="computan como unidad propia"
+          />
+
+          <KpiCard
+            label="Controles integrados"
+            value={loadingResumen ? "…" : num(totalIntegrados)}
+            detail="incluidos en otros documentos"
+          />
+
+          <KpiCard
+            label="Obligaciones operativas"
+            value={loadingResumen ? "…" : num(totalObligatoriosOperativos)}
+            detail="según matriz normativa"
+          />
+
+          <KpiCard
+            label="Condicionales / técnicos"
+            value={loadingResumen ? "…" : num(totalCondicionadosIntegradosTecnicos)}
+            detail="dependen de fase o incidencia"
           />
 
           <KpiCard
             label="Recibidos pendientes"
             value={loadingResumen ? "…" : num(totalRecibidos)}
-            detail="documentos aportados"
-          />
-
-          <KpiCard
-            label="No aplica"
-            value={loadingResumen ? "…" : num(totalNoAplica)}
-            detail="no deben computar como incidencia"
+            detail="aportados para revisión"
           />
 
           <KpiCard
