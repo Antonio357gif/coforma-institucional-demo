@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 const VERSION_RECEPCION_DOCUMENTACION =
-  "2026-05-24-v2-bandeja-documental-lectura-fiscalizadora";
+  "2026-05-25-v3-bandeja-documental-unidades-controles";
 
 type ResumenDocumental = {
   documentos_total: number;
@@ -729,7 +729,7 @@ export default function RecepcionDocumentacionPage() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Recepción documental</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Bandeja fiscalizadora por subexpediente: controles totales, documentos independientes, controles integrados y derivación técnica.
+              Bandeja fiscalizadora por subexpediente: controles totales, unidades independientes, controles integrados y derivación técnica.
             </p>
           </div>
 
@@ -803,8 +803,8 @@ export default function RecepcionDocumentacionPage() {
         <section className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] leading-5 text-emerald-950 shadow-sm">
           <span className="font-black">Lectura institucional:</span>{" "}
           la recepción documental muestra el universo de controles fiscalizadores por subexpediente.
-          El total de controles se separa en documentos o unidades independientes y controles integrados
-          dentro de otros documentos. No todo control equivale a un documento autónomo.
+          El total de controles se separa en unidades independientes y controles integrados
+          dentro de otros controles. No todo control equivale a un documento autónomo.
         </section>
 
         {resumenError ? (
@@ -847,16 +847,16 @@ export default function RecepcionDocumentacionPage() {
           />
 
           <KpiCard
-            label="Documentos independientes"
+            label="Unidades independientes"
             value={resumenDisponible ? num(resumenCalculado.independientes) : "—"}
-            detail="computan como unidad propia"
+            detail="documentos o controles propios"
             tone="blue"
           />
 
           <KpiCard
             label="Controles integrados"
             value={resumenDisponible ? num(resumenCalculado.integrados) : "—"}
-            detail="incluidos en otros documentos"
+            detail="integrados en otros controles"
             tone="slate"
           />
 
@@ -1050,7 +1050,7 @@ export default function RecepcionDocumentacionPage() {
                 Bandeja documental por subexpediente
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Una línea por subexpediente. El total distingue controles fiscalizadores, documentos independientes e integrados.
+                Una línea por subexpediente. El total distingue controles fiscalizadores, unidades independientes e integradas.
               </p>
             </div>
 
@@ -1284,7 +1284,7 @@ export default function RecepcionDocumentacionPage() {
                 Regla operativa
               </p>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Recepción documental localiza el subexpediente y separa controles totales, documentos independientes, controles integrados y obligaciones operativas. La mesa documental trabaja la validación técnica. La matriz normativa justifica cada control.
+                Recepción documental localiza el subexpediente y separa controles totales, unidades independientes, controles integrados y obligaciones operativas. La mesa documental trabaja la validación técnica. La matriz normativa justifica cada control.
               </p>
             </div>
 

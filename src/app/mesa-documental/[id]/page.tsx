@@ -226,14 +226,14 @@ function faseResumenOperativo(stats: FaseStats) {
   const faseLabel = labelFromOptions(faseOptions, stats.fase);
 
   if (stats.total === 0) {
-    return `${faseLabel}: 0 documentos`;
+    return `${faseLabel}: 0 controles`;
   }
 
   if (stats.noAplica === stats.total) {
-    return `${faseLabel}: ${num(stats.total)} documentos · No aplica`;
+    return `${faseLabel}: ${num(stats.total)} controles · No aplica`;
   }
 
-  const partes: string[] = [`${faseLabel}: ${num(stats.total)} documentos`];
+  const partes: string[] = [`${faseLabel}: ${num(stats.total)} controles`];
 
   if (stats.validado > 0) partes.push(`${num(stats.validado)} validados`);
   if (stats.recibido > 0) partes.push(`${num(stats.recibido)} recibidos`);
@@ -598,12 +598,12 @@ export default function MesaDocumentalPage() {
       estado === "recibido"
         ? "Recepción documental registrada desde mesa documental independiente."
         : estado === "validado"
-          ? "Documento validado desde mesa documental independiente."
+          ? "Control documental validado desde mesa documental independiente."
           : estado === "subsanable"
-            ? "Documento marcado para subsanación desde mesa documental independiente."
+            ? "Control documental marcado para subsanación desde mesa documental independiente."
             : estado === "no_aplica"
-              ? "Documento marcado como no aplica desde mesa documental independiente."
-              : "Cambio documental registrado desde mesa documental independiente.";
+              ? "Control documental marcado como no aplica desde mesa documental independiente."
+              : "Cambio de control documental registrado desde mesa documental independiente.";
 
     updateDraft(row.recepcion_id, {
       estado_documental: estado,
@@ -1007,7 +1007,7 @@ export default function MesaDocumentalPage() {
             </p>
 
             <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] leading-4 text-emerald-900">
-              Trazabilidad activa: al guardar, la mesa registra movimiento histórico mediante RPC y actualiza la situación vigente del documento.
+              Trazabilidad activa: al guardar, la mesa registra movimiento histórico mediante RPC y actualiza la situación vigente del control documental.
             </div>
           </div>
 
@@ -1210,7 +1210,7 @@ export default function MesaDocumentalPage() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Mesa documental</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Mesa técnica por fases: seleccionar documento, revisar, validar, subsanar, corregir o marcar no aplica.
+              Mesa técnica por fases: seleccionar control documental, revisar, validar, subsanar, corregir o marcar no aplica.
             </p>
           </div>
 
@@ -1416,7 +1416,7 @@ export default function MesaDocumentalPage() {
                 Trabajo documental por fases
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Seleccione una fase y un documento. La mesa conserva el documento activo tras guardar.
+                Seleccione una fase y un control documental. La mesa conserva el control activo tras guardar.
               </p>
             </div>
 
@@ -1470,14 +1470,14 @@ export default function MesaDocumentalPage() {
                         </div>
                         <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
                           {selectorRows.length > 0
-                            ? `${num(selectorRows.length)} documentos disponibles con el filtro actual.`
-                            : "No hay documentos disponibles para esta fase con el filtro actual."}
+                            ? `${num(selectorRows.length)} controles disponibles con el filtro actual.`
+                            : "No hay controles disponibles para esta fase con el filtro actual."}
                         </p>
                       </div>
 
                       <div className="w-full min-w-[260px] lg:w-[440px]">
                         <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                          Documento de la fase
+                          Control documental de la fase
                         </label>
                         <select
                           value={selectedRow?.recepcion_id ?? ""}
@@ -1487,7 +1487,7 @@ export default function MesaDocumentalPage() {
                           className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none focus:border-blue-400"
                         >
                           {selectorRows.length === 0 ? (
-                            <option value="">Sin documentos</option>
+                            <option value="">Sin controles</option>
                           ) : null}
 
                           {selectorRows.map((row) => (
@@ -1504,7 +1504,7 @@ export default function MesaDocumentalPage() {
                       renderDocumentCard(selectedRow)
                     ) : (
                       <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4 text-center text-[11px] text-slate-500">
-                        No hay documento seleccionado para esta fase.
+                        No hay control documental seleccionado para esta fase.
                       </div>
                     )}
                   </section>
@@ -1531,3 +1531,6 @@ export default function MesaDocumentalPage() {
     </main>
   );
 }
+
+
+

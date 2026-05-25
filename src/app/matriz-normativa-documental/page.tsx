@@ -553,7 +553,7 @@ export default function MatrizNormativaDocumentalPage() {
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
-                placeholder="Documento, fuente, fase, artículo, texto justificativo..."
+                placeholder="Control, fuente, fase, artículo, texto justificativo..."
                 className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>

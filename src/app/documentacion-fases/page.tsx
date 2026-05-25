@@ -196,7 +196,7 @@ function lecturaFase(row: FaseResumen) {
   }
 
   if (accionables > 0) {
-    return "Existen documentos recibidos pendientes de revisión.";
+    return "Existen controles recibidos pendientes de revisión.";
   }
 
   if (total > 0 && noAplica / total > 0.5) {
@@ -312,7 +312,7 @@ function DocumentoAccionableCard({ doc }: { doc: DocumentoAccionable }) {
 
         <section className="min-w-0">
           <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-            Fase / documento
+            Fase / control documental
           </p>
           <p className="text-[13px] font-black text-slate-950">
             {faseLabel(doc.fase)}
@@ -587,7 +587,7 @@ export default function DocumentacionFasesPage() {
               Documentación por fases
             </h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Lectura fiscalizadora real de controles documentales por fase: documentos independientes, controles integrados, obligaciones operativas y derivación técnica.
+              Lectura fiscalizadora real de controles documentales por fase: unidades independientes, controles integrados, obligaciones operativas y derivación técnica.
             </p>
           </div>
 
@@ -648,9 +648,10 @@ export default function DocumentacionFasesPage() {
 
         <section className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] leading-5 text-emerald-950 shadow-sm">
           <span className="font-black">Lectura institucional:</span> el backend distingue universo de controles
-          fiscalizadores, documentos independientes, controles integrados, obligaciones operativas y
-          controles condicionales o técnicos. No todo control equivale a un documento autónomo ni todo
-          control aplica en todas las fases.
+          fiscalizadores, unidades independientes, controles integrados, obligaciones operativas y
+controles condicionales o técnicos. No todo control equivale
+a un documento autónomo ni todo
+control aplica en todas las fases.
         </section>
 
         <section className="grid gap-2 md:grid-cols-2 lg:grid-cols-7">
@@ -661,15 +662,15 @@ export default function DocumentacionFasesPage() {
           />
 
           <KpiCard
-            label="Documentos independientes"
+            label="Unidades independientes"
             value={loadingResumen ? "…" : num(totalDocumentalesIndependientes)}
-            detail="computan como unidad propia"
+            detail="documentos o controles propios"
           />
 
           <KpiCard
             label="Controles integrados"
             value={loadingResumen ? "…" : num(totalIntegrados)}
-            detail="incluidos en otros documentos"
+            detail="integrados en otros controles"
           />
 
           <KpiCard
@@ -721,7 +722,7 @@ export default function DocumentacionFasesPage() {
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
-                placeholder="Entidad, CIF, acción, especialidad, documento, subfase..."
+                placeholder="Entidad, CIF, acción, especialidad, control, subfase..."
                 className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[12px] outline-none focus:border-blue-400"
               />
             </div>
