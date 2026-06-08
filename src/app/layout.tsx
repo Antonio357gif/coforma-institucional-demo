@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import InstitutionalBrandBadge from "./components/InstitutionalBrandBadge";
+import GlobalAuditTracker from "./components/GlobalAuditTracker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,6 +37,7 @@ export default function RootLayout({
     >
       <body className="relative min-h-full flex flex-col">
         <InstitutionalBrandBadge />
+        <GlobalAuditTracker />
         {children}
       </body>
     </html>
