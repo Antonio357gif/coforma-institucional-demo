@@ -670,7 +670,7 @@ export default function DashboardPage() {
     () => [
       {
         label: "Dashboard",
-        icon: "🏠",
+        icon: "🏛️",
         href: "/dashboard",
         active: true,
         description: "Foto madre ejecutiva de la resolución.",
@@ -684,7 +684,7 @@ export default function DashboardPage() {
       },
       {
         label: "Fiscalización",
-        icon: "🧭",
+        icon: "⚖️",
         href: "/mesa-fiscalizacion",
         description: "Ruta central: entidad, acción, subexpediente y decisión.",
         children: [
@@ -717,7 +717,7 @@ export default function DashboardPage() {
       },
       {
         label: "Documentación",
-        icon: "📁",
+        icon: "📑",
         href: "/recepcion-documentacion",
         description: "Control documental clasificado, trazado y vinculado a matriz normativa.",
         children: [
@@ -745,7 +745,7 @@ export default function DashboardPage() {
       },
       {
         label: "Económico",
-        icon: "€",
+        icon: "🏦",
         href: "/justificacion-economica",
         description: "Importes concedidos, avance registrado y situación económica.",
         children: [
@@ -763,7 +763,7 @@ export default function DashboardPage() {
       },
       {
         label: "Actuaciones",
-        icon: "✅",
+        icon: "🖋️",
         href: "/actuaciones-emitidas",
         description: "Decisión recomendada, actuación y expediente administrativo.",
         children: [
@@ -786,7 +786,7 @@ export default function DashboardPage() {
       },
       {
         label: "Comunicaciones",
-        icon: "📣",
+        icon: "✉️",
         href: "/avisos-institucionales",
         description: "Avisos extraordinarios, expediente y canal de comunicación.",
         children: [
@@ -809,7 +809,7 @@ export default function DashboardPage() {
       },
       {
         label: "Auditoría",
-        icon: "🧾",
+        icon: "🛡️",
         href: "/auditoria-intervencion",
         description: "Cierre defendible: auditoría, alertas y trazabilidad.",
         children: [
@@ -817,6 +817,11 @@ export default function DashboardPage() {
             label: "Auditoría / intervención",
             href: "/auditoria-intervencion",
             description: "Lectura de auditoría institucional.",
+          },
+          {
+            label: "Auditoría de usuarios",
+            href: "/actividad-usuarios-demo",
+            description: "Actividad nominal, accesos, navegación e interacciones registradas.",
           },
           {
             label: "Alertas / controles",
@@ -832,7 +837,7 @@ export default function DashboardPage() {
       },
       {
         label: "Sistema demo",
-        icon: "🔌",
+        icon: "👥",
         href: "/conexiones",
         description: "Accesos, conexiones previstas e integraciones futuras.",
         children: [
