@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_ESTADO_PAGO =
-  "2026-05-20-v5-estado-pago-semantica-devengo";
+  "2026-06-07-v6-estado-pago-fases-documentales-y-mesa";
 
 type AccionResumenRow = {
   subexpediente_id: number;
@@ -105,6 +105,13 @@ type PagoOption = {
   helper: string;
 };
 
+type BloqueoPago = {
+  codigo: string;
+  titulo: string;
+  detalle: string;
+  tipo: "documental" | "operativo" | "economico" | "informativo";
+};
+
 const pagoOptions: PagoOption[] = [
   {
     value: "pagado",
@@ -119,7 +126,8 @@ const pagoOptions: PagoOption[] = [
   {
     value: "en_ejecucion_no_abonado",
     label: "En ejecución · pendiente de devengo",
-    helper: "La acción sigue en ejecución; no existe cierre económico final ni devengo completo.",
+    helper:
+      "La acción sigue en ejecución; no existe cierre económico final ni devengo completo.",
   },
   {
     value: "no_devengado",
@@ -141,6 +149,10 @@ const pagoOptions: PagoOption[] = [
 function getInitialId(paramsId: string | string[] | undefined) {
   if (Array.isArray(paramsId)) return paramsId[0] ?? "";
   return paramsId ?? "";
+}
+
+function n(value: number | string | null | undefined) {
+  return Number(value ?? 0);
 }
 
 function num(value: number | string | null | undefined) {
@@ -179,7 +191,10 @@ function pagoLabel(value: string | null | undefined) {
 }
 
 function pagoHelper(value: string | null | undefined) {
-  return pagoOptions.find((option) => option.value === value)?.helper ?? "Estado de pago no catalogado.";
+  return (
+    pagoOptions.find((option) => option.value === value)?.helper ??
+    "Estado de pago no catalogado."
+  );
 }
 
 function pagoBadgeClass(value: string | null | undefined) {
@@ -187,8 +202,12 @@ function pagoBadgeClass(value: string | null | undefined) {
 
   if (pago === "pagado") return "border-emerald-200 bg-emerald-50 text-emerald-800";
   if (pago === "no_devengado") return "border-slate-200 bg-slate-50 text-slate-600";
-  if (pago === "en_ejecucion_no_abonado") return "border-blue-200 bg-blue-50 text-blue-800";
-  if (pago === "en_revision_parcial") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (pago === "en_ejecucion_no_abonado") {
+    return "border-blue-200 bg-blue-50 text-blue-800";
+  }
+  if (pago === "en_revision_parcial") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
   if (pago === "retenido_revision" || pago === "retenido_riesgo") {
     return "border-red-200 bg-red-50 text-red-800";
   }
@@ -230,11 +249,13 @@ function SmallBadge({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className: string;
 }) {
   return (
-    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${className}`}>
+    <span
+      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${className}`}
+    >
       {children}
     </span>
   );
@@ -279,56 +300,235 @@ function KpiCard({
   );
 }
 
-function canAutorizarPago(accion: AccionResumenRow | null) {
-  if (!accion) return false;
+function faseCompleta(
+  nombre: string,
+  total: number | null | undefined,
+  validado: number | null | undefined,
+  enRevision: number | null | undefined,
+  noRecibido: number | null | undefined,
+  riesgoActivo: number | null | undefined
+): BloqueoPago | null {
+  const totalNum = n(total);
+  const validadoNum = n(validado);
+  const revisionNum = n(enRevision);
+  const noRecibidoNum = n(noRecibido);
+  const riesgoNum = n(riesgoActivo);
 
-  return (
-    accion.estado_operativo_administrativo === "finalizada" &&
-    accion.documentacion_estado_subexpediente === "validada" &&
-    Number(accion.documentos_con_riesgo_activo ?? 0) === 0 &&
-    accion.estado_pago_administrativo !== "pagado"
-  );
+  if (totalNum <= 0) {
+    return {
+      codigo: `fase_${nombre.toLowerCase()}_sin_controles`,
+      titulo: `${nombre}: sin controles definidos`,
+      detalle:
+        "No consta ningún control documental en esta fase. Debe revisarse en la mesa documental antes de autorizar pago.",
+      tipo: "documental",
+    };
+  }
+
+  if (validadoNum !== totalNum || revisionNum > 0 || noRecibidoNum > 0 || riesgoNum > 0) {
+    return {
+      codigo: `fase_${nombre.toLowerCase()}_incompleta`,
+      titulo: `${nombre}: fase no completada`,
+      detalle: `${validadoNum}/${totalNum} validados · ${revisionNum} en revisión · ${noRecibidoNum} no recibidos · ${riesgoNum} con riesgo activo.`,
+      tipo: "documental",
+    };
+  }
+
+  return null;
+}
+
+function getBloqueosPago(accion: AccionResumenRow | null): BloqueoPago[] {
+  if (!accion) {
+    return [
+      {
+        codigo: "sin_datos",
+        titulo: "Sin lectura económica",
+        detalle: "La pantalla todavía no ha cargado los datos del subexpediente.",
+        tipo: "informativo",
+      },
+    ];
+  }
+
+  const bloqueos: BloqueoPago[] = [];
+
+  if (accion.estado_operativo_administrativo !== "finalizada") {
+    bloqueos.push({
+      codigo: "estado_no_finalizado",
+      titulo: "La acción no está finalizada",
+      detalle: `Estado actual: ${estadoOperativoLabel(
+        accion.estado_operativo_administrativo
+      )}. El pago final solo puede autorizarse cuando la acción esté finalizada.`,
+      tipo: "operativo",
+    });
+  }
+
+  if (accion.documentacion_estado_subexpediente !== "validada") {
+    bloqueos.push({
+      codigo: "documentacion_global_no_validada",
+      titulo: "Documentación global no validada",
+      detalle: `Estado documental actual: ${clean(
+        accion.documentacion_estado_subexpediente
+      )}. Debe quedar validada antes de autorizar pago.`,
+      tipo: "documental",
+    });
+  }
+
+  const fases = [
+    faseCompleta(
+      "Inicio",
+      accion.inicio_total,
+      accion.inicio_validado,
+      accion.inicio_en_revision,
+      accion.inicio_no_recibido,
+      accion.inicio_riesgo_activo
+    ),
+    faseCompleta(
+      "Seguimiento",
+      accion.seguimiento_total,
+      accion.seguimiento_validado,
+      accion.seguimiento_en_revision,
+      accion.seguimiento_no_recibido,
+      accion.seguimiento_riesgo_activo
+    ),
+    faseCompleta(
+      "Finalización",
+      accion.finalizacion_total,
+      accion.finalizacion_validado,
+      accion.finalizacion_en_revision,
+      accion.finalizacion_no_recibido,
+      accion.finalizacion_riesgo_activo
+    ),
+    faseCompleta(
+      "Justificación",
+      accion.justificacion_total,
+      accion.justificacion_validado,
+      accion.justificacion_en_revision,
+      accion.justificacion_no_recibido,
+      accion.justificacion_riesgo_activo
+    ),
+    faseCompleta(
+      "Cierre",
+      accion.cierre_total,
+      accion.cierre_validado,
+      accion.cierre_en_revision,
+      accion.cierre_no_recibido,
+      accion.cierre_riesgo_activo
+    ),
+  ].filter(Boolean) as BloqueoPago[];
+
+  bloqueos.push(...fases);
+
+  if (n(accion.documentos_en_revision) > 0) {
+    bloqueos.push({
+      codigo: "documentos_en_revision",
+      titulo: "Hay documentos en revisión",
+      detalle: `${num(
+        accion.documentos_en_revision
+      )} documentos siguen en revisión documental.`,
+      tipo: "documental",
+    });
+  }
+
+  if (n(accion.documentos_no_recibidos) > 0) {
+    bloqueos.push({
+      codigo: "documentos_no_recibidos",
+      titulo: "Hay documentos no recibidos",
+      detalle: `${num(
+        accion.documentos_no_recibidos
+      )} documentos constan como no recibidos.`,
+      tipo: "documental",
+    });
+  }
+
+  if (n(accion.documentos_requieren_subsanacion) > 0) {
+    bloqueos.push({
+      codigo: "documentos_subsanacion",
+      titulo: "Hay subsanaciones pendientes",
+      detalle: `${num(
+        accion.documentos_requieren_subsanacion
+      )} documentos requieren subsanación.`,
+      tipo: "documental",
+    });
+  }
+
+  if (n(accion.documentos_con_riesgo_activo) > 0) {
+    bloqueos.push({
+      codigo: "riesgo_documental_activo",
+      titulo: "Hay riesgo documental activo",
+      detalle: `${num(
+        accion.documentos_con_riesgo_activo
+      )} documentos tienen riesgo activo.`,
+      tipo: "documental",
+    });
+  }
+
+  if (n(accion.incidencias_abiertas) > 0) {
+    bloqueos.push({
+      codigo: "incidencias_abiertas",
+      titulo: "Hay incidencias abiertas",
+      detalle: `${num(accion.incidencias_abiertas)} incidencias permanecen abiertas.`,
+      tipo: "operativo",
+    });
+  }
+
+  if (n(accion.requerimientos_pendientes) > 0) {
+    bloqueos.push({
+      codigo: "requerimientos_pendientes",
+      titulo: "Hay requerimientos pendientes",
+      detalle: `${num(
+        accion.requerimientos_pendientes
+      )} requerimientos siguen pendientes.`,
+      tipo: "operativo",
+    });
+  }
+
+  if (accion.estado_pago_administrativo === "pagado") {
+    bloqueos.push({
+      codigo: "pago_ya_registrado",
+      titulo: "Pago ya registrado",
+      detalle:
+        "El estado administrativo ya consta como pagado. Solo debe revisarse si existe incidencia sobrevenida.",
+      tipo: "informativo",
+    });
+  }
+
+  return bloqueos;
+}
+
+function canAutorizarPago(accion: AccionResumenRow | null) {
+  return getBloqueosPago(accion).length === 0;
 }
 
 function decisionRecomendada(accion: AccionResumenRow | null) {
   if (!accion) return "Cargando lectura económica del subexpediente.";
 
-  if (Number(accion.documentos_con_riesgo_activo ?? 0) > 0) {
-    return "Retener pago por riesgo documental activo hasta revisión técnica.";
-  }
+  const bloqueos = getBloqueosPago(accion);
 
-  if (Number(accion.incidencias_abiertas ?? 0) > 0 || Number(accion.requerimientos_pendientes ?? 0) > 0) {
-    return "Mantener en revisión hasta resolver incidencias o requerimientos pendientes.";
-  }
+  if (bloqueos.length > 0) {
+    const bloqueoInformativoPago = bloqueos.find(
+      (bloqueo) => bloqueo.codigo === "pago_ya_registrado"
+    );
 
-  if (accion.estado_operativo_administrativo === "pendiente_ejecutar") {
-    return "No devengado: la acción no ha iniciado ejecución efectiva.";
-  }
-
-  if (accion.estado_operativo_administrativo === "en_ejecucion") {
-    return "Mantener como En ejecución · pendiente de devengo o revisión parcial, según avance económico.";
-  }
-
-  if (
-    accion.estado_operativo_administrativo === "finalizada" &&
-    accion.documentacion_estado_subexpediente === "validada" &&
-    Number(accion.documentos_con_riesgo_activo ?? 0) === 0
-  ) {
-    if (accion.estado_pago_administrativo === "pagado") {
+    if (bloqueoInformativoPago && bloqueos.length === 1) {
       return "Pago ya registrado. Mantener trazabilidad y revisar solo si existe incidencia sobrevenida.";
     }
 
-    return "Puede autorizarse pago si no existe revisión económica adicional pendiente.";
+    const primerBloqueo = bloqueos.find(
+      (bloqueo) => bloqueo.codigo !== "pago_ya_registrado"
+    );
+
+    return `No autorizar pago todavía: ${
+      primerBloqueo?.titulo ?? "existen condiciones pendientes"
+    }. Revise o subsane desde la mesa documental antes de la decisión económica.`;
   }
 
-  return "Revisar situación operativa, documentación y riesgo antes de autorizar pago.";
+  return "Puede autorizarse pago: acción finalizada, fases documentales completas, sin riesgo activo, sin incidencias y sin requerimientos pendientes.";
 }
 
 function accionSemantica(accion: AccionResumenRow | null) {
   if (!accion) return "Cargando regla operativa.";
 
   if (accion.estado_operativo_administrativo === "finalizada") {
-    return "Finalizada: la revisión de pago debe comprobar documentación validada, ausencia de riesgo activo y coherencia económica antes de autorizar o mantener el pago.";
+    return "Finalizada: la revisión de pago debe comprobar documentación validada por fases, ausencia de riesgo activo, ausencia de incidencias y coherencia económica antes de autorizar o mantener el pago.";
   }
 
   if (accion.estado_operativo_administrativo === "en_ejecucion") {
@@ -340,6 +540,13 @@ function accionSemantica(accion: AccionResumenRow | null) {
   }
 
   return "Revise la situación operativa antes de actuar sobre el pago.";
+}
+
+function bloqueoClass(tipo: BloqueoPago["tipo"]) {
+  if (tipo === "documental") return "border-amber-200 bg-amber-50 text-amber-900";
+  if (tipo === "operativo") return "border-blue-200 bg-blue-50 text-blue-900";
+  if (tipo === "economico") return "border-red-200 bg-red-50 text-red-900";
+  return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
 export default function EstadoPagoPage() {
@@ -402,6 +609,9 @@ export default function EstadoPagoPage() {
     loadAccion();
   }, [subexpedienteId]);
 
+  const bloqueosPago = useMemo(() => getBloqueosPago(accion), [accion]);
+  const puedeAutorizarPago = bloqueosPago.length === 0;
+
   const hasPagoChanges = useMemo(() => {
     return Boolean(accion && pagoDraft && pagoDraft !== accion.estado_pago_administrativo);
   }, [accion, pagoDraft]);
@@ -413,6 +623,13 @@ export default function EstadoPagoPage() {
 
     if (!nextPago) {
       setPagoError("Debe seleccionar un estado de pago.");
+      return;
+    }
+
+    if (nextPago === "pagado" && !canAutorizarPago(accion)) {
+      setPagoError(
+        "No se puede autorizar el pago: existen fases documentales, incidencias, requerimientos o riesgos pendientes. Revise la mesa documental."
+      );
       return;
     }
 
@@ -619,6 +836,84 @@ export default function EstadoPagoPage() {
           </p>
         </section>
 
+        <section
+          className={
+            puedeAutorizarPago
+              ? "rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 shadow-sm"
+              : "rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 shadow-sm"
+          }
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p
+                className={
+                  puedeAutorizarPago
+                    ? "text-[11px] font-semibold text-emerald-950"
+                    : "text-[11px] font-semibold text-amber-950"
+                }
+              >
+                Control documental previo al pago
+              </p>
+              <p
+                className={
+                  puedeAutorizarPago
+                    ? "mt-0.5 text-[11px] leading-4 text-emerald-900"
+                    : "mt-0.5 text-[11px] leading-4 text-amber-900"
+                }
+              >
+                {puedeAutorizarPago
+                  ? "Todas las fases documentales obligatorias constan completas y validadas. El pago puede autorizarse si no existe revisión económica adicional."
+                  : "El pago queda bloqueado hasta revisar o subsanar las fases/documentos pendientes en la mesa documental."}
+              </p>
+            </div>
+
+            <Link
+              href={`/mesa-documental/${id}`}
+              className={
+                puedeAutorizarPago
+                  ? "rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                  : "rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-[10px] font-semibold text-amber-900 hover:bg-amber-100"
+              }
+            >
+              {puedeAutorizarPago ? "Ver mesa documental" : "Ir a mesa documental"}
+            </Link>
+          </div>
+
+          {!puedeAutorizarPago ? (
+            <div className="mt-2 grid gap-1.5 md:grid-cols-2">
+              {bloqueosPago.map((bloqueo) => (
+                <div
+                  key={bloqueo.codigo}
+                  className={`rounded-lg border px-2.5 py-2 ${bloqueoClass(bloqueo.tipo)}`}
+                >
+                  <p className="text-[10.5px] font-semibold leading-4">
+                    {bloqueo.titulo}
+                  </p>
+                  <p className="mt-0.5 text-[10px] leading-4">{bloqueo.detalle}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-2 grid gap-1.5 md:grid-cols-5">
+              <SmallBadge className="border-emerald-200 bg-white text-emerald-800">
+                Inicio {num(accion?.inicio_validado)}/{num(accion?.inicio_total)}
+              </SmallBadge>
+              <SmallBadge className="border-emerald-200 bg-white text-emerald-800">
+                Seguimiento {num(accion?.seguimiento_validado)}/{num(accion?.seguimiento_total)}
+              </SmallBadge>
+              <SmallBadge className="border-emerald-200 bg-white text-emerald-800">
+                Finalización {num(accion?.finalizacion_validado)}/{num(accion?.finalizacion_total)}
+              </SmallBadge>
+              <SmallBadge className="border-emerald-200 bg-white text-emerald-800">
+                Justificación {num(accion?.justificacion_validado)}/{num(accion?.justificacion_total)}
+              </SmallBadge>
+              <SmallBadge className="border-emerald-200 bg-white text-emerald-800">
+                Cierre {num(accion?.cierre_validado)}/{num(accion?.cierre_total)}
+              </SmallBadge>
+            </div>
+          )}
+        </section>
+
         <section className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -723,21 +1018,28 @@ export default function EstadoPagoPage() {
                   {savingPago ? "Guardando..." : pagoSaved ? "Guardado" : "Guardar estado de pago"}
                 </button>
 
-                {canAutorizarPago(accion) ? (
+                {puedeAutorizarPago ? (
                   <button
                     type="button"
                     disabled={savingPago}
                     onClick={() =>
                       guardarPago(
                         "pagado",
-                        "Pago autorizado desde página Estado de pago tras documentación completa validada y sin riesgo activo."
+                        "Pago autorizado desde página Estado de pago tras documentación completa por fases, validada y sin riesgo activo."
                       )
                     }
                     className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
                   >
                     Autorizar pago
                   </button>
-                ) : null}
+                ) : (
+                  <Link
+                    href={`/mesa-documental/${id}`}
+                    className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    Subsanar documentación
+                  </Link>
+                )}
 
                 <button
                   type="button"

@@ -22,6 +22,43 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  async function registrarLogin(data: UsuarioDemo) {
+    try {
+      const usuarioSesion = {
+        id: data.id,
+        nombre: data.nombre,
+        usuario: data.usuario,
+        rol: data.rol ?? "usuario",
+      };
+
+      sessionStorage.setItem(
+        "coforma_institucional_usuario_demo",
+        JSON.stringify(usuarioSesion)
+      );
+
+      await supabase.from("auditoria_usuarios_demo").insert({
+        usuario_demo_id: data.id,
+        usuario: data.usuario,
+        nombre: data.nombre,
+        rol: data.rol ?? "usuario",
+        tipo_evento: "login",
+        ruta: "/login",
+        pagina: "Acceso institucional",
+        accion: "Acceso correcto al entorno institucional",
+        entidad_tipo: "usuarios_demo_institucionales",
+        entidad_id: data.id,
+        detalle: {
+          origen: "login_demo_institucional",
+          resultado: "acceso_correcto",
+        },
+        user_agent:
+          typeof navigator !== "undefined" ? navigator.userAgent : null,
+      });
+    } catch (caughtError) {
+      console.error("No se pudo registrar auditoría de login:", caughtError);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -61,6 +98,8 @@ export default function LoginPage() {
         setError("Contraseña incorrecta para este usuario demo.");
         return;
       }
+
+      await registrarLogin(data);
 
       router.push("/dashboard");
     } finally {

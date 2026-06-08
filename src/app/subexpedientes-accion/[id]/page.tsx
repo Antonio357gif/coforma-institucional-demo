@@ -51,6 +51,14 @@ type AlertaTipificada = {
   estado_revision: string;
 };
 
+type SubexpedientePago = {
+  id: number;
+  oferta_concedida_id: number;
+  estado_operativo_administrativo: string | null;
+  documentacion_estado: string | null;
+  estado_pago_administrativo: string | null;
+};
+
 function euro(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
@@ -115,6 +123,32 @@ function estadoOperativoClass(value: string | null | undefined) {
   return "border-slate-200 bg-white text-slate-700";
 }
 
+function pagoLabel(value: string | null | undefined) {
+  const estado = normalizar(value);
+
+  if (estado === "pagado") return "Pagado";
+  if (estado === "en_ejecucion_no_abonado") return "En ejecución · pendiente de devengo";
+  if (estado === "en_revision_parcial") return "En revisión parcial";
+  if (estado === "no_devengado") return "No devengado";
+  if (estado === "retenido_revision") return "Retenido por revisión";
+  if (estado === "retenido_riesgo") return "Retenido por riesgo";
+  if (!estado) return "Sin estado de pago";
+
+  return textoPlano(value);
+}
+
+function pagoBadgeClass(value: string | null | undefined) {
+  const estado = normalizar(value);
+
+  if (estado === "pagado") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (estado === "en_ejecucion_no_abonado") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (estado === "en_revision_parcial") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (estado === "no_devengado") return "border-slate-200 bg-slate-50 text-slate-700";
+  if (estado.includes("retenido")) return "border-red-200 bg-red-50 text-red-800";
+
+  return "border-slate-200 bg-white text-slate-700";
+}
+
 function badgeClass(value: string | null | undefined) {
   const normalizado = normalizar(value);
 
@@ -150,17 +184,17 @@ function controlBadgeClass(accion: AccionDetalle, alertaTipificada: AlertaTipifi
   const nivel = normalizar(accion.nivel_riesgo);
 
   const sinAlertaCritica =
-  alerta.includes("sin alerta crítica") ||
-  alerta.includes("sin alerta critica");
+    alerta.includes("sin alerta crítica") ||
+    alerta.includes("sin alerta critica");
 
-if (
-  importeRiesgo > 0 ||
-  nivel.includes("alto") ||
-  (alerta.includes("crítica") && !sinAlertaCritica) ||
-  (alerta.includes("critica") && !sinAlertaCritica)
-) {
-  return "border-red-200 bg-red-50 text-red-800";
-}
+  if (
+    importeRiesgo > 0 ||
+    nivel.includes("alto") ||
+    (alerta.includes("crítica") && !sinAlertaCritica) ||
+    (alerta.includes("critica") && !sinAlertaCritica)
+  ) {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
 
   return "border-emerald-200 bg-emerald-50 text-emerald-800";
 }
@@ -236,6 +270,7 @@ function SubexpedienteAccionContent() {
   const tipologiaParam = searchParams.get("tipologia");
 
   const [accion, setAccion] = useState<AccionDetalle | null>(null);
+  const [subexpedientePago, setSubexpedientePago] = useState<SubexpedientePago | null>(null);
   const [alertaTipificada, setAlertaTipificada] = useState<AlertaTipificada | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -245,6 +280,10 @@ function SubexpedienteAccionContent() {
       ? "/justificacion-economica"
       : `/justificacion-economica?ofertaId=${ofertaId}`;
   }, [ofertaId]);
+
+  const estadoPagoHref = subexpedientePago
+    ? `/estado-pago/${subexpedientePago.id}`
+    : null;
 
   useEffect(() => {
     async function loadAccion() {
@@ -265,6 +304,21 @@ function SubexpedienteAccionContent() {
       }
 
       setAccion(data as AccionDetalle);
+
+      const { data: subexpedienteData, error: subexpedienteError } = await supabase
+        .from("subexpedientes_accion")
+        .select(
+          "id, oferta_concedida_id, estado_operativo_administrativo, documentacion_estado, estado_pago_administrativo"
+        )
+        .eq("oferta_concedida_id", ofertaId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!subexpedienteError && subexpedienteData) {
+        setSubexpedientePago(subexpedienteData as SubexpedientePago);
+      } else {
+        setSubexpedientePago(null);
+      }
 
       if (tipologiaParam) {
         const { data: alertaData, error: alertaError } = await supabase
@@ -346,14 +400,26 @@ function SubexpedienteAccionContent() {
             ← Volver a oferta formativa
           </Link>
 
-          <span
-            className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${controlBadgeClass(
-              accion,
-              alertaTipificada
-            )}`}
-          >
-            {controlVisible}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {subexpedientePago ? (
+              <span
+                className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${pagoBadgeClass(
+                  subexpedientePago.estado_pago_administrativo
+                )}`}
+              >
+                Pago: {pagoLabel(subexpedientePago.estado_pago_administrativo)}
+              </span>
+            ) : null}
+
+            <span
+              className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${controlBadgeClass(
+                accion,
+                alertaTipificada
+              )}`}
+            >
+              {controlVisible}
+            </span>
+          </div>
         </div>
 
         <section className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
@@ -425,6 +491,21 @@ function SubexpedienteAccionContent() {
                 </span>
               </div>
 
+              {subexpedientePago ? (
+                <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
+                  <span className="text-[9px] font-semibold uppercase text-slate-500">
+                    Estado de pago
+                  </span>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${pagoBadgeClass(
+                      subexpedientePago.estado_pago_administrativo
+                    )}`}
+                  >
+                    {pagoLabel(subexpedientePago.estado_pago_administrativo)}
+                  </span>
+                </div>
+              ) : null}
+
               <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
                 <span className="text-[9px] font-semibold uppercase text-slate-500">
                   {alertaTipificada ? "Nivel de alerta" : "Control de revisión"}
@@ -471,6 +552,15 @@ function SubexpedienteAccionContent() {
               </div>
 
               <div className="flex flex-wrap gap-2 pt-0.5">
+                {estadoPagoHref ? (
+                  <Link
+                    href={estadoPagoHref}
+                    className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100"
+                  >
+                    Revisar estado de pago
+                  </Link>
+                ) : null}
+
                 <Link
                   href={justificacionHref}
                   className="rounded-md bg-[#183B63] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#122f4f]"
