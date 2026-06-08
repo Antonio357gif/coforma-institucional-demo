@@ -242,6 +242,76 @@ function decisionTexto(accion: AccionDetalle, alertaTipificada: AlertaTipificada
   return accion.decision_recomendada || "Seguimiento ordinario";
 }
 
+function documentacionLabel(value: string | null | undefined) {
+  const estado = normalizar(value);
+
+  if (estado === "validada") return "documentación validada";
+  if (estado === "en_revision_ordinaria") return "documentación en revisión ordinaria";
+  if (estado === "en_revision") return "documentación en revisión";
+  if (estado === "pendiente") return "documentación pendiente";
+  if (!estado) return "documentación sin estado";
+
+  return textoPlano(value);
+}
+
+function evidenciaTextoOperativa(
+  accion: AccionDetalle,
+  alertaTipificada: AlertaTipificada | null,
+  subexpedientePago: SubexpedientePago | null
+) {
+  if (alertaTipificada?.evidencia_requerida) return alertaTipificada.evidencia_requerida;
+
+  const estadoOperativo = normalizar(
+    subexpedientePago?.estado_operativo_administrativo ?? accion.estado_ejecucion
+  );
+  const estadoDocumental = normalizar(subexpedientePago?.documentacion_estado);
+  const estadoPago = normalizar(subexpedientePago?.estado_pago_administrativo);
+
+  if (estadoOperativo === "finalizada") {
+    if (estadoDocumental === "validada" && estadoPago === "pagado") {
+      return "Acción finalizada, expediente documental validado y pago registrado. Mantener trazabilidad y revisar solo si existe incidencia sobrevenida.";
+    }
+
+    if (estadoDocumental === "validada") {
+      return "Acción finalizada y expediente documental validado. La revisión económica debe confirmar si procede pago, retención o cierre administrativo.";
+    }
+
+    return `Acción finalizada por fecha, con ${documentacionLabel(
+      subexpedientePago?.documentacion_estado
+    )}. Completar o revisar la mesa documental antes de considerar cierre económico defendible.`;
+  }
+
+  return evidenciaTexto(accion, alertaTipificada);
+}
+
+function decisionTextoOperativa(
+  accion: AccionDetalle,
+  alertaTipificada: AlertaTipificada | null,
+  subexpedientePago: SubexpedientePago | null
+) {
+  if (alertaTipificada) return decisionTexto(accion, alertaTipificada);
+
+  const estadoOperativo = normalizar(
+    subexpedientePago?.estado_operativo_administrativo ?? accion.estado_ejecucion
+  );
+  const estadoDocumental = normalizar(subexpedientePago?.documentacion_estado);
+  const estadoPago = normalizar(subexpedientePago?.estado_pago_administrativo);
+
+  if (estadoOperativo === "finalizada") {
+    if (estadoDocumental === "validada" && estadoPago === "pagado") {
+      return "Pago ya registrado. Mantener trazabilidad y revisar solo si existe incidencia sobrevenida.";
+    }
+
+    if (estadoDocumental === "validada") {
+      return "Acción finalizada con documentación validada. Revisar estado de pago para decisión económica superior.";
+    }
+
+    return "Acción finalizada con documentación pendiente. Revisar mesa documental antes de autorizar o confirmar cierre económico.";
+  }
+
+  return decisionTexto(accion, alertaTipificada);
+}
+
 function DataCard({
   label,
   value,
@@ -377,7 +447,19 @@ function SubexpedienteAccionContent() {
     );
   }
 
-  const estadoVisible = estadoOperativoLabel(accion.estado_ejecucion);
+  const estadoOperativoFuente =
+    subexpedientePago?.estado_operativo_administrativo ?? accion.estado_ejecucion;
+  const estadoVisible = estadoOperativoLabel(estadoOperativoFuente);
+  const evidenciaVisible = evidenciaTextoOperativa(
+    accion,
+    alertaTipificada,
+    subexpedientePago
+  );
+  const decisionVisible = decisionTextoOperativa(
+    accion,
+    alertaTipificada,
+    subexpedientePago
+  );
   const controlVisible = controlLabel(accion, alertaTipificada);
 
   return (
@@ -484,7 +566,7 @@ function SubexpedienteAccionContent() {
                 </span>
                 <span
                   className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estadoOperativoClass(
-                    accion.estado_ejecucion
+                    estadoOperativoFuente
                   )}`}
                 >
                   {estadoVisible}
@@ -538,7 +620,7 @@ function SubexpedienteAccionContent() {
                   Evidencia / seguimiento
                 </p>
                 <p className="mt-0.5 text-[11px] leading-4 text-slate-800">
-                  {evidenciaTexto(accion, alertaTipificada)}
+                  {evidenciaVisible}
                 </p>
               </div>
 
@@ -547,7 +629,7 @@ function SubexpedienteAccionContent() {
                   Decisión recomendada
                 </p>
                 <p className="mt-0.5 text-[11px] leading-4 text-blue-950">
-                  {decisionTexto(accion, alertaTipificada)}
+                  {decisionVisible}
                 </p>
               </div>
 

@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_MESA_DOCUMENTAL =
-  "2026-05-20-v5-mesa-documental-rpc-trazabilidad";
+  "2026-06-08-v6-mesa-documental-recalculo-subexpediente";
 
 type RecepcionRow = {
   recepcion_id: number;
@@ -787,6 +787,21 @@ export default function MesaDocumentalPage() {
       return;
     }
 
+    const { error: recalculoError } = await supabase.rpc(
+      "recalcular_estado_subexpediente_documental_v1",
+      {
+        p_subexpediente_id: subexpedienteId,
+      }
+    );
+
+    if (recalculoError) {
+      setSaveError(
+        `El documento se guardó, pero no se pudo recalcular el estado del subexpediente: ${recalculoError.message}`
+      );
+      setSavingId(null);
+      return;
+    }
+
     setSelectedByFase((prev) => ({
       ...prev,
       [row.fase]: row.recepcion_id,
@@ -1007,7 +1022,7 @@ export default function MesaDocumentalPage() {
             </p>
 
             <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] leading-4 text-emerald-900">
-              Trazabilidad activa: al guardar, la mesa registra movimiento histórico mediante RPC y actualiza la situación vigente del control documental.
+              Trazabilidad activa: al guardar, la mesa registra movimiento histórico mediante RPC, actualiza el control documental y recalcula el estado del subexpediente.
             </div>
           </div>
 
@@ -1521,8 +1536,8 @@ export default function MesaDocumentalPage() {
           <p className="text-[10.5px] leading-4 text-slate-500">
             Esta mesa trabaja documentación: recibir, revisar, validar, subsanar, corregir o marcar no aplica.
             La revisión de pago se realiza en una página separada para perfiles superiores. Cada guardado se
-            registra ahora mediante RPC en la tabla histórica de movimientos documentales, conservando estado
-            anterior, estado nuevo, técnico, motivo, usuario, fecha y origen de cada corrección.
+            registra mediante RPC en la tabla histórica de movimientos documentales y recalcula el estado
+            del subexpediente, manteniendo estado anterior, estado nuevo, técnico, motivo, usuario, fecha y origen.
           </p>
         </section>
       </section>

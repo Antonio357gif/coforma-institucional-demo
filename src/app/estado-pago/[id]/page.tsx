@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_ESTADO_PAGO =
-  "2026-06-07-v6-estado-pago-fases-documentales-y-mesa";
+  "2026-06-08-v7-estado-pago-coherencia-pago-documentacion";
 
 type AccionResumenRow = {
   subexpediente_id: number;
@@ -494,27 +494,51 @@ function getBloqueosPago(accion: AccionResumenRow | null): BloqueoPago[] {
   return bloqueos;
 }
 
+function getBloqueosNoInformativosPago(accion: AccionResumenRow | null) {
+  return getBloqueosPago(accion).filter(
+    (bloqueo) => bloqueo.codigo !== "pago_ya_registrado"
+  );
+}
+
 function canAutorizarPago(accion: AccionResumenRow | null) {
-  return getBloqueosPago(accion).length === 0;
+  if (!accion) return false;
+  if (accion.estado_pago_administrativo === "pagado") return false;
+
+  return getBloqueosNoInformativosPago(accion).length === 0;
+}
+
+function pagoRegistradoConCondicionesPendientes(accion: AccionResumenRow | null) {
+  if (!accion) return false;
+
+  return (
+    accion.estado_pago_administrativo === "pagado" &&
+    getBloqueosNoInformativosPago(accion).length > 0
+  );
 }
 
 function decisionRecomendada(accion: AccionResumenRow | null) {
   if (!accion) return "Cargando lectura económica del subexpediente.";
 
   const bloqueos = getBloqueosPago(accion);
+  const bloqueosNoInformativos = getBloqueosNoInformativosPago(accion);
+
+  if (
+    accion.estado_pago_administrativo === "pagado" &&
+    bloqueosNoInformativos.length > 0
+  ) {
+    const primerBloqueo = bloqueosNoInformativos[0];
+
+    return `Pago registrado con condiciones pendientes: ${
+      primerBloqueo?.titulo ?? "existen controles pendientes"
+    }. Revisión económica/documental recomendada; no considerar cierre económico defendible hasta completar la regularización.`;
+  }
+
+  if (accion.estado_pago_administrativo === "pagado") {
+    return "Pago ya registrado. Mantener trazabilidad y revisar solo si existe incidencia sobrevenida.";
+  }
 
   if (bloqueos.length > 0) {
-    const bloqueoInformativoPago = bloqueos.find(
-      (bloqueo) => bloqueo.codigo === "pago_ya_registrado"
-    );
-
-    if (bloqueoInformativoPago && bloqueos.length === 1) {
-      return "Pago ya registrado. Mantener trazabilidad y revisar solo si existe incidencia sobrevenida.";
-    }
-
-    const primerBloqueo = bloqueos.find(
-      (bloqueo) => bloqueo.codigo !== "pago_ya_registrado"
-    );
+    const primerBloqueo = bloqueosNoInformativos[0];
 
     return `No autorizar pago todavía: ${
       primerBloqueo?.titulo ?? "existen condiciones pendientes"
@@ -610,7 +634,12 @@ export default function EstadoPagoPage() {
   }, [subexpedienteId]);
 
   const bloqueosPago = useMemo(() => getBloqueosPago(accion), [accion]);
-  const puedeAutorizarPago = bloqueosPago.length === 0;
+  const bloqueosNoInformativosPago = useMemo(
+    () => getBloqueosNoInformativosPago(accion),
+    [accion]
+  );
+  const puedeAutorizarPago = canAutorizarPago(accion);
+  const pagoConCondicionesPendientes = pagoRegistradoConCondicionesPendientes(accion);
 
   const hasPagoChanges = useMemo(() => {
     return Boolean(accion && pagoDraft && pagoDraft !== accion.estado_pago_administrativo);
@@ -628,7 +657,7 @@ export default function EstadoPagoPage() {
 
     if (nextPago === "pagado" && !canAutorizarPago(accion)) {
       setPagoError(
-        "No se puede autorizar el pago: existen fases documentales, incidencias, requerimientos o riesgos pendientes. Revise la mesa documental."
+        "No se puede autorizar el pago: la acción debe estar finalizada, la documentación global validada, todas las fases completas y sin incidencias, requerimientos ni riesgos activos."
       );
       return;
     }
@@ -836,6 +865,18 @@ export default function EstadoPagoPage() {
           </p>
         </section>
 
+        {pagoConCondicionesPendientes ? (
+          <section className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 shadow-sm">
+            <p className="text-[11px] font-semibold text-red-950">
+              Pago registrado con expediente incompleto
+            </p>
+            <p className="mt-0.5 text-[11px] leading-4 text-red-900">
+              El estado administrativo consta como pagado, pero existen condiciones documentales u operativas pendientes.
+              Este caso debe tratarse como revisión económica/documental, no como cierre económico limpio.
+            </p>
+          </section>
+        ) : null}
+
         <section
           className={
             puedeAutorizarPago
@@ -863,7 +904,9 @@ export default function EstadoPagoPage() {
               >
                 {puedeAutorizarPago
                   ? "Todas las fases documentales obligatorias constan completas y validadas. El pago puede autorizarse si no existe revisión económica adicional."
-                  : "El pago queda bloqueado hasta revisar o subsanar las fases/documentos pendientes en la mesa documental."}
+                  : pagoConCondicionesPendientes
+                    ? "Existe un pago registrado, pero el expediente mantiene condiciones documentales u operativas pendientes. Debe revisarse antes de considerarlo cierre económico defendible."
+                    : "El pago queda bloqueado hasta revisar o subsanar las fases/documentos pendientes en la mesa documental."}
               </p>
             </div>
 
@@ -881,7 +924,7 @@ export default function EstadoPagoPage() {
 
           {!puedeAutorizarPago ? (
             <div className="mt-2 grid gap-1.5 md:grid-cols-2">
-              {bloqueosPago.map((bloqueo) => (
+              {(pagoConCondicionesPendientes ? bloqueosNoInformativosPago : bloqueosPago).map((bloqueo) => (
                 <div
                   key={bloqueo.codigo}
                   className={`rounded-lg border px-2.5 py-2 ${bloqueoClass(bloqueo.tipo)}`}
@@ -989,12 +1032,37 @@ export default function EstadoPagoPage() {
                 className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none focus:border-blue-400"
               >
                 <option value="">Seleccione estado</option>
-                {pagoOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+                {pagoOptions.map((option) => {
+                  const pagadoBloqueado =
+                    option.value === "pagado" &&
+                    !puedeAutorizarPago &&
+                    accion?.estado_pago_administrativo !== "pagado";
+
+                  return (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      disabled={pagadoBloqueado}
+                    >
+                      {pagadoBloqueado
+                        ? `${option.label} · bloqueado hasta completar condiciones`
+                        : option.label}
+                    </option>
+                  );
+                })}
               </select>
+
+              {!puedeAutorizarPago && accion?.estado_pago_administrativo !== "pagado" ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10.5px] leading-4 text-amber-900">
+                  La opción Pagado queda bloqueada hasta que la acción esté finalizada, la documentación global esté validada y todas las fases estén completas.
+                </p>
+              ) : null}
+
+              {pagoConCondicionesPendientes ? (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10.5px] leading-4 text-red-900">
+                  Este pago ya consta como registrado, pero no debe interpretarse como cierre defendible mientras existan controles documentales pendientes.
+                </p>
+              ) : null}
 
               <textarea
                 value={pagoObservacion}
