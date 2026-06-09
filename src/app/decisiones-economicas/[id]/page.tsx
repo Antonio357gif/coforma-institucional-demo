@@ -158,7 +158,7 @@ function lecturaControl(decision: DecisionEconomicaRow) {
     return "El subexpediente tiene controles administrativos pendientes de seguimiento.";
   }
 
-  return "Sin riesgo económico activo. Mantener seguimiento ordinario según estado operativo y avance registrado.";
+  return "Sin riesgo económico activo. Mantener seguimiento ordinario según estado operativo, estado de justificación y revisión económica.";
 }
 
 function motivoDecision(decision: DecisionEconomicaRow) {
@@ -168,7 +168,7 @@ function motivoDecision(decision: DecisionEconomicaRow) {
   const importeRiesgo = Number(decision.importe_en_riesgo ?? 0);
 
   if (estadoOperativo === "pendiente_ejecutar") {
-    return "Acción pendiente de ejecutar: importe no devengado y sin avance económico reconocido.";
+    return "Acción pendiente de ejecutar: importe no devengado hasta que exista ejecución validada.";
   }
 
   if (importeRiesgo > 0) {
@@ -385,7 +385,7 @@ export default function DecisionEconomicaDetallePage() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Ficha económica del subexpediente</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Lectura económica saneada: concesión, avance, no devengado, revisión y actuación administrativa.
+              Lectura económica saneada: concesión, estado operativo, justificación, revisión y actuación administrativa.
             </p>
           </div>
 
@@ -438,7 +438,7 @@ export default function DecisionEconomicaDetallePage() {
           </span>
         </div>
 
-        <section className="grid gap-2 lg:grid-cols-6">
+        <section className="grid gap-2 lg:grid-cols-5">
           <Kpi
             labelText="Concedido"
             value={euro(decision.importe_concedido)}
@@ -447,23 +447,18 @@ export default function DecisionEconomicaDetallePage() {
           />
 
           <Kpi
-            labelText="Avance registrado"
-            value={euro(decision.importe_ejecutado)}
-            detail={pct(decision.importe_ejecutado, decision.importe_concedido)}
-            tone="green"
+            labelText="Estado operativo"
+            value={estadoOperativoLabel(
+              decision.estado_operativo_label ?? decision.estado_operativo_administrativo
+            )}
+            detail="situación administrativa"
+            tone="default"
           />
 
           <Kpi
-            labelText="Justificado"
-            value={euro(decision.importe_justificado)}
-            detail={pct(decision.importe_justificado, decision.importe_concedido)}
-            tone="green"
-          />
-
-          <Kpi
-            labelText="Pendiente / no devengado"
-            value={euro(decision.importe_pendiente_justificar)}
-            detail={pct(decision.importe_pendiente_justificar, decision.importe_concedido)}
+            labelText="Estado de justificación"
+            value={estadoJustificacionLabel(decision.estado_justificacion)}
+            detail="control económico/documental"
             tone="amber"
           />
 
@@ -522,7 +517,7 @@ export default function DecisionEconomicaDetallePage() {
           <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
             <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
               <p className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Pago administrativo
+                Estado de justificación
               </p>
               <span
                 className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(

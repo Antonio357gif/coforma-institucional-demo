@@ -43,6 +43,7 @@ type JustificacionRow = {
   riesgo_administrativo: string | null;
   riesgo_economico: string | null;
   actuacion_sugerida: string | null;
+  estado_pago_administrativo?: string | null;
 };
 
 type PagoAdministrativo =
@@ -109,6 +110,16 @@ function esRevisionRiesgo(row: JustificacionRow) {
 }
 
 function pagoAdministrativo(row: JustificacionRow): PagoAdministrativo {
+  const pagoReal = normalizar(row.estado_pago_administrativo);
+
+  if (pagoReal === "pagado") return "pagado";
+  if (pagoReal === "en_revision_parcial") return "en_revision_parcial";
+  if (pagoReal === "en_ejecucion_no_abonado") return "en_ejecucion_no_abonado";
+  if (pagoReal === "no_devengado") return "no_devengado";
+  if (pagoReal === "retenido_revision" || pagoReal === "retenido_riesgo") {
+    return "revision_riesgo";
+  }
+
   if (esFinalizada(row)) return "pagado";
   if (esPendiente(row)) return "no_devengado";
   if (esRevisionRiesgo(row)) return "revision_riesgo";
@@ -143,7 +154,20 @@ function operativoBadgeClass(row: JustificacionRow) {
 }
 
 function lecturaControl(row: JustificacionRow) {
-  if (esFinalizada(row)) return "Finalizada con pago administrativo";
+  const pago = pagoAdministrativo(row);
+
+  if (esFinalizada(row) && pago === "pagado") {
+    return "Finalizada con pago administrativo";
+  }
+
+  if (esFinalizada(row) && pago === "en_revision_parcial") {
+    return "Finalizada con revisión económica parcial";
+  }
+
+  if (esFinalizada(row)) {
+    return "Finalizada pendiente de decisión económica";
+  }
+
   if (esEnEjecucion(row)) return "Ejecución viva / seguimiento económico";
   if (esPendiente(row)) return "Pendiente de ejecución / no devengado";
   return "Revisión o riesgo activo";
@@ -259,7 +283,6 @@ function JustificacionEconomicaPageContent() {
   const [busqueda, setBusqueda] = useState("");
   const [operativoFiltro, setOperativoFiltro] = useState("todos");
   const [pagoFiltro, setPagoFiltro] = useState("todos");
-  const [importeFiltro, setImporteFiltro] = useState("todos");
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -314,7 +337,6 @@ function JustificacionEconomicaPageContent() {
   useEffect(() => {
     const operativo = searchParams.get("operativo");
     const pago = searchParams.get("pago");
-    const importe = searchParams.get("importe");
     const revision = searchParams.get("revision");
 
     if (operativo) {
@@ -323,10 +345,6 @@ function JustificacionEconomicaPageContent() {
 
     if (pago) {
       setPagoFiltro(pago);
-    }
-
-    if (importe) {
-      setImporteFiltro(importe);
     }
 
     if (revision === "1" || revision === "true") {
@@ -381,24 +399,18 @@ function JustificacionEconomicaPageContent() {
 
       const pasaPago = pagoFiltro === "todos" || pago === pagoFiltro;
 
-      const pasaImporte =
-        importeFiltro === "todos" ||
-        (importeFiltro === "ejecutado" && Number(row.importe_ejecutado ?? 0) > 0) ||
-        (importeFiltro === "justificado" && Number(row.importe_justificado ?? 0) > 0);
-
-      return pasaBusqueda && pasaOperativo && pasaPago && pasaImporte;
+      return pasaBusqueda && pasaOperativo && pasaPago;
     });
   }, [
     rowsPorOferta,
     busqueda,
     operativoFiltro,
     pagoFiltro,
-    importeFiltro,
   ]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [busqueda, operativoFiltro, pagoFiltro, importeFiltro, pageSize, ofertaIdFiltro]);
+  }, [busqueda, operativoFiltro, pagoFiltro, pageSize, ofertaIdFiltro]);
 
   const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -410,10 +422,8 @@ function JustificacionEconomicaPageContent() {
     return filtradas.reduce(
       (acc, row) => {
         const concedido = Number(row.importe_concedido ?? 0);
-        const ejecutado = Number(row.importe_ejecutado ?? 0);
 
         acc.concedido += concedido;
-        acc.ejecutado += ejecutado;
 
         if (esEnEjecucion(row)) {
           acc.enEjecucionAcciones++;
@@ -440,7 +450,6 @@ function JustificacionEconomicaPageContent() {
       },
       {
         concedido: 0,
-        ejecutado: 0,
         enEjecucionAcciones: 0,
         enEjecucionImporte: 0,
         finalizadasAcciones: 0,
@@ -461,7 +470,6 @@ function JustificacionEconomicaPageContent() {
     setBusqueda("");
     setOperativoFiltro("todos");
     setPagoFiltro("todos");
-    setImporteFiltro("todos");
   }
 
   if (loading) {
@@ -497,7 +505,7 @@ function JustificacionEconomicaPageContent() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Justificación económica</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Lectura económica saneada: concedido, ejecución, pago administrativo, no devengado y revisión.
+              Lectura económica saneada: concedido, estado operativo, pago administrativo, no devengado y revisión.
             </p>
           </div>
 
@@ -534,19 +542,13 @@ function JustificacionEconomicaPageContent() {
               </span>
             ) : null}
 
-            {importeFiltro !== "todos" ? (
-              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
-                Importe: {label(importeFiltro)}
-              </span>
-            ) : null}
-
             <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
               Foto madre económica
             </span>
           </div>
         </div>
 
-        <section className="grid gap-2 lg:grid-cols-6">
+        <section className="grid gap-2 lg:grid-cols-5">
           <Kpi
             labelText="Concedido"
             value={euro(resumen.concedido)}
@@ -582,13 +584,6 @@ function JustificacionEconomicaPageContent() {
             href={justificacionHref({ revision: "1" })}
             tone="red"
           />
-          <Kpi
-            labelText="Avance registrado"
-            value={euro(resumen.ejecutado)}
-            detail={`${pct(resumen.ejecutado, resumen.concedido)} sobre concedido`}
-            href={justificacionHref({ importe: "ejecutado" })}
-            tone="green"
-          />
         </section>
 
         {tieneFiltroOferta ? (
@@ -616,7 +611,7 @@ function JustificacionEconomicaPageContent() {
         ) : null}
 
         <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-          <div className="grid gap-2 lg:grid-cols-[1.25fr_0.7fr_0.75fr_auto_auto_auto_auto]">
+          <div className="grid gap-2 lg:grid-cols-[1.25fr_0.7fr_0.75fr_auto_auto_auto]">
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Buscar
@@ -695,20 +690,6 @@ function JustificacionEconomicaPageContent() {
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={() => setImporteFiltro((prev) => (prev === "ejecutado" ? "todos" : "ejecutado"))}
-                className={
-                  importeFiltro === "ejecutado"
-                    ? "h-7 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
-                    : "h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
-                }
-              >
-                Avance
-              </button>
-            </div>
-
-            <div className="flex items-end">
-              <button
-                type="button"
                 onClick={limpiarFiltros}
                 className="h-7 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
               >
@@ -725,7 +706,7 @@ function JustificacionEconomicaPageContent() {
                 Control económico por subexpediente
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Lectura saneada por estado operativo, pago administrativo y avance registrado.
+                Lectura saneada por estado operativo, pago administrativo y decisión de control.
               </p>
             </div>
 
@@ -770,8 +751,6 @@ function JustificacionEconomicaPageContent() {
                 <tr>
                   <th className="px-2 py-1.5">Entidad / acción</th>
                   <th className="px-2 py-1.5 text-right">Concedido</th>
-                  <th className="px-2 py-1.5 text-right">Avance registrado</th>
-                  <th className="px-2 py-1.5 text-right">% avance</th>
                   <th className="px-2 py-1.5">Estado operativo</th>
                   <th className="px-2 py-1.5">Pago administrativo</th>
                   <th className="px-2 py-1.5">Lectura de control</th>
@@ -797,8 +776,6 @@ function JustificacionEconomicaPageContent() {
                       </td>
 
                       <td className="px-2 py-1 text-right font-semibold">{euro(row.importe_concedido)}</td>
-                      <td className="px-2 py-1 text-right">{euro(row.importe_ejecutado)}</td>
-                      <td className="px-2 py-1 text-right">{pct(row.importe_ejecutado, row.importe_concedido)}</td>
 
                       <td className="px-2 py-1">
                         <span
@@ -849,7 +826,7 @@ function JustificacionEconomicaPageContent() {
 
                 {filtradas.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-xs text-slate-500">
+                    <td colSpan={6} className="px-3 py-8 text-center text-xs text-slate-500">
                       No hay registros económicos que coincidan con los filtros aplicados.
                     </td>
                   </tr>

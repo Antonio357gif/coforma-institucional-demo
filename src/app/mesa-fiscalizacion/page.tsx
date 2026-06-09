@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
+const VERSION_MESA_FISCALIZACION =
+  "2026-06-09-v2-fechas-semantica-actuaciones";
+
 type Resumen = {
   convocatoria_codigo: string;
   convocatoria_nombre: string;
@@ -75,6 +78,7 @@ type Entidad = {
 
 type Accion = {
   oferta_id: number;
+  subexpediente_id: number | null;
   entidad_id: number;
   entidad_nombre: string;
   cif: string;
@@ -95,6 +99,13 @@ type Accion = {
   porcentaje_alumnos_activos: number | null;
   porcentaje_bajas: number | null;
   estado_ejecucion: string;
+  estado_operativo_administrativo: string | null;
+  documentacion_estado: string | null;
+  estado_pago_administrativo: string | null;
+  fecha_inicio_prevista: string | null;
+  fecha_inicio_validada: string | null;
+  fecha_fin_prevista: string | null;
+  fecha_fin_validada: string | null;
   nivel_riesgo: string;
   alerta: string;
   decision_recomendada: string;
@@ -133,6 +144,19 @@ function pct(value: number | null | undefined) {
   )} %`;
 }
 
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 function normalize(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase();
 }
@@ -160,15 +184,6 @@ function normalizePriority(value: string | null | undefined) {
   }
 
   return current || "normal";
-}
-
-function priorityLabel(priority: string | null | undefined) {
-  const value = normalizePriority(priority);
-
-  if (value === "alta") return "Alta";
-  if (value === "media") return "Media";
-  if (value === "baja") return "Baja";
-  return "Normal";
 }
 
 function priorityClass(priority: string | null | undefined, importeRiesgo?: number | null) {
@@ -227,6 +242,19 @@ function estadoOperativoClass(value: string | null | undefined, importeRiesgo?: 
   }
 
   return "border-emerald-200 bg-emerald-50 text-emerald-800";
+}
+
+function estadoPagoLabel(value: string | null | undefined) {
+  const current = normalize(value);
+
+  if (current === "pagado") return "Pagado";
+  if (current === "en_revision_parcial") return "En revisión";
+  if (current === "en_ejecucion_no_abonado") return "Pendiente devengo";
+  if (current === "no_devengado") return "No devengado";
+  if (current === "retenido_revision") return "Retenido revisión";
+  if (current === "retenido_riesgo") return "Retenido riesgo";
+
+  return label(value);
 }
 
 function subexpedienteHref(ofertaId: number | null | undefined) {
@@ -527,6 +555,11 @@ export default function MesaFiscalizacionPage() {
     [trazabilidad, selectedOfertaId]
   );
 
+  const selectedAccionOperativa = useMemo(
+    () => acciones.find((accion) => accion.oferta_id === selectedOfertaId) ?? null,
+    [acciones, selectedOfertaId]
+  );
+
   const resumenPrioridadesEntidad = useMemo(() => {
     return accionesEntidadTodas.reduce(
       (acc, accion) => {
@@ -613,6 +646,8 @@ export default function MesaFiscalizacionPage() {
   }
 
   const hayRiesgoGlobal = Number(resumen.importe_total_en_riesgo ?? 0) > 0;
+  const estadoOperativoSeleccionado =
+    selectedAccionOperativa?.estado_operativo_administrativo ?? selectedAccion?.estado_ejecucion;
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#edf3f8] text-slate-950">
@@ -650,7 +685,7 @@ export default function MesaFiscalizacionPage() {
               Decisiones
             </Link>
             <Link href="/acciones" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
-              Acciones
+              Actuaciones adm.
             </Link>
             <Link href="/actuaciones-emitidas" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
               Emitidas
@@ -703,7 +738,7 @@ export default function MesaFiscalizacionPage() {
           <KpiMini
             label="Control ordinario"
             value={num(resumenMesa.controlOrdinario)}
-            detail="seguimiento institucional"
+            detail="actuaciones adm."
             href="/acciones"
             tone="green"
           />
@@ -871,7 +906,7 @@ export default function MesaFiscalizacionPage() {
                 href={entidadContextHref("/acciones", selectedEntidad)}
                 className="rounded-md bg-[#183B63] px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-[#122f4f]"
               >
-                Acciones
+                Actuaciones adm.
               </Link>
               <Link
                 href={entidadContextHref("/decisiones", selectedEntidad)}
@@ -921,10 +956,11 @@ export default function MesaFiscalizacionPage() {
               <table className="w-full border-collapse text-left text-[11px]">
                 <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="w-[100px] px-2 py-1.5">Acción</th>
+                    <th className="w-[90px] px-2 py-1.5">Acción</th>
                     <th className="px-2 py-1.5">Especialidad</th>
-                    <th className="w-[98px] px-2 py-1.5 text-right">Rev./riesgo</th>
-                    <th className="w-[78px] px-2 py-1.5">Control</th>
+                    <th className="w-[132px] px-2 py-1.5">Fechas</th>
+                    <th className="w-[90px] px-2 py-1.5 text-right">Rev./riesgo</th>
+                    <th className="w-[76px] px-2 py-1.5">Control</th>
                     <th className="w-[82px] px-2 py-1.5">Operar</th>
                   </tr>
                 </thead>
@@ -948,6 +984,17 @@ export default function MesaFiscalizacionPage() {
                         <td className="px-2 py-1 align-top">
                           <p className="font-medium leading-4">{accion.codigo_especialidad}</p>
                           <p className="line-clamp-1 text-[10px] leading-4 text-slate-500">{accion.denominacion}</p>
+                          <p className="mt-0.5 text-[9.5px] leading-3 text-slate-400">
+                            Doc.: {label(accion.documentacion_estado)} · Pago: {estadoPagoLabel(accion.estado_pago_administrativo)}
+                          </p>
+                        </td>
+                        <td className="px-2 py-1 align-top text-[9.5px] leading-3 text-slate-600">
+                          <p>
+                            <span className="text-slate-400">Ini.</span> {formatDate(accion.fecha_inicio_prevista)} / {formatDate(accion.fecha_inicio_validada)}
+                          </p>
+                          <p className="mt-0.5">
+                            <span className="text-slate-400">Fin</span> {formatDate(accion.fecha_fin_prevista)} / {formatDate(accion.fecha_fin_validada)}
+                          </p>
                         </td>
                         <td
                           className={`px-2 py-1 text-right align-top font-semibold ${
@@ -982,7 +1029,7 @@ export default function MesaFiscalizacionPage() {
 
                   {accionesEntidad.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-8 text-center text-xs text-slate-500">
+                      <td colSpan={6} className="px-3 py-8 text-center text-xs text-slate-500">
                         No hay subexpedientes con el filtro seleccionado.
                       </td>
                     </tr>
@@ -1054,8 +1101,56 @@ export default function MesaFiscalizacionPage() {
               <div className="rounded-lg border border-slate-100 px-3 py-1.5">
                 <p className="text-[9px] uppercase text-slate-500">Estado</p>
                 <p className="truncate text-[11px] font-semibold leading-4">
-                  {estadoOperativoLabel(selectedAccion?.estado_ejecucion)}
+                  {estadoOperativoLabel(estadoOperativoSeleccionado)}
                 </p>
+              </div>
+            </div>
+
+            <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-[9px] font-semibold uppercase text-blue-800">
+                    Periodo de ejecución
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] leading-4 text-blue-900">
+                    Fechas previstas y validadas para interpretar ejecución, documentación y pago.
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estadoOperativoClass(
+                    estadoOperativoSeleccionado,
+                    selectedAccion?.importe_en_riesgo
+                  )}`}
+                >
+                  {estadoOperativoLabel(estadoOperativoSeleccionado)}
+                </span>
+              </div>
+
+              <div className="mt-2 grid gap-1.5 sm:grid-cols-4">
+                <div className="rounded-md border border-blue-100 bg-white px-2 py-1">
+                  <p className="text-[8.5px] uppercase text-slate-500">Inicio previsto</p>
+                  <p className="text-[11px] font-semibold text-slate-900">
+                    {formatDate(selectedAccionOperativa?.fecha_inicio_prevista)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-blue-100 bg-white px-2 py-1">
+                  <p className="text-[8.5px] uppercase text-slate-500">Inicio validado</p>
+                  <p className="text-[11px] font-semibold text-slate-900">
+                    {formatDate(selectedAccionOperativa?.fecha_inicio_validada)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-blue-100 bg-white px-2 py-1">
+                  <p className="text-[8.5px] uppercase text-slate-500">Fin prevista</p>
+                  <p className="text-[11px] font-semibold text-slate-900">
+                    {formatDate(selectedAccionOperativa?.fecha_fin_prevista)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-blue-100 bg-white px-2 py-1">
+                  <p className="text-[8.5px] uppercase text-slate-500">Fin validada</p>
+                  <p className="text-[11px] font-semibold text-slate-900">
+                    {formatDate(selectedAccionOperativa?.fecha_fin_validada)}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -1164,6 +1259,8 @@ export default function MesaFiscalizacionPage() {
           <p className="mt-0.5">{resumen.nota_trazabilidad}</p>
         </footer>
       </section>
+
+      <span className="hidden">{VERSION_MESA_FISCALIZACION}</span>
     </main>
   );
 }

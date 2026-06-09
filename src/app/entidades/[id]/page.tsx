@@ -51,6 +51,20 @@ function pct(value: number | null | undefined) {
   return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format(value)} %`;
 }
 
+function formatDate(value: string | number | null | undefined) {
+  if (value === null || value === undefined || String(value).trim() === "") return "—";
+
+  const date = new Date(String(value));
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 function text(row: OfertaRow, keys: string[], fallback = "—") {
   for (const key of keys) {
     const value = row[key];
@@ -377,6 +391,7 @@ export default function ExpedienteEntidadPage() {
                     <th className="px-2 py-1.5">Especialidad</th>
                     <th className="px-2 py-1.5">Denominación</th>
                     <th className="px-2 py-1.5">Estado</th>
+                    <th className="px-2 py-1.5">Fechas</th>
                     <th className="px-2 py-1.5 text-right">Concedido</th>
                     <th className="px-2 py-1.5 text-right">Control económico</th>
                   </tr>
@@ -405,7 +420,7 @@ export default function ExpedienteEntidadPage() {
                         <td className="px-2 py-1 font-medium leading-4">
                           {text(row, ["codigo_especialidad", "especialidad"])}
                         </td>
-                        <td className="max-w-[260px] px-2 py-1">
+                        <td className="max-w-[240px] px-2 py-1">
                           <p className="line-clamp-1 leading-4">
                             {text(row, ["denominacion", "nombre_accion", "nombre"])}
                           </p>
@@ -414,6 +429,16 @@ export default function ExpedienteEntidadPage() {
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(estado)}`}>
                             {formatEstado(estado)}
                           </span>
+                        </td>
+                        <td className="min-w-[118px] px-2 py-1 text-[10px] leading-4 text-slate-600">
+                          <div>
+                            <span className="font-semibold text-slate-500">Ini.</span>{" "}
+                            {formatDate(text(row, ["fecha_inicio_prevista"], ""))} / {formatDate(text(row, ["fecha_inicio_validada"], ""))}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-slate-500">Fin</span>{" "}
+                            {formatDate(text(row, ["fecha_fin_prevista"], ""))} / {formatDate(text(row, ["fecha_fin_validada"], ""))}
+                          </div>
                         </td>
                         <td className="px-2 py-1 text-right font-medium">
                           {euro(numberValue(row, ["importe_concedido", "importe_total_concedido"]))}
@@ -427,7 +452,7 @@ export default function ExpedienteEntidadPage() {
 
                   {acciones.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-xs text-slate-500">
+                      <td colSpan={8} className="px-3 py-8 text-center text-xs text-slate-500">
                         Esta entidad no tiene acciones asociadas en la vista institucional.
                       </td>
                     </tr>

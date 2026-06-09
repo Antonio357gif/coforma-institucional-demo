@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_ESTADO_PAGO =
-  "2026-06-08-v7-estado-pago-coherencia-pago-documentacion";
+  "2026-06-09-v8-estado-pago-periodo-ejecucion-visible";
 
 type AccionResumenRow = {
   subexpediente_id: number;
@@ -854,6 +854,65 @@ export default function EstadoPagoPage() {
                 : "slate"
             }
           />
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Periodo de ejecución
+              </p>
+              <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
+                Fechas previstas y validadas para justificar la lectura operativa antes de cualquier decisión de pago.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${operativoBadgeClass(
+                accion?.estado_operativo_administrativo
+              )}`}
+            >
+              {estadoOperativoLabel(accion?.estado_operativo_administrativo)}
+            </span>
+          </div>
+
+          <div className="mt-2 grid gap-2 md:grid-cols-4">
+            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Inicio previsto
+              </p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-950">
+                {loading ? "—" : formatDate(accion?.oferta_fecha_inicio_prevista)}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Inicio validado
+              </p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-950">
+                {loading ? "—" : formatDate(accion?.oferta_fecha_inicio_validada)}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Fin prevista
+              </p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-950">
+                {loading ? "—" : formatDate(accion?.oferta_fecha_fin_prevista)}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Fin validada
+              </p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-950">
+                {loading ? "—" : formatDate(accion?.oferta_fecha_fin_validada)}
+              </p>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 shadow-sm">

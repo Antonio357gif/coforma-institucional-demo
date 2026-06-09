@@ -57,6 +57,10 @@ type SubexpedientePago = {
   estado_operativo_administrativo: string | null;
   documentacion_estado: string | null;
   estado_pago_administrativo: string | null;
+  fecha_inicio_prevista: string | null;
+  fecha_inicio_validada: string | null;
+  fecha_fin_prevista: string | null;
+  fecha_fin_validada: string | null;
 };
 
 function euro(value: number | null | undefined) {
@@ -77,6 +81,15 @@ function pct(value: number | null | undefined) {
   return `${new Intl.NumberFormat("es-ES", {
     maximumFractionDigits: 2,
   }).format(Number(value))} %`;
+}
+
+function fecha(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const [year, month, day] = String(value).slice(0, 10).split("-");
+  if (!year || !month || !day) return "—";
+
+  return `${day}/${month}/${year}`;
 }
 
 function normalizar(value: string | null | undefined) {
@@ -378,7 +391,7 @@ function SubexpedienteAccionContent() {
       const { data: subexpedienteData, error: subexpedienteError } = await supabase
         .from("subexpedientes_accion")
         .select(
-          "id, oferta_concedida_id, estado_operativo_administrativo, documentacion_estado, estado_pago_administrativo"
+          "id, oferta_concedida_id, estado_operativo_administrativo, documentacion_estado, estado_pago_administrativo, fecha_inicio_prevista, fecha_inicio_validada, fecha_fin_prevista, fecha_fin_validada"
         )
         .eq("oferta_concedida_id", ofertaId)
         .limit(1)
@@ -534,6 +547,64 @@ function SubexpedienteAccionContent() {
                 {accion.codigo_especialidad}
               </p>
               <p className="truncate text-[10px] text-slate-600">{accion.denominacion}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Periodo de ejecución
+              </p>
+              <p className="text-[10px] text-slate-500">
+                Fechas previstas y validadas para comprobar la coherencia del estado operativo.
+              </p>
+            </div>
+            <span
+              className={`rounded-full border px-3 py-0.5 text-[11px] font-semibold ${estadoOperativoClass(
+                estadoOperativoFuente
+              )}`}
+            >
+              {estadoVisible}
+            </span>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Inicio previsto
+              </p>
+              <p className="mt-0.5 text-[13px] font-semibold text-slate-950">
+                {fecha(subexpedientePago?.fecha_inicio_prevista)}
+              </p>
+            </div>
+
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Inicio validado
+              </p>
+              <p className="mt-0.5 text-[13px] font-semibold text-slate-950">
+                {fecha(subexpedientePago?.fecha_inicio_validada)}
+              </p>
+            </div>
+
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Fin prevista
+              </p>
+              <p className="mt-0.5 text-[13px] font-semibold text-slate-950">
+                {fecha(subexpedientePago?.fecha_fin_prevista)}
+              </p>
+            </div>
+
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Fin validada
+              </p>
+              <p className="mt-0.5 text-[13px] font-semibold text-slate-950">
+                {fecha(subexpedientePago?.fecha_fin_validada)}
+              </p>
             </div>
           </div>
         </section>
