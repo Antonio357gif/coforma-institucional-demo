@@ -93,6 +93,31 @@ function label(value: string | null | undefined) {
   return String(value ?? "—").replaceAll("_", " ");
 }
 
+function limpiarSemanticaEconomica(value: string | null | undefined) {
+  return String(value ?? "")
+    .replaceAll(
+      "ejecución económica",
+      "estado operativo y trazabilidad documental"
+    )
+    .replaceAll(
+      "seguimiento económico",
+      "seguimiento operativo/documental"
+    )
+    .replaceAll(
+      "ejecución y evidencias",
+      "estado operativo, documentación y evidencias"
+    )
+    .replaceAll(
+      "Mantener seguimiento ordinario de ejecución.",
+      "Mantener seguimiento ordinario operativo y documental."
+    )
+    .replaceAll(
+      "seguimiento ordinario de ejecución",
+      "seguimiento ordinario operativo y documental"
+    )
+    .trim();
+}
+
 function normalizarPrioridad(value: string | null | undefined): PrioridadActuacion {
   const normalizada = normalizar(value);
 
@@ -131,7 +156,7 @@ ${item.motivo}
 Evidencia o seguimiento requerido:
 ${item.evidencia}
 
-La entidad deberá aportar la documentación, aclaración o respuesta correspondiente dentro del plazo indicado para continuar la revisión administrativa del subexpediente.`;
+La entidad deberá aportar la documentación, aclaración o respuesta correspondiente dentro del plazo indicado para continuar la revisión administrativa y documental del subexpediente.`;
 }
 
 function Kpi({
@@ -171,8 +196,12 @@ function mapRowToActuacion(row: AccionPendienteRow): Actuacion {
     codigoAccion: row.codigo_accion ?? "—",
     especialidad: row.codigo_especialidad ?? "—",
     denominacion: row.denominacion ?? "—",
-    motivo: row.motivo ?? "Actuación administrativa pendiente de revisión.",
-    evidencia: row.evidencia_requerida ?? "Revisar evidencia asociada al subexpediente.",
+    motivo: limpiarSemanticaEconomica(
+      row.motivo ?? "Actuación administrativa pendiente de revisión."
+    ),
+    evidencia: limpiarSemanticaEconomica(
+      row.evidencia_requerida ?? "Revisar evidencia asociada al subexpediente."
+    ),
     origen: row.origen ?? "Acción administrativa pendiente",
     destino:
       row.destino_subexpediente ??
@@ -203,15 +232,17 @@ function mapOfertaToActuacion(row: OfertaRow): Actuacion {
     codigoAccion: row.codigo_accion ?? "—",
     especialidad: row.codigo_especialidad ?? "—",
     denominacion: row.denominacion ?? "—",
-    motivo:
+    motivo: limpiarSemanticaEconomica(
       row.actuacion_sugerida ??
-      (tieneRevision
-        ? "Actuación administrativa preparada sobre subexpediente con elementos pendientes de revisión."
-        : "Actuación administrativa de seguimiento ordinario preparada sobre subexpediente."),
-    evidencia:
+        (tieneRevision
+          ? "Actuación administrativa preparada sobre subexpediente con elementos pendientes de revisión."
+          : "Actuación administrativa de seguimiento ordinario operativo y documental preparada sobre subexpediente.")
+    ),
+    evidencia: limpiarSemanticaEconomica(
       tieneRevision
-        ? "Revisar documentación, trazabilidad, ejecución y evidencias asociadas al subexpediente."
-        : "Documentar seguimiento ordinario del subexpediente y conservar trazabilidad administrativa.",
+        ? "Revisar documentación, trazabilidad, estado operativo y evidencias asociadas al subexpediente."
+        : "Documentar seguimiento ordinario operativo/documental del subexpediente y conservar trazabilidad administrativa."
+    ),
     origen: "Alta manual vinculada a subexpediente",
     destino: `/subexpedientes-accion/${row.oferta_id}`,
     importeRiesgo,
@@ -493,7 +524,7 @@ function NuevaActuacionContent() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Preparar actuación administrativa</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Alta de actuación vinculada a subexpediente, entidad beneficiaria y trazabilidad backend.
+              Alta de actuación vinculada a subexpediente, entidad beneficiaria y trazabilidad administrativa.
             </p>
           </div>
 
@@ -601,7 +632,7 @@ function NuevaActuacionContent() {
               <p className="mt-0.5">
                 Esta pantalla prepara una actuación administrativa vinculada al subexpediente seleccionado.
                 Si no existía una actuación pendiente previa, se genera una propuesta manual desde la ficha real
-                de oferta formativa institucional.
+                de oferta formativa institucional, sin alterar la lectura económica saneada del expediente.
               </p>
             </section>
 

@@ -84,7 +84,7 @@ function estadoOperativoLabel(value: string | null | undefined) {
     no_iniciada: "No iniciada",
     finalizada: "Finalizada",
     en_ejecucion_con_incidencia: "En ejecución con incidencia",
-    finalizada_pendiente_justificacion: "Finalizada pendiente de justificación",
+    finalizada_pendiente_justificacion: "Finalizada · pendiente de cierre administrativo",
     riesgo_reintegro: "Riesgo de reintegro",
   };
 

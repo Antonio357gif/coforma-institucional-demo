@@ -80,18 +80,18 @@ function label(value: string | null | undefined) {
     en_ejecucion: "En ejecución",
     finalizada: "Finalizada",
     pendiente_ejecutar: "Pendiente de ejecutar",
-    justificacion_parcial_en_curso: "Justificación parcial en curso",
-    pendiente_aportacion: "Pendiente de aportación",
+    justificacion_parcial_en_curso: "Seguimiento operativo/documental",
+    pendiente_aportacion: "Aportación documental pendiente",
     no_devengado: "No devengado",
     normal: "Normal",
     ordinaria: "Ordinaria",
     media: "Media",
     baja: "Baja",
     alta: "Alta",
-    seguimiento_ejecucion_y_justificacion: "Seguimiento de ejecución y justificación",
+    seguimiento_ejecucion_y_justificacion: "Seguimiento operativo/documental",
     seguimiento_ordinario: "Seguimiento ordinario",
     control_inicio: "Control de inicio",
-    cierre_y_justificacion: "Cierre y justificación",
+    cierre_y_justificacion: "Cierre económico/documental",
   };
 
   return mapa[raw] ?? raw.replaceAll("_", " ");
@@ -141,65 +141,112 @@ function badgeClass(value: string | null | undefined) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
-function lecturaControl(row: DecisionMesaRow) {
+function ejecucionCerradaPagada(row: DecisionMesaRow) {
   const estado = normalize(estadoOperativo(row));
-  const justificacion = normalize(row.estado_justificacion);
+
+  if (estado === "finalizada") {
+    return Number(row.importe_ejecutado ?? 0);
+  }
+
+  return 0;
+}
+
+function importeNoDevengado(row: DecisionMesaRow) {
+  const estado = normalize(estadoOperativo(row));
+
+  if (
+    estado === "pendiente_ejecutar" ||
+    estado === "no_iniciada" ||
+    estado.includes("pendiente")
+  ) {
+    const pendiente = Number(row.importe_pendiente_justificar ?? 0);
+    return pendiente > 0 ? pendiente : Number(row.importe_concedido ?? 0);
+  }
+
+  return 0;
+}
+
+function estadoEconomicoControl(row: DecisionMesaRow) {
+  const estado = normalize(estadoOperativo(row));
   const riesgo = Number(row.importe_en_riesgo ?? 0);
-  const pendiente = Number(row.importe_pendiente_justificar ?? 0);
 
   if (riesgo > 0) {
     return {
-      control: "Revisión / riesgo",
+      etiqueta: "Revisión / riesgo",
       descripcion: "Subexpediente con importe económico en revisión.",
       tono: "risk" as const,
     };
   }
 
-  if (estado === "pendiente_ejecutar") {
+  if (
+    estado === "pendiente_ejecutar" ||
+    estado === "no_iniciada" ||
+    estado.includes("pendiente")
+  ) {
     return {
-      control: "Pendiente / no devengado",
-      descripcion: "Acción pendiente de ejecución. Importe no devengado.",
-      tono: "pending" as const,
-    };
-  }
-
-  if (estado === "finalizada" && justificacion.includes("pendiente")) {
-    return {
-      control: "Cierre / aportación",
-      descripcion: "Acción finalizada con documentación económica pendiente.",
+      etiqueta: "Pendiente / no devengado",
+      descripcion: "Acción pendiente o no iniciada. No devenga ejecución económica.",
       tono: "pending" as const,
     };
   }
 
   if (estado === "finalizada") {
     return {
-      control: "Cierre económico",
-      descripcion: "Acción finalizada con seguimiento económico ordinario.",
+      etiqueta: "Ejecución cerrada / pagada",
+      descripcion:
+        "Acción finalizada con ejecución económica cerrada/pagada según lectura backend.",
       tono: "ok" as const,
     };
   }
 
-  if (estado === "en_ejecucion" && justificacion.includes("parcial")) {
+  if (estado === "en_ejecucion") {
     return {
-      control: "Seguimiento",
-      descripcion: "Acción en ejecución con avance económico registrado.",
+      etiqueta: "Seguimiento operativo",
+      descripcion:
+        "Acción en ejecución: seguimiento operativo/documental sin imputación económica automática.",
       tono: "ok" as const,
-    };
-  }
-
-  if (estado === "en_ejecucion" && justificacion.includes("pendiente")) {
-    return {
-      control: "Seguimiento / aportación",
-      descripcion: "Acción en ejecución con aportación documental pendiente.",
-      tono: "pending" as const,
     };
   }
 
   return {
-    control: "Control ordinario",
-    descripcion: "Lectura económica ordinaria del subexpediente.",
+    etiqueta: "Control ordinario",
+    descripcion:
+      "Lectura institucional ordinaria sin ejecución económica automática registrada.",
     tono: "ok" as const,
   };
+}
+
+function lecturaControl(row: DecisionMesaRow) {
+  const lectura = estadoEconomicoControl(row);
+
+  return {
+    control: lectura.etiqueta,
+    descripcion: lectura.descripcion,
+    tono: lectura.tono,
+  };
+}
+
+function observacionInstitucional(row: DecisionMesaRow) {
+  const estado = normalize(estadoOperativo(row));
+  const texto = String(row.motivo_decision ?? row.actuacion_sugerida ?? "").trim();
+
+  if (estado === "en_ejecucion") {
+    return "Seguimiento operativo/documental activo. Sin imputación económica automática.";
+  }
+
+  if (
+    estado === "pendiente_ejecutar" ||
+    estado === "no_iniciada" ||
+    estado.includes("pendiente")
+  ) {
+    return "Pendiente o no iniciada. Importe no devengado.";
+  }
+
+  if (estado === "finalizada") {
+    return "Ejecución económica cerrada/pagada según lectura backend.";
+  }
+
+  return texto || "Sin observación económica adicional registrada.";
 }
 
 function controlBadgeClass(tono: "ok" | "pending" | "risk") {
@@ -426,9 +473,9 @@ function DecisionesPageContent() {
         const riesgo = Number(row.importe_en_riesgo ?? 0);
 
         acc.concedido += Number(row.importe_concedido ?? 0);
-        acc.ejecutado += Number(row.importe_ejecutado ?? 0);
-        acc.justificado += Number(row.importe_justificado ?? 0);
-        acc.pendiente += Number(row.importe_pendiente_justificar ?? 0);
+        acc.ejecutado += ejecucionCerradaPagada(row);
+        acc.justificado += 0;
+        acc.pendiente += importeNoDevengado(row);
         acc.riesgo += riesgo;
 
         if (estado === "en_ejecucion") acc.enEjecucion++;
@@ -536,7 +583,7 @@ function DecisionesPageContent() {
           </div>
 
           <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Lectura desde v_justificacion_economica
+            Lectura económica saneada
           </span>
         </div>
 
@@ -551,7 +598,7 @@ function DecisionesPageContent() {
           <Kpi
             labelText="En ejecución"
             value={num(resumen.enEjecucion)}
-            detail={`${pct(resumen.ejecutado, resumen.concedido)} avance`}
+            detail="seguimiento operativo · 0 € automático"
             tone="green"
             onClick={() => filtrarEstado("en_ejecucion")}
           />
@@ -569,8 +616,11 @@ function DecisionesPageContent() {
             value={num(resumen.pendientes)}
             detail={euro(
               filtradas
-                .filter((row) => estadoOperativo(row) === "pendiente_ejecutar")
-                .reduce((acc, row) => acc + Number(row.importe_pendiente_justificar ?? 0), 0)
+                .filter((row) => {
+                  const estado = normalize(estadoOperativo(row));
+                  return estado === "pendiente_ejecutar" || estado === "no_iniciada";
+                })
+                .reduce((acc, row) => acc + importeNoDevengado(row), 0)
             )}
             tone="blue"
             onClick={() => filtrarEstado("pendiente_ejecutar")}
@@ -648,7 +698,7 @@ function DecisionesPageContent() {
 
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Pago / justificación
+                Estado económico/control
               </label>
               <select
                 value={estadoJustificacionFiltro}
@@ -701,7 +751,7 @@ function DecisionesPageContent() {
                 Mesa económica por subexpediente
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Control de avance, no devengado, revisión/riesgo y actuación administrativa vinculada.
+                Control de ejecución cerrada/pagada, no devengado, revisión/riesgo y actuación administrativa vinculada.
               </p>
             </div>
 
@@ -746,7 +796,7 @@ function DecisionesPageContent() {
                 <tr>
                   <th className="px-2 py-1.5">Control</th>
                   <th className="px-2 py-1.5">Entidad / acción</th>
-                  <th className="px-2 py-1.5">Base económica</th>
+                  <th className="px-2 py-1.5">Lectura económica</th>
                   <th className="px-2 py-1.5">Estado</th>
                   <th className="px-2 py-1.5">Lectura</th>
                   <th className="px-2 py-1.5">Técnico</th>
@@ -793,14 +843,10 @@ function DecisionesPageContent() {
                           Concedido: <strong>{euro(row.importe_concedido)}</strong>
                         </p>
                         <p className="text-[10px] leading-4 text-emerald-700">
-                          Avance: <strong>{euro(row.importe_ejecutado)}</strong>
-                        </p>
-                        <p className="text-[10px] leading-4 text-blue-700">
-                          Justificado: <strong>{euro(row.importe_justificado)}</strong>
+                          Cerrado/pagado: <strong>{euro(ejecucionCerradaPagada(row))}</strong>
                         </p>
                         <p className="text-[10px] leading-4 text-amber-700">
-                          Pendiente/no devengado:{" "}
-                          <strong>{euro(row.importe_pendiente_justificar)}</strong>
+                          No devengado: <strong>{euro(importeNoDevengado(row))}</strong>
                         </p>
                         <p
                           className={
@@ -824,11 +870,11 @@ function DecisionesPageContent() {
 
                         <p className="mt-1">
                           <span
-                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClass(
-                              row.estado_justificacion
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${controlBadgeClass(
+                              estadoEconomicoControl(row).tono
                             )}`}
                           >
-                            {label(row.estado_justificacion)}
+                            {estadoEconomicoControl(row).etiqueta}
                           </span>
                         </p>
                       </td>
@@ -838,9 +884,7 @@ function DecisionesPageContent() {
                           {lectura.descripcion}
                         </p>
                         <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500">
-                          {row.motivo_decision ??
-                            row.actuacion_sugerida ??
-                            "Sin observación económica adicional registrada."}
+                          {observacionInstitucional(row)}
                         </p>
                       </td>
 

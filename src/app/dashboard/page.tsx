@@ -52,8 +52,18 @@ type OfertaResumen = {
   importe_revision_riesgo_concedido: number;
   avance_economico_en_ejecucion: number;
   importe_finalizado_ejecutado: number;
+  ejecucion_economica_cerrada_pagada: number;
+  porcentaje_ejecucion_economica_cerrada_pagada: number;
+  etiqueta_ejecucion_economica_cerrada: string;
+  porcentaje_importe_en_ejecucion_concedido: number;
+  porcentaje_importe_finalizado_concedido: number;
+  porcentaje_importe_pendiente_ejecutar_concedido: number;
+  porcentaje_importe_revision_riesgo_concedido: number;
 
   plazas_potenciales_estimadas: number;
+  porcentaje_plazas_potenciales_estimadas: number;
+  porcentaje_alumnado_potencial_neto_estimado: number;
+  porcentaje_bajas_estimadas: number;
   bajas_estimadas: number;
   alumnado_potencial_neto_estimado: number;
 
@@ -117,11 +127,11 @@ function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(value ?? 0);
 }
 
-function pct(part: number | null | undefined, total: number | null | undefined) {
-  const safePart = Number(part ?? 0);
-  const safeTotal = Number(total ?? 0);
-  if (!safeTotal || safeTotal <= 0) return 0;
-  return Math.round((safePart / safeTotal) * 100);
+function percentText(value: number | null | undefined) {
+  return `${new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value ?? 0)}%`;
 }
 
 function clamp(value: number, min = 0, max = 100) {
@@ -433,15 +443,17 @@ function BarRow({
   label,
   value,
   max,
+  percent,
   tone,
 }: {
   label: string;
   value: number;
   max: number;
+  percent?: number;
   tone: Tone;
 }) {
   const palette = toneClasses(tone);
-  const width = max > 0 ? clamp((value / max) * 100) : 0;
+  const width = typeof percent === "number" ? clamp(percent) : max > 0 ? clamp((value / max) * 100) : 0;
 
   return (
     <div className="grid grid-cols-[105px_1fr_38px] items-center gap-2 text-[11px]">
@@ -475,7 +487,7 @@ function FocusRows({
   rows: Array<{
     label: string;
     value: number;
-    base: number;
+    percent: number;
     tone: Tone;
     valueText?: string;
     href?: string;
@@ -486,16 +498,13 @@ function FocusRows({
     <div className="space-y-1.5">
       {rows.map((item) => {
         const palette = toneClasses(item.tone);
-        const percentage = pct(item.value, item.base);
-        const width = clamp(percentage);
         const rowContent = (
           <>
             <span className="truncate text-slate-600 group-hover:text-slate-900">{item.label}</span>
             <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-              <div className={`h-full rounded-full ${palette.line}`} style={{ width: `${width}%` }} />
+              <div className={`h-full rounded-full ${palette.line}`} style={{ width: `${clamp(item.percent)}%` }} />
             </div>
             <span className="text-right font-bold text-slate-800">{item.valueText ?? num(item.value)}</span>
-            <span className="text-right font-bold text-slate-500">{percentage}%</span>
           </>
         );
 
@@ -505,7 +514,7 @@ function FocusRows({
               key={item.label}
               href={item.href}
               title={item.title ?? item.label}
-              className="group grid grid-cols-[96px_1fr_116px_38px] items-center gap-2 rounded-lg px-1.5 py-1 text-[11px] transition hover:bg-blue-50"
+              className="group grid grid-cols-[96px_1fr_116px] items-center gap-2 rounded-lg px-1.5 py-1 text-[11px] transition hover:bg-blue-50"
             >
               {rowContent}
             </Link>
@@ -515,7 +524,7 @@ function FocusRows({
         return (
           <div
             key={item.label}
-            className="grid grid-cols-[96px_1fr_116px_38px] items-center gap-2 px-1.5 py-1 text-[11px]"
+            className="grid grid-cols-[96px_1fr_116px] items-center gap-2 px-1.5 py-1 text-[11px]"
           >
             {rowContent}
           </div>
@@ -538,14 +547,12 @@ function VerticalBars({
   }>;
   base: number;
 }) {
-  const safeBase = base > 0 ? base : 1;
   const maxValue = Math.max(...items.map((item) => item.value), 1);
 
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((item) => {
         const palette = toneClasses(item.tone);
-        const percentage = pct(item.value, safeBase);
         const height = Math.max(8, clamp((item.value / maxValue) * 100));
 
         return (
@@ -563,7 +570,6 @@ function VerticalBars({
             </div>
             <p className="mt-1.5 truncate text-[10px] font-semibold text-slate-700">{item.label}</p>
             <p className="mt-0.5 text-[12px] font-black leading-none text-slate-950">{num(item.value)}</p>
-            <p className={`mt-0.5 text-[10px] font-black ${palette.text}`}>{percentage}%</p>
           </Link>
         );
       })}
@@ -747,12 +753,12 @@ export default function DashboardPage() {
         label: "Económico",
         icon: "🏦",
         href: "/justificacion-economica",
-        description: "Importes concedidos, avance registrado y situación económica.",
+        description: "Importes concedidos, ejecución económica cerrada y situación de pago.",
         children: [
           {
-            label: "Avance económico",
+            label: "Ejecución económica cerrada",
             href: "/justificacion-economica",
-            description: "Lectura económica registrada, no cierre justificativo final.",
+            description: "Lectura económica cerrada/pagada desde backend.",
           },
           {
             label: "Decisiones económicas",
@@ -900,46 +906,21 @@ export default function DashboardPage() {
     ofertaResumen.en_ejecucion_con_incidencia + ofertaResumen.riesgo_reintegro;
 
   const documentacionClasificadaPct = documentacionDisponible
-    ? safePercent(documentacionResumen.porcentaje_documentacion_clasificada)
+    ? documentacionResumen.porcentaje_documentacion_clasificada
     : 0;
 
   const documentacionValidadaPct = documentacionDisponible
-    ? safePercent(documentacionResumen.porcentaje_documentacion_validada)
+    ? documentacionResumen.porcentaje_documentacion_validada
     : 0;
 
   const documentacionRecibidaPct = documentacionDisponible
-    ? safePercent(documentacionResumen.porcentaje_documentacion_recibida_pendiente_revision)
+    ? documentacionResumen.porcentaje_documentacion_recibida_pendiente_revision
     : 0;
 
-  const ejecucionEconomicaPct = pct(
-    ofertaResumen.importe_en_ejecucion_concedido,
-    ofertaResumen.importe_concedido_total
-  );
+  const ejecucionEconomicaCerradaPct = ofertaResumen.porcentaje_ejecucion_economica_cerrada_pagada ?? 0;
 
-  const finalizadoEconomicoPct = pct(
-    ofertaResumen.importe_finalizado_concedido,
-    ofertaResumen.importe_concedido_total
-  );
-
-  const pendienteEconomicoPct = pct(
-    ofertaResumen.importe_pendiente_ejecutar_concedido,
-    ofertaResumen.importe_concedido_total
-  );
-
-  const estadoResolucionPct = pct(
-    ofertaResumen.importe_en_ejecucion_concedido + ofertaResumen.importe_finalizado_concedido,
-    ofertaResumen.importe_concedido_total
-  );
-
-  const avanceEconomicoPct = pct(
-    ofertaResumen.importe_ejecutado_total,
-    ofertaResumen.importe_concedido_total
-  );
-
-  const impactoNetoPct = pct(
-    ofertaResumen.alumnado_potencial_neto_estimado,
-    ofertaResumen.plazas_potenciales_estimadas
-  );
+  const etiquetaEjecucionEconomica =
+    ofertaResumen.etiqueta_ejecucion_economica_cerrada || "Ejecución económica cerrada / pagada";
 
   const maxCargaAdministrativa = Math.max(
     ofertaResumen.requerimientos_pendientes,
@@ -1036,11 +1017,10 @@ export default function DashboardPage() {
               <KpiCard
                 title="Estado económico"
                 mainValue={euro(ofertaResumen.importe_concedido_total)}
-                subtitle={`${ejecucionEconomicaPct}% ejec. · ${finalizadoEconomicoPct}% fin. · ${pendienteEconomicoPct}% pend.`}
+                subtitle="Reparto de concesión por estado operativo"
                 href="/justificacion-economica"
                 tone="green"
                 icon="€"
-                percentValue={estadoResolucionPct}
                 cells={[
                   { label: "En ejecución", value: euro(ofertaResumen.importe_en_ejecucion_concedido), tone: "green" },
                   { label: "Finalizado", value: euro(ofertaResumen.importe_finalizado_concedido), tone: "slate" },
@@ -1056,10 +1036,6 @@ export default function DashboardPage() {
                 href="/oferta-formativa"
                 tone="amber"
                 icon="☷"
-                percentValue={pct(
-                  ofertaResumen.en_ejecucion + ofertaResumen.finalizadas_total,
-                  totalAcciones
-                )}
                 cells={[
                   { label: "En ejecución", value: num(ofertaResumen.en_ejecucion), tone: "green" },
                   { label: "Finalizadas", value: num(ofertaResumen.finalizadas_total), tone: "slate" },
@@ -1073,7 +1049,7 @@ export default function DashboardPage() {
                 mainValue={documentacionDisponible ? num(documentacionResumen.total_documentos) : "—"}
                 subtitle={
                   documentacionDisponible
-                    ? `${documentacionClasificadaPct}% clasificado · ${num(documentacionResumen.documentos_validados)} validados`
+                    ? `${percentText(documentacionClasificadaPct)} clasificado · ${num(documentacionResumen.documentos_validados)} validados`
                     : "resumen documental/normativo pendiente"
                 }
                 href="/recepcion-documentacion"
@@ -1097,9 +1073,9 @@ export default function DashboardPage() {
                     tone: "slate",
                   },
                   {
-                    label: "Sin clasificar",
-                    value: documentacionDisponible ? num(documentacionResumen.documentos_estado_no_controlado) : "—",
-                    tone: "amber",
+                    label: "Clasificado",
+                    value: documentacionDisponible ? percentText(documentacionClasificadaPct) : "—",
+                    tone: "green",
                   },
                 ]}
               />
@@ -1111,7 +1087,6 @@ export default function DashboardPage() {
                 href="/oferta-formativa"
                 tone="teal"
                 icon="☷"
-                percentValue={impactoNetoPct}
                 cells={[
                   { label: "AF", value: num(ofertaResumen.acciones_af), tone: "blue" },
                   { label: "CP", value: num(ofertaResumen.acciones_cp), tone: "violet" },
@@ -1149,7 +1124,7 @@ export default function DashboardPage() {
                     label="Documentación"
                     helper={
                       documentacionDisponible
-                        ? `${documentacionClasificadaPct}% clasificada · ${num(documentacionResumen.controles_normativos)} controles FPED`
+                        ? `${percentText(documentacionClasificadaPct)} clasificada · ${num(documentacionResumen.controles_normativos)} controles FPED`
                         : "resumen pendiente"
                     }
                     value={
@@ -1168,9 +1143,9 @@ export default function DashboardPage() {
                   <ControlTile
                     href="/justificacion-economica"
                     tone="violet"
-                    label="Avance económico"
-                    helper={`${euro(ofertaResumen.importe_ejecutado_total)} · ${avanceEconomicoPct}% registrado`}
-                    value={`${avanceEconomicoPct}%`}
+                    label={etiquetaEjecucionEconomica}
+                    helper={`${euro(ofertaResumen.ejecucion_economica_cerrada_pagada)} · ${percentText(ejecucionEconomicaCerradaPct)} backend`}
+                    value={percentText(ejecucionEconomicaCerradaPct)}
                   />
                 </div>
               </div>
@@ -1185,36 +1160,36 @@ export default function DashboardPage() {
                         {
                           label: "En ejecución",
                           value: ofertaResumen.importe_en_ejecucion_concedido,
-                          base: ofertaResumen.importe_concedido_total,
+                          percent: ofertaResumen.porcentaje_importe_en_ejecucion_concedido,
                           tone: "green",
-                          valueText: euro(ofertaResumen.importe_en_ejecucion_concedido),
+                          valueText: `${euro(ofertaResumen.importe_en_ejecucion_concedido)} · ${percentText(ofertaResumen.porcentaje_importe_en_ejecucion_concedido)}`,
                           href: "/oferta-formativa?estado=en_ejecucion",
                           title: "Ver acciones en ejecución",
                         },
                         {
                           label: "Finalizado",
                           value: ofertaResumen.importe_finalizado_concedido,
-                          base: ofertaResumen.importe_concedido_total,
+                          percent: ofertaResumen.porcentaje_importe_finalizado_concedido,
                           tone: "slate",
-                          valueText: euro(ofertaResumen.importe_finalizado_concedido),
+                          valueText: `${euro(ofertaResumen.importe_finalizado_concedido)} · ${percentText(ofertaResumen.porcentaje_importe_finalizado_concedido)}`,
                           href: "/oferta-formativa?estado=finalizada",
                           title: "Ver acciones finalizadas",
                         },
                         {
                           label: "Pendiente",
                           value: ofertaResumen.importe_pendiente_ejecutar_concedido,
-                          base: ofertaResumen.importe_concedido_total,
+                          percent: ofertaResumen.porcentaje_importe_pendiente_ejecutar_concedido,
                           tone: "blue",
-                          valueText: euro(ofertaResumen.importe_pendiente_ejecutar_concedido),
+                          valueText: `${euro(ofertaResumen.importe_pendiente_ejecutar_concedido)} · ${percentText(ofertaResumen.porcentaje_importe_pendiente_ejecutar_concedido)}`,
                           href: "/oferta-formativa?estado=pendiente_ejecutar",
                           title: "Ver acciones pendientes de ejecutar",
                         },
                         {
                           label: "Revisión",
                           value: ofertaResumen.importe_revision_riesgo_concedido,
-                          base: ofertaResumen.importe_concedido_total,
+                          percent: ofertaResumen.porcentaje_importe_revision_riesgo_concedido,
                           tone: "red",
-                          valueText: euro(ofertaResumen.importe_revision_riesgo_concedido),
+                          valueText: `${euro(ofertaResumen.importe_revision_riesgo_concedido)} · ${percentText(ofertaResumen.porcentaje_importe_revision_riesgo_concedido)}`,
                           href: "/alertas",
                           title: "Ver acciones sujetas a revisión o riesgo",
                         },
@@ -1264,30 +1239,32 @@ export default function DashboardPage() {
                         label="Validados"
                         value={documentacionDisponible ? documentacionResumen.documentos_validados : 0}
                         max={documentacionDisponible ? documentacionResumen.total_documentos : 1}
+                        percent={documentacionDisponible ? documentacionResumen.porcentaje_documentacion_validada : 0}
                         tone="green"
                       />
                       <BarRow
                         label="Recibidos"
                         value={documentacionDisponible ? documentacionResumen.documentos_recibidos : 0}
                         max={documentacionDisponible ? documentacionResumen.total_documentos : 1}
+                        percent={documentacionDisponible ? documentacionResumen.porcentaje_documentacion_recibida_pendiente_revision : 0}
                         tone="blue"
                       />
                       <BarRow
                         label="No aplica"
                         value={documentacionDisponible ? documentacionResumen.documentos_no_aplica : 0}
                         max={documentacionDisponible ? documentacionResumen.total_documentos : 1}
+                        percent={documentacionDisponible ? documentacionResumen.porcentaje_documentacion_no_aplica : 0}
                         tone="slate"
                       />
-                      <BarRow
-                        label="Sin clasificar"
-                        value={documentacionDisponible ? documentacionResumen.documentos_estado_no_controlado : 0}
-                        max={documentacionDisponible ? documentacionResumen.total_documentos : 1}
-                        tone="amber"
-                      />
+                      {documentacionDisponible && documentacionResumen.documentos_estado_no_controlado > 0 ? (
+                        <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-900">
+                          {num(documentacionResumen.documentos_estado_no_controlado)} documentos sin clasificar.
+                        </p>
+                      ) : null}
                     </div>
                     {documentacionDisponible ? (
                       <p className="mt-2 text-[10px] leading-4 text-slate-500">
-                        {documentacionValidadaPct}% validada · {documentacionRecibidaPct}% recibida pendiente de revisión.
+                        {percentText(documentacionValidadaPct)} validada · {percentText(documentacionRecibidaPct)} recibida pendiente de revisión.
                       </p>
                     ) : null}
                   </FocusPanel>
@@ -1298,37 +1275,34 @@ export default function DashboardPage() {
                         label="Plazas"
                         value={ofertaResumen.plazas_potenciales_estimadas}
                         max={ofertaResumen.plazas_potenciales_estimadas}
+                        percent={ofertaResumen.porcentaje_plazas_potenciales_estimadas}
                         tone="teal"
                       />
                       <BarRow
                         label="Neto"
                         value={ofertaResumen.alumnado_potencial_neto_estimado}
                         max={ofertaResumen.plazas_potenciales_estimadas}
+                        percent={ofertaResumen.porcentaje_alumnado_potencial_neto_estimado}
                         tone="green"
                       />
                       <BarRow
                         label="Bajas"
                         value={ofertaResumen.bajas_estimadas}
                         max={ofertaResumen.plazas_potenciales_estimadas}
+                        percent={ofertaResumen.porcentaje_bajas_estimadas}
                         tone="amber"
-                      />
-                      <BarRow
-                        label="Avance econ."
-                        value={Math.round(ofertaResumen.importe_ejecutado_total)}
-                        max={Math.round(ofertaResumen.importe_concedido_total)}
-                        tone="blue"
                       />
                     </div>
                   </FocusPanel>
                 </div>
 
                 <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-4 text-slate-600">
-                  Avance económico registrado:{" "}
+                  {etiquetaEjecucionEconomica}:{" "}
                   <span className="font-black text-slate-900">
-                    {euro(ofertaResumen.importe_ejecutado_total)}
+                    {euro(ofertaResumen.ejecucion_economica_cerrada_pagada)}
                   </span>{" "}
-                  ({avanceEconomicoPct}% sobre lo concedido). No equivale a justificación final
-                  validada ni a cierre administrativo del subexpediente.
+                  ({percentText(ejecucionEconomicaCerradaPct)} según backend sobre lo concedido). Corresponde a
+                  acciones finalizadas, documentación validada y pago administrativo registrado.
                 </div>
               </div>
             </section>

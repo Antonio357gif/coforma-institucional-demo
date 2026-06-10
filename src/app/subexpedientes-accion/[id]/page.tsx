@@ -140,7 +140,7 @@ function pagoLabel(value: string | null | undefined) {
   const estado = normalizar(value);
 
   if (estado === "pagado") return "Pagado";
-  if (estado === "en_ejecucion_no_abonado") return "En ejecución · pendiente de devengo";
+  if (estado === "en_ejecucion_no_abonado") return "Sin devengo automático";
   if (estado === "en_revision_parcial") return "En revisión parcial";
   if (estado === "no_devengado") return "No devengado";
   if (estado === "retenido_revision") return "Retenido por revisión";
@@ -241,7 +241,7 @@ function evidenciaTexto(accion: AccionDetalle, alertaTipificada: AlertaTipificad
 
   return (
     accion.evidencia_a_revisar ||
-    "Mantener seguimiento ordinario de asistencia, alumnado activo y ejecución económica."
+    "Mantener seguimiento ordinario de asistencia, alumnado activo y documentación/estado operativo."
   );
 }
 
@@ -280,6 +280,22 @@ function evidenciaTextoOperativa(
   const estadoDocumental = normalizar(subexpedientePago?.documentacion_estado);
   const estadoPago = normalizar(subexpedientePago?.estado_pago_administrativo);
 
+  if (estadoOperativo === "en_ejecucion") {
+    return "Mantener seguimiento ordinario de asistencia, alumnado activo y documentación/estado operativo. La acción está en ejecución y no genera imputación económica automática.";
+  }
+
+  if (estadoOperativo === "pendiente_ejecutar" || estadoOperativo === "no_iniciada") {
+    return "Acción pendiente/no iniciada. Mantener control de planificación y documentación previa; no existe devengo económico.";
+  }
+
+  if (estadoOperativo === "en_ejecucion") {
+    return "Seguimiento ordinario operativo y documental, sin imputación económica automática.";
+  }
+
+  if (estadoOperativo === "pendiente_ejecutar" || estadoOperativo === "no_iniciada") {
+    return "Acción pendiente/no iniciada. No devengada; mantener control de planificación y documentación previa.";
+  }
+
   if (estadoOperativo === "finalizada") {
     if (estadoDocumental === "validada" && estadoPago === "pagado") {
       return "Acción finalizada, expediente documental validado y pago registrado. Mantener trazabilidad y revisar solo si existe incidencia sobrevenida.";
@@ -310,13 +326,21 @@ function decisionTextoOperativa(
   const estadoDocumental = normalizar(subexpedientePago?.documentacion_estado);
   const estadoPago = normalizar(subexpedientePago?.estado_pago_administrativo);
 
+  if (estadoOperativo === "en_ejecucion") {
+    return "Mantener seguimiento ordinario de asistencia, alumnado activo y documentación/estado operativo. La acción está en ejecución y no genera imputación económica automática.";
+  }
+
+  if (estadoOperativo === "pendiente_ejecutar" || estadoOperativo === "no_iniciada") {
+    return "Acción pendiente/no iniciada. Mantener control de planificación y documentación previa; no existe devengo económico.";
+  }
+
   if (estadoOperativo === "finalizada") {
     if (estadoDocumental === "validada" && estadoPago === "pagado") {
       return "Pago ya registrado. Mantener trazabilidad y revisar solo si existe incidencia sobrevenida.";
     }
 
     if (estadoDocumental === "validada") {
-      return "Acción finalizada con documentación validada. Revisar estado de pago para decisión económica superior.";
+      return "Acción finalizada con documentación validada. Revisar estado económico para decisión económica superior.";
     }
 
     return "Acción finalizada con documentación pendiente. Revisar mesa documental antes de autorizar o confirmar cierre económico.";
@@ -502,7 +526,7 @@ function SubexpedienteAccionContent() {
                   subexpedientePago.estado_pago_administrativo
                 )}`}
               >
-                Pago: {pagoLabel(subexpedientePago.estado_pago_administrativo)}
+                Estado económico: {pagoLabel(subexpedientePago.estado_pago_administrativo)}
               </span>
             ) : null}
 
@@ -647,7 +671,7 @@ function SubexpedienteAccionContent() {
               {subexpedientePago ? (
                 <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5">
                   <span className="text-[9px] font-semibold uppercase text-slate-500">
-                    Estado de pago
+                    Estado económico/control
                   </span>
                   <span
                     className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${pagoBadgeClass(
@@ -710,7 +734,7 @@ function SubexpedienteAccionContent() {
                     href={estadoPagoHref}
                     className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100"
                   >
-                    Revisar estado de pago
+                    Revisar estado económico
                   </Link>
                 ) : null}
 

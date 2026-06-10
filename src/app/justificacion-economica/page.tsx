@@ -112,6 +112,13 @@ function esRevisionRiesgo(row: JustificacionRow) {
 function pagoAdministrativo(row: JustificacionRow): PagoAdministrativo {
   const pagoReal = normalizar(row.estado_pago_administrativo);
 
+  // Regla institucional saneada:
+  // en ejecución no imputa economía automáticamente, aunque existan importes parciales históricos.
+  if (esEnEjecucion(row)) return "en_ejecucion_no_abonado";
+  if (esPendiente(row)) return "no_devengado";
+  if (esRevisionRiesgo(row)) return "revision_riesgo";
+  if (esFinalizada(row)) return "pagado";
+
   if (pagoReal === "pagado") return "pagado";
   if (pagoReal === "en_revision_parcial") return "en_revision_parcial";
   if (pagoReal === "en_ejecucion_no_abonado") return "en_ejecucion_no_abonado";
@@ -120,20 +127,13 @@ function pagoAdministrativo(row: JustificacionRow): PagoAdministrativo {
     return "revision_riesgo";
   }
 
-  if (esFinalizada(row)) return "pagado";
-  if (esPendiente(row)) return "no_devengado";
-  if (esRevisionRiesgo(row)) return "revision_riesgo";
-
-  const justificado = Number(row.importe_justificado ?? 0);
-  if (esEnEjecucion(row) && justificado > 0) return "en_revision_parcial";
-
   return "en_ejecucion_no_abonado";
 }
 
 function pagoLabel(value: PagoAdministrativo) {
   if (value === "pagado") return "Pagado";
-  if (value === "en_revision_parcial") return "Revisión parcial";
-  if (value === "en_ejecucion_no_abonado") return "En ejecución no abonado";
+  if (value === "en_revision_parcial") return "Revisión económica";
+  if (value === "en_ejecucion_no_abonado") return "Sin devengo automático";
   if (value === "no_devengado") return "No devengado";
   return "Revisión/Riesgo";
 }
@@ -168,7 +168,7 @@ function lecturaControl(row: JustificacionRow) {
     return "Finalizada pendiente de decisión económica";
   }
 
-  if (esEnEjecucion(row)) return "Ejecución viva / seguimiento económico";
+  if (esEnEjecucion(row)) return "Seguimiento operativo/documental · sin imputación económica automática";
   if (esPendiente(row)) return "Pendiente de ejecución / no devengado";
   return "Revisión o riesgo activo";
 }
@@ -505,7 +505,7 @@ function JustificacionEconomicaPageContent() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Justificación económica</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Lectura económica saneada: concedido, estado operativo, pago administrativo, no devengado y revisión.
+              Lectura económica saneada: concedido, estado operativo, sin devengo automático, cierre/pago y revisión.
             </p>
           </div>
 
@@ -538,7 +538,7 @@ function JustificacionEconomicaPageContent() {
 
             {pagoFiltro !== "todos" ? (
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm">
-                Pago: {label(pagoFiltro)}
+                Estado econ.: {label(pagoFiltro)}
               </span>
             ) : null}
 
@@ -559,12 +559,12 @@ function JustificacionEconomicaPageContent() {
           <Kpi
             labelText="En ejecución"
             value={euro(resumen.enEjecucionImporte)}
-            detail={`${num(resumen.enEjecucionAcciones)} acciones · ${pct(resumen.enEjecucionImporte, resumen.concedido)}`}
+            detail={`${num(resumen.enEjecucionAcciones)} acciones · seguimiento operativo · 0 € automático`}
             href={justificacionHref({ operativo: "en_ejecucion" })}
             tone="green"
           />
           <Kpi
-            labelText="Finalizado / pagado"
+            labelText="Cerrado / pagado"
             value={euro(resumen.finalizadoImporte)}
             detail={`${num(resumen.finalizadasAcciones)} acciones · ${pct(resumen.finalizadoImporte, resumen.concedido)}`}
             href={justificacionHref({ operativo: "finalizada" })}
@@ -643,7 +643,7 @@ function JustificacionEconomicaPageContent() {
 
             <div>
               <label className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
-                Pago administrativo
+                Estado económico/control
               </label>
               <select
                 value={pagoFiltro}
@@ -652,8 +652,8 @@ function JustificacionEconomicaPageContent() {
               >
                 <option value="todos">Todos</option>
                 <option value="pagado">Pagado</option>
-                <option value="en_revision_parcial">Revisión parcial</option>
-                <option value="en_ejecucion_no_abonado">En ejecución no abonado</option>
+                <option value="en_revision_parcial">Revisión económica</option>
+                <option value="en_ejecucion_no_abonado">Sin devengo automático</option>
                 <option value="no_devengado">No devengado</option>
                 <option value="revision_riesgo">Revisión/Riesgo</option>
               </select>
@@ -752,7 +752,7 @@ function JustificacionEconomicaPageContent() {
                   <th className="px-2 py-1.5">Entidad / acción</th>
                   <th className="px-2 py-1.5 text-right">Concedido</th>
                   <th className="px-2 py-1.5">Estado operativo</th>
-                  <th className="px-2 py-1.5">Pago administrativo</th>
+                  <th className="px-2 py-1.5">Estado económico/control</th>
                   <th className="px-2 py-1.5">Lectura de control</th>
                   <th className="px-2 py-1.5">Opciones</th>
                 </tr>
