@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_ESTADO_PAGO =
-  "2026-06-09-v8-estado-pago-periodo-ejecucion-visible";
+  "2026-06-10-v9-estado-pago-semantica-saneada";
 
 type AccionResumenRow = {
   subexpediente_id: number;
@@ -120,19 +120,19 @@ const pagoOptions: PagoOption[] = [
   },
   {
     value: "en_revision_parcial",
-    label: "En revisión parcial",
-    helper: "Existe revisión económica parcial o pendiente de cierre.",
+    label: "En revisión de control",
+    helper: "Existe revisión administrativa o económica pendiente de cierre.",
   },
   {
     value: "en_ejecucion_no_abonado",
-    label: "En ejecución · pendiente de devengo",
+    label: "Sin devengo automático",
     helper:
-      "La acción sigue en ejecución; no existe cierre económico final ni devengo completo.",
+      "La acción sigue en ejecución; mantiene seguimiento operativo/documental sin imputación económica automática.",
   },
   {
     value: "no_devengado",
     label: "No devengado",
-    helper: "No procede pago porque no existe devengo económico suficiente.",
+    helper: "No procede pago por estado operativo o documental del subexpediente.",
   },
   {
     value: "retenido_revision",
@@ -517,7 +517,18 @@ function pagoRegistradoConCondicionesPendientes(accion: AccionResumenRow | null)
 }
 
 function decisionRecomendada(accion: AccionResumenRow | null) {
-  if (!accion) return "Cargando lectura económica del subexpediente.";
+  if (!accion) return "Cargando lectura económica/control del subexpediente.";
+
+  if (accion.estado_operativo_administrativo === "en_ejecucion") {
+    return "No autorizar pago todavía: acción en ejecución. Mantener seguimiento operativo/documental sin imputación económica automática.";
+  }
+
+  if (
+    accion.estado_operativo_administrativo === "pendiente_ejecutar" ||
+    accion.estado_operativo_administrativo === "no_iniciada"
+  ) {
+    return "No autorizar pago: acción pendiente/no iniciada. Mantener estado no devengado hasta que exista ejecución y cierre administrativo.";
+  }
 
   const bloqueos = getBloqueosPago(accion);
   const bloqueosNoInformativos = getBloqueosNoInformativosPago(accion);
@@ -542,7 +553,7 @@ function decisionRecomendada(accion: AccionResumenRow | null) {
 
     return `No autorizar pago todavía: ${
       primerBloqueo?.titulo ?? "existen condiciones pendientes"
-    }. Revise o subsane desde la mesa documental antes de la decisión económica.`;
+    }. Revise o subsane desde la mesa documental antes de la decisión económica/control.`;
   }
 
   return "Puede autorizarse pago: acción finalizada, fases documentales completas, sin riesgo activo, sin incidencias y sin requerimientos pendientes.";
@@ -552,18 +563,21 @@ function accionSemantica(accion: AccionResumenRow | null) {
   if (!accion) return "Cargando regla operativa.";
 
   if (accion.estado_operativo_administrativo === "finalizada") {
-    return "Finalizada: la revisión de pago debe comprobar documentación validada por fases, ausencia de riesgo activo, ausencia de incidencias y coherencia económica antes de autorizar o mantener el pago.";
+    return "Finalizada: la revisión económica/control debe comprobar documentación validada por fases, ausencia de riesgo activo, ausencia de incidencias y coherencia administrativa antes de autorizar o mantener el pago.";
   }
 
   if (accion.estado_operativo_administrativo === "en_ejecucion") {
-    return "En ejecución: el pago no debe tratarse como cierre final; puede mantenerse como pendiente de devengo o en revisión parcial.";
+    return "En ejecución: seguimiento operativo/documental activo, sin imputación económica automática ni cierre/pago defendible.";
   }
 
-  if (accion.estado_operativo_administrativo === "pendiente_ejecutar") {
-    return "Pendiente de ejecutar: no existe devengo económico ordinario; el estado natural es no devengado.";
+  if (
+    accion.estado_operativo_administrativo === "pendiente_ejecutar" ||
+    accion.estado_operativo_administrativo === "no_iniciada"
+  ) {
+    return "Pendiente/no iniciada: no existe devengo económico; el estado natural es no devengado.";
   }
 
-  return "Revise la situación operativa antes de actuar sobre el pago.";
+  return "Revise la situación operativa antes de actuar sobre el estado económico/control.";
 }
 
 function bloqueoClass(tipo: BloqueoPago["tipo"]) {
@@ -720,9 +734,9 @@ export default function EstadoPagoPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-200">
               Coforma Institucional
             </p>
-            <h1 className="mt-1 text-xl font-semibold">Estado de pago operativo</h1>
+            <h1 className="mt-1 text-xl font-semibold">Estado económico/control operativo</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Revisión económica separada para perfiles superiores: decisión de pago, retención o no devengo.
+              Revisión económica/control separada para perfiles superiores: decisión de pago, retención o no devengo.
             </p>
           </div>
 
@@ -802,7 +816,7 @@ export default function EstadoPagoPage() {
 
         <section className="grid gap-2 lg:grid-cols-6">
           <KpiCard
-            label="Estado pago"
+            label="Estado económico/control"
             value={loading ? "—" : pagoLabel(accion?.estado_pago_administrativo)}
             detail={loading ? "cargando" : pagoHelper(accion?.estado_pago_administrativo)}
             tone="violet"
@@ -863,7 +877,7 @@ export default function EstadoPagoPage() {
                 Periodo de ejecución
               </p>
               <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
-                Fechas previstas y validadas para justificar la lectura operativa antes de cualquier decisión de pago.
+                Fechas previstas y validadas para justificar la lectura operativa antes de cualquier decisión económica/control.
               </p>
             </div>
 
@@ -952,7 +966,7 @@ export default function EstadoPagoPage() {
                     : "text-[11px] font-semibold text-amber-950"
                 }
               >
-                Control documental previo al pago
+                Control documental previo al cierre/pago
               </p>
               <p
                 className={
@@ -962,10 +976,10 @@ export default function EstadoPagoPage() {
                 }
               >
                 {puedeAutorizarPago
-                  ? "Todas las fases documentales obligatorias constan completas y validadas. El pago puede autorizarse si no existe revisión económica adicional."
+                  ? "Todas las fases documentales obligatorias constan completas y validadas. El pago puede autorizarse si no existe revisión económica/control adicional."
                   : pagoConCondicionesPendientes
                     ? "Existe un pago registrado, pero el expediente mantiene condiciones documentales u operativas pendientes. Debe revisarse antes de considerarlo cierre económico defendible."
-                    : "El pago queda bloqueado hasta revisar o subsanar las fases/documentos pendientes en la mesa documental."}
+                    : "El cierre/pago queda bloqueado hasta revisar o subsanar las fases/documentos pendientes en la mesa documental."}
               </p>
             </div>
 
@@ -1024,7 +1038,7 @@ export default function EstadoPagoPage() {
                   Subexpediente
                 </h2>
                 <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                  Datos de contexto económico y documental para decidir el estado de pago.
+                  Datos de contexto económico y documental para revisar el estado económico/control.
                 </p>
               </div>
 
@@ -1075,7 +1089,7 @@ export default function EstadoPagoPage() {
 
           <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
             <h2 className="text-[14px] font-semibold leading-5 text-slate-950">
-              Actualizar estado de pago
+              Actualizar estado económico/control
             </h2>
             <p className="mt-1 text-[11px] leading-4 text-slate-500">
               Esta acción queda separada de la mesa documental porque corresponde a revisión económica o perfil superior.
@@ -1083,7 +1097,7 @@ export default function EstadoPagoPage() {
 
             <div className="mt-3 grid gap-2">
               <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                Estado de pago administrativo
+                Estado económico/control administrativo
               </label>
               <select
                 value={pagoDraft}
@@ -1127,7 +1141,7 @@ export default function EstadoPagoPage() {
                 value={pagoObservacion}
                 onChange={(event) => setPagoObservacion(event.target.value)}
                 rows={4}
-                placeholder="Observación económica/administrativa del cambio de pago..."
+                placeholder="Observación económica/administrativa del cambio de estado..."
                 className="w-full resize-none rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] leading-4 outline-none focus:border-blue-400"
               />
 
@@ -1142,7 +1156,7 @@ export default function EstadoPagoPage() {
                       : "rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-400"
                   }
                 >
-                  {savingPago ? "Guardando..." : pagoSaved ? "Guardado" : "Guardar estado de pago"}
+                  {savingPago ? "Guardando..." : pagoSaved ? "Guardado" : "Guardar estado económico"}
                 </button>
 
                 {puedeAutorizarPago ? (
@@ -1152,7 +1166,7 @@ export default function EstadoPagoPage() {
                     onClick={() =>
                       guardarPago(
                         "pagado",
-                        "Pago autorizado desde página Estado de pago tras documentación completa por fases, validada y sin riesgo activo."
+                        "Pago autorizado desde página Estado de pago tras acción finalizada, documentación completa por fases, validada y sin riesgo activo."
                       )
                     }
                     className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
@@ -1207,7 +1221,7 @@ export default function EstadoPagoPage() {
                 Trazabilidad de responsabilidad
               </p>
               <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
-                La mesa documental trabaja controles técnicos. Esta página concentra la decisión de pago para evitar que un técnico documental modifique estados económicos sin una pantalla específica.
+                La mesa documental trabaja controles técnicos. Esta página concentra la decisión económica/control para evitar que un técnico documental modifique estados económicos sin una pantalla específica.
               </p>
             </div>
 

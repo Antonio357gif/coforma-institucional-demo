@@ -774,7 +774,7 @@ export default function RecepcionDocumentacionPage() {
               href="/justificacion-economica"
               className="text-xs font-semibold text-blue-800 hover:text-blue-950"
             >
-              Avance económico
+              Estado económico/control
             </Link>
 
             <Link

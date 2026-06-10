@@ -1256,7 +1256,7 @@ export default function MesaDocumentalPage() {
               href={`/estado-pago/${id}`}
               className="text-xs font-semibold text-violet-800 hover:text-violet-950"
             >
-              Estado de pago
+              Estado económico/control
             </Link>
 
             <Link

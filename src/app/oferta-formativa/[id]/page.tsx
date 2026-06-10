@@ -76,6 +76,104 @@ function badgeClass(value: string | null | undefined) {
   return "border-emerald-200 bg-emerald-50 text-emerald-800";
 }
 
+function estadoOperativoLabel(value: string | null | undefined) {
+  const normalizado = String(value ?? "").trim().toLowerCase();
+
+  if (normalizado === "en_ejecucion") return "En ejecución";
+  if (normalizado === "finalizada") return "Finalizada";
+  if (normalizado === "pendiente_ejecutar") return "Pendiente/no iniciada";
+  if (normalizado === "no_iniciada") return "No iniciada";
+  if (normalizado === "finalizada_pendiente_justificacion") {
+    return "Finalizada · pendiente de cierre administrativo";
+  }
+  if (normalizado === "riesgo_reintegro") return "Revisión/riesgo";
+  if (normalizado === "incidencia") return "Revisión técnica";
+
+  return value ? String(value).replaceAll("_", " ") : "—";
+}
+
+function esEnEjecucion(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase() === "en_ejecucion";
+}
+
+function esFinalizada(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase() === "finalizada";
+}
+
+function saneText(value: string | null | undefined) {
+  return String(value ?? "—")
+    .replaceAll("avance económico", "seguimiento operativo/documental")
+    .replaceAll("Avance económico", "Seguimiento operativo/documental")
+    .replaceAll("ejecución económica", "estado operativo/documental")
+    .replaceAll("Ejecución económica", "Estado operativo/documental")
+    .replaceAll("seguimiento económico", "seguimiento operativo/documental")
+    .replaceAll("Seguimiento económico", "Seguimiento operativo/documental")
+    .replaceAll("justificación parcial", "revisión administrativa")
+    .replaceAll("Justificación parcial", "Revisión administrativa")
+    .replaceAll("pendiente de justificación", "pendiente de cierre administrativo")
+    .replaceAll("Pendiente de justificación", "Pendiente de cierre administrativo");
+}
+
+function lecturaInstitucionalSaneada(accion: AccionDetalle) {
+  if (Number(accion.importe_en_riesgo ?? 0) > 0) {
+    return saneText(accion.lectura_institucional);
+  }
+
+  if (esEnEjecucion(accion.estado_ejecucion)) {
+    return "Acción en ejecución: mantiene seguimiento operativo y documental, sin imputación económica automática.";
+  }
+
+  if (esFinalizada(accion.estado_ejecucion)) {
+    return "Acción finalizada: lectura de cierre administrativo y trazabilidad del subexpediente.";
+  }
+
+  return saneText(accion.lectura_institucional);
+}
+
+function evidenciaSaneada(accion: AccionDetalle) {
+  if (Number(accion.importe_en_riesgo ?? 0) > 0) {
+    return saneText(accion.evidencia_a_revisar);
+  }
+
+  if (esEnEjecucion(accion.estado_ejecucion)) {
+    return "Mantener seguimiento ordinario de asistencia, alumnado activo y documentación/estado operativo.";
+  }
+
+  return saneText(accion.evidencia_a_revisar);
+}
+
+function decisionSaneada(accion: AccionDetalle) {
+  if (Number(accion.importe_en_riesgo ?? 0) > 0) {
+    return saneText(accion.decision_recomendada);
+  }
+
+  if (esEnEjecucion(accion.estado_ejecucion)) {
+    return "Seguimiento ordinario operativo y documental";
+  }
+
+  if (esFinalizada(accion.estado_ejecucion)) {
+    return "Mantener trazabilidad de cierre";
+  }
+
+  return saneText(accion.decision_recomendada);
+}
+
+function recomendacionSaneada(accion: AccionDetalle) {
+  if (Number(accion.importe_en_riesgo ?? 0) > 0) {
+    return saneText(accion.recomendacion_institucional);
+  }
+
+  if (esEnEjecucion(accion.estado_ejecucion)) {
+    return "Mantener seguimiento ordinario operativo y documental, sin imputación económica automática.";
+  }
+
+  if (esFinalizada(accion.estado_ejecucion)) {
+    return "Mantener trazabilidad administrativa y revisar solo si existe incidencia sobrevenida.";
+  }
+
+  return saneText(accion.recomendacion_institucional);
+}
+
 function DataCard({
   label,
   value,
@@ -176,7 +274,7 @@ export default function SubexpedienteAccionPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
-            <h1 className="mt-1 text-xl font-semibold">Subexpediente de acción formativa</h1>
+            <h1 className="mt-1 text-xl font-semibold">Ficha de oferta/subexpediente formativo</h1>
             <p className="mt-0.5 text-xs text-blue-100">
               {accion.codigo_accion} · {accion.codigo_especialidad} · {accion.tipo_oferta}
             </p>
@@ -238,9 +336,9 @@ export default function SubexpedienteAccionPage() {
         <section className="grid gap-2 lg:grid-cols-4">
           <DataCard label="Importe concedido" value={euro(accion.importe_concedido)} />
           <DataCard
-            label="Importe en riesgo"
+            label="Control económico"
             value={euro(accion.importe_en_riesgo)}
-            detail={pct(accion.porcentaje_importe_en_riesgo)}
+            detail={Number(accion.importe_en_riesgo ?? 0) > 0 ? "revisión/riesgo activo" : "sin revisión económica activa"}
           />
           <DataCard
             label="Alumnado activo"
@@ -258,9 +356,9 @@ export default function SubexpedienteAccionPage() {
           <section className="space-y-1.5 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
             <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5">
               <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                Estado ejecución
+                Estado operativo
               </span>
-              <span className="text-[12px] font-semibold">{accion.estado_ejecucion}</span>
+              <span className="text-[12px] font-semibold">{estadoOperativoLabel(accion.estado_ejecucion)}</span>
             </div>
 
             <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5">
@@ -288,7 +386,7 @@ export default function SubexpedienteAccionPage() {
                   Resolución: <strong>{accion.estado_trazabilidad_resolucion}</strong>
                 </p>
                 <p>
-                  Ejecución: <strong>{accion.estado_trazabilidad_ejecucion}</strong>
+                  Seguimiento: <strong>{saneText(accion.estado_trazabilidad_ejecucion)}</strong>
                 </p>
                 <p>
                   Horas: <strong>{num(accion.horas)}</strong>
@@ -305,7 +403,7 @@ export default function SubexpedienteAccionPage() {
               <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-700">
                 Lectura institucional
               </p>
-              <p className="mt-1">{accion.lectura_institucional}</p>
+              <p className="mt-1">{lecturaInstitucionalSaneada(accion)}</p>
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -313,7 +411,7 @@ export default function SubexpedienteAccionPage() {
                 Evidencia a revisar
               </p>
               <p className="mt-1 text-[13px] leading-5 text-slate-700">
-                {accion.evidencia_a_revisar}
+                {evidenciaSaneada(accion)}
               </p>
             </section>
 
@@ -322,10 +420,10 @@ export default function SubexpedienteAccionPage() {
                 Decisión recomendada
               </p>
               <p className="mt-0.5 text-[15px] font-semibold leading-5 text-slate-950">
-                {accion.decision_recomendada}
+                {decisionSaneada(accion)}
               </p>
               <p className="mt-1 text-[13px] leading-5 text-slate-700">
-                {accion.recomendacion_institucional}
+                {recomendacionSaneada(accion)}
               </p>
             </section>
 
@@ -351,7 +449,7 @@ export default function SubexpedienteAccionPage() {
                 href={`/justificacion-economica?ofertaId=${accion.oferta_id}`}
                 className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Ver justificación económica
+                Ver estado económico/control
               </Link>
 
               <Link

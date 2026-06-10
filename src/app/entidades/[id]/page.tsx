@@ -90,13 +90,13 @@ function formatEstado(value: string) {
 
   const estados: Record<string, string> = {
     en_ejecucion: "En ejecución",
-    pendiente_ejecutar: "Pendiente de ejecutar",
+    pendiente_ejecutar: "Pendiente/no iniciada",
     no_iniciada: "No iniciada",
     finalizada: "Finalizada",
     en_ejecucion_con_incidencia: "En ejecución con incidencia",
-    finalizada_pendiente_justificacion: "Finalizada pendiente de justificación",
+    finalizada_pendiente_justificacion: "Finalizada · pendiente de cierre administrativo",
     riesgo_reintegro: "Riesgo de reintegro",
-    justificada: "Justificada",
+    justificada: "Cierre/pago trazado",
     incidencia: "Incidencia",
     programada: "Programada",
     sin_estado: "Sin estado",
@@ -133,6 +133,10 @@ function badgeClass(value: string) {
   }
 
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function lecturaControlEconomico(value: number | null | undefined) {
+  return Number(value ?? 0) > 0 ? "revisión/riesgo activo" : "sin revisión económica activa";
 }
 
 function economicControlClass(value: number | null | undefined) {
@@ -444,7 +448,10 @@ export default function ExpedienteEntidadPage() {
                           {euro(numberValue(row, ["importe_concedido", "importe_total_concedido"]))}
                         </td>
                         <td className={`px-2 py-1 text-right font-medium ${economicControlClass(controlEconomico)}`}>
-                          {euro(controlEconomico)}
+                          <p>{euro(controlEconomico)}</p>
+                          <p className="text-[9.5px] font-normal text-slate-500">
+                            {lecturaControlEconomico(controlEconomico)}
+                          </p>
                         </td>
                       </tr>
                     );
