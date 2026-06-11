@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_MESA_DOCUMENTAL =
-  "2026-06-08-v6-mesa-documental-recalculo-subexpediente";
+  "2026-06-11-v8-mesa-documental-id-funcional-visible";
 
 type RecepcionRow = {
   recepcion_id: number;
@@ -43,6 +43,46 @@ type RecepcionRow = {
   criticidad_documental: string | null;
   riesgo_activo_documental: string | null;
   riesgo_activo_label: string | null;
+};
+
+type ContextoSubexpediente = Record<string, any> & {
+  subexpediente_id?: number | null;
+  oferta_id?: number | null;
+  entidad_id?: number | null;
+  entidad_nombre?: string | null;
+  nombre_entidad?: string | null;
+  entidad?: string | null;
+  razon_social?: string | null;
+  cif?: string | null;
+  entidad_cif?: string | null;
+  nif?: string | null;
+  codigo_accion?: string | null;
+  accion_codigo?: string | null;
+  codigo_especialidad?: string | null;
+  especialidad_codigo?: string | null;
+  codigo?: string | null;
+  denominacion?: string | null;
+  nombre_accion?: string | null;
+  accion_nombre?: string | null;
+  especialidad_nombre?: string | null;
+  tipo?: string | null;
+  tipo_accion?: string | null;
+  tipo_oferta?: string | null;
+  modalidad?: string | null;
+  horas?: number | string | null;
+  duracion?: number | string | null;
+  estado_operativo?: string | null;
+  estado_administrativo?: string | null;
+  estado_ejecucion?: string | null;
+  estado_economico_control?: string | null;
+  estado_pago?: string | null;
+  estado_pago_administrativo?: string | null;
+  estado_documental_subexpediente?: string | null;
+  fecha_inicio_prevista?: string | null;
+  fecha_inicio_validada?: string | null;
+  fecha_fin_prevista?: string | null;
+  fecha_fin_validada?: string | null;
+  importe_concedido?: number | string | null;
 };
 
 type DraftRow = {
@@ -161,6 +201,68 @@ function shortText(value: string | null | undefined, length = 110) {
   const text = clean(value, "");
   if (!text) return "—";
   return text.length > length ? `${text.slice(0, length)}...` : text;
+}
+
+function normalizeLabel(value: string | number | null | undefined, fallback = "—") {
+  if (value === null || value === undefined) return fallback;
+
+  const text = String(value).trim();
+  if (!text) return fallback;
+
+  return text
+    .replaceAll("_", " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function parseNumericValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") return value;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const hasComma = raw.includes(",");
+  const hasDot = raw.includes(".");
+
+  let normalized = raw.replace(/[^0-9,.-]/g, "");
+
+  if (hasComma && hasDot) {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    normalized = normalized.replace(",", ".");
+  }
+
+  const numeric = Number(normalized);
+  return Number.isNaN(numeric) ? null : numeric;
+}
+
+function formatMoney(value: string | number | null | undefined) {
+  const numeric = parseNumericValue(value);
+  if (numeric === null) return "—";
+
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  }).format(numeric);
+}
+
+function getContextValue(
+  row: ContextoSubexpediente | null,
+  keys: string[],
+  fallback = "—"
+) {
+  if (!row) return fallback;
+
+  for (const key of keys) {
+    const value = row[key];
+
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return String(value);
+    }
+  }
+
+  return fallback;
 }
 
 function estadoBadgeClass(value: string | null | undefined) {
@@ -322,6 +424,168 @@ function KpiBox({
   );
 }
 
+function ContextMiniItem({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+      <p className="truncate text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p
+        className={`mt-0.5 truncate text-[11px] leading-4 ${
+          strong ? "font-semibold text-slate-950" : "font-medium text-slate-700"
+        }`}
+        title={value}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ContextoSubexpedienteCard({
+  contexto,
+  subexpedienteId,
+  loading,
+}: {
+  contexto: ContextoSubexpediente | null;
+  subexpedienteId: number;
+  loading: boolean;
+}) {
+  const entidad = getContextValue(contexto, [
+    "entidad_nombre",
+    "nombre_entidad",
+    "entidad",
+    "razon_social",
+  ]);
+
+  const cif = getContextValue(contexto, ["cif", "entidad_cif", "nif"]);
+  const codigoAccion = getContextValue(contexto, [
+    "codigo_accion",
+    "accion_codigo",
+    "codigo",
+  ]);
+  const codigoEspecialidad = getContextValue(contexto, [
+    "codigo_especialidad",
+    "especialidad_codigo",
+    "codigo_especialidad_formativa",
+  ]);
+  const denominacion = getContextValue(contexto, [
+    "denominacion",
+    "nombre_accion",
+    "accion_nombre",
+    "especialidad_nombre",
+    "nombre",
+  ]);
+  const tipo = normalizeLabel(
+    getContextValue(contexto, ["tipo", "tipo_accion", "tipo_oferta"], "")
+  );
+  const modalidad = normalizeLabel(getContextValue(contexto, ["modalidad"], ""));
+  const horas = getContextValue(contexto, ["horas", "duracion", "duracion_horas"], "");
+  const estadoOperativo = normalizeLabel(
+    getContextValue(contexto, [
+      "estado_operativo",
+      "estado_administrativo",
+      "estado_ejecucion",
+      "estado",
+    ])
+  );
+  const estadoEconomico = normalizeLabel(
+    getContextValue(contexto, [
+      "estado_economico_control",
+      "estado_pago",
+      "estado_pago_administrativo",
+      "estado_economico",
+    ])
+  );
+  const estadoDocumental = normalizeLabel(
+    getContextValue(contexto, [
+      "estado_documental_subexpediente",
+      "estado_documental",
+      "estado_documentacion",
+    ])
+  );
+  const importeConcedido = formatMoney(
+    getContextValue(contexto, ["importe_concedido", "importe_total", "concedido"], "")
+  );
+  const subexpedienteVisible = getContextValue(
+    contexto,
+    ["oferta_id"],
+    Number.isNaN(subexpedienteId) ? "—" : String(subexpedienteId)
+  );
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 pb-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Contexto del subexpediente
+          </p>
+          <h2
+            className="mt-0.5 truncate text-[14px] font-semibold leading-5 text-slate-950"
+            title={loading ? "Cargando contexto..." : denominacion}
+          >
+            {loading ? "Cargando contexto operativo..." : denominacion}
+          </h2>
+          <p className="mt-0.5 text-[10.5px] leading-4 text-slate-500">
+            La mesa documental trabaja controles técnicos por fases. El estado económico/control se consulta y decide en pantalla separada.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-1">
+          <SmallBadge className="border-blue-200 bg-blue-50 text-blue-800">
+            Subexpediente {subexpedienteVisible}
+          </SmallBadge>
+          <SmallBadge className="border-slate-200 bg-slate-50 text-slate-700">
+            {tipo || "Tipo —"}
+          </SmallBadge>
+          <SmallBadge className="border-violet-200 bg-violet-50 text-violet-800">
+            {estadoEconomico}
+          </SmallBadge>
+        </div>
+      </div>
+
+      <div className="mt-2 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+        <ContextMiniItem label="Entidad beneficiaria" value={entidad} strong />
+        <ContextMiniItem label="CIF/NIF" value={cif} />
+        <ContextMiniItem label="Código acción" value={codigoAccion} />
+        <ContextMiniItem label="Especialidad" value={codigoEspecialidad} />
+        <ContextMiniItem label="Tipo / modalidad" value={`${tipo || "—"} · ${modalidad || "—"}`} />
+        <ContextMiniItem label="Horas" value={horas ? `${horas} h` : "—"} />
+        <ContextMiniItem label="Estado operativo" value={estadoOperativo} strong />
+        <ContextMiniItem label="Estado documental" value={estadoDocumental} />
+      </div>
+
+      <div className="mt-2 grid gap-2 md:grid-cols-2 lg:grid-cols-5">
+        <ContextMiniItem
+          label="Inicio prevista"
+          value={formatDate(getContextValue(contexto, ["fecha_inicio_prevista"], ""))}
+        />
+        <ContextMiniItem
+          label="Inicio validada"
+          value={formatDate(getContextValue(contexto, ["fecha_inicio_validada"], ""))}
+        />
+        <ContextMiniItem
+          label="Fin prevista"
+          value={formatDate(getContextValue(contexto, ["fecha_fin_prevista"], ""))}
+        />
+        <ContextMiniItem
+          label="Fin validada"
+          value={formatDate(getContextValue(contexto, ["fecha_fin_validada"], ""))}
+        />
+        <ContextMiniItem label="Importe concedido" value={importeConcedido} strong />
+      </div>
+    </section>
+  );
+}
+
 function makeDraft(row: RecepcionRow): DraftRow {
   return {
     estado_documental: row.estado_documental,
@@ -447,8 +711,11 @@ export default function MesaDocumentalPage() {
   const subexpedienteId = Number(id);
 
   const [detalleRows, setDetalleRows] = useState<RecepcionRow[]>([]);
+  const [contextoSubexpediente, setContextoSubexpediente] =
+    useState<ContextoSubexpediente | null>(null);
+  const [loadingContexto, setLoadingContexto] = useState(true);
   const [drafts, setDrafts] = useState<Record<number, DraftRow>>({});
-  const [faseActiva, setFaseActiva] = useState<string>("todos");
+  const [faseActiva, setFaseActiva] = useState<string>("inicio");
   const [estadoTrabajo, setEstadoTrabajo] = useState<EstadoTrabajo>("todos");
   const [selectedByFase, setSelectedByFase] = useState<Record<string, number>>({});
 
@@ -477,6 +744,31 @@ export default function MesaDocumentalPage() {
       }
     }
   }, []);
+
+  async function loadContextoSubexpediente() {
+    if (!subexpedienteId || Number.isNaN(subexpedienteId)) {
+      setContextoSubexpediente(null);
+      setLoadingContexto(false);
+      return;
+    }
+
+    setLoadingContexto(true);
+
+    const { data, error } = await supabase
+      .from("v_fiscalizacion_ofertas")
+      .select("*")
+      .eq("subexpediente_id", subexpedienteId)
+      .maybeSingle();
+
+    if (error) {
+      setContextoSubexpediente(null);
+      setLoadingContexto(false);
+      return;
+    }
+
+    setContextoSubexpediente((data ?? null) as ContextoSubexpediente | null);
+    setLoadingContexto(false);
+  }
 
   async function loadDetalle(preserveSelected = true) {
     if (!subexpedienteId || Number.isNaN(subexpedienteId)) {
@@ -553,6 +845,7 @@ export default function MesaDocumentalPage() {
   }
 
   useEffect(() => {
+    loadContextoSubexpediente();
     loadDetalle(true);
   }, [subexpedienteId]);
 
@@ -928,10 +1221,32 @@ export default function MesaDocumentalPage() {
     return "Mesa documental sin actuaciones técnicas pendientes según la lectura actual.";
   }, [faseStats, resumenTrabajo.sinFuente]);
 
-  const visibleFases = useMemo(() => {
-    if (faseActiva === "todos") return faseOrder;
-    return faseOrder.filter((fase) => fase === faseActiva);
+  const faseSeleccionada = useMemo<FaseKey>(() => {
+    return faseOrder.includes(faseActiva as FaseKey)
+      ? (faseActiva as FaseKey)
+      : "inicio";
   }, [faseActiva]);
+
+  const rowsFaseSeleccionada = rowsByFase[faseSeleccionada] ?? [];
+  const statsFaseSeleccionada =
+    faseStats.find((item) => item.fase === faseSeleccionada) ?? null;
+  const filteredRowsFaseSeleccionada = rowsFaseSeleccionada.filter((row) =>
+    shouldShowByTrabajo(row, estadoTrabajo)
+  );
+  const selectorRowsFaseSeleccionada =
+    filteredRowsFaseSeleccionada.length > 0
+      ? filteredRowsFaseSeleccionada
+      : rowsFaseSeleccionada;
+  const selectedRowFaseSeleccionada = useMemo(() => {
+    if (selectorRowsFaseSeleccionada.length === 0) return null;
+
+    const selectedId = selectedByFase[faseSeleccionada];
+    const selected = selectorRowsFaseSeleccionada.find(
+      (row) => row.recepcion_id === selectedId
+    );
+
+    return selected ?? getBestRowForPhase(selectorRowsFaseSeleccionada, estadoTrabajo);
+  }, [selectorRowsFaseSeleccionada, selectedByFase, faseSeleccionada, estadoTrabajo]);
 
   function selectDocumentForPhase(fase: string, recepcionId: number) {
     setSelectedByFase((prev) => ({
@@ -951,6 +1266,10 @@ export default function MesaDocumentalPage() {
 
     return getBestRowForPhase(rows, estadoTrabajo);
   }
+
+  const subexpedienteVisibleId = loadingContexto
+    ? "Cargando..."
+    : getContextValue(contextoSubexpediente, ["oferta_id"], id || "—");
 
   function renderDocumentCard(row: RecepcionRow) {
     const draft = drafts[row.recepcion_id] ?? makeDraft(row);
@@ -1021,9 +1340,6 @@ export default function MesaDocumentalPage() {
               </span>
             </p>
 
-            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] leading-4 text-emerald-900">
-              Trazabilidad activa: al guardar, la mesa registra movimiento histórico mediante RPC, actualiza el control documental y recalcula el estado del subexpediente.
-            </div>
           </div>
 
           <div>
@@ -1166,49 +1482,55 @@ export default function MesaDocumentalPage() {
               No aplica
             </button>
 
-            <div className="my-1 border-t border-slate-200" />
+            <details className="mt-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600">
+              <summary className="cursor-pointer font-semibold text-slate-700">
+                Acciones secundarias
+              </summary>
 
-            <button
-              type="button"
-              onClick={() => prepararCorreccion(row, "modificar")}
-              className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-[10px] font-semibold text-indigo-800 hover:bg-indigo-100"
-            >
-              Modificar revisión
-            </button>
+              <div className="mt-1.5 flex flex-col gap-1.5 border-t border-slate-100 pt-1.5">
+                <button
+                  type="button"
+                  onClick={() => prepararCorreccion(row, "modificar")}
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-[10px] font-semibold text-indigo-800 hover:bg-indigo-100"
+                >
+                  Modificar revisión
+                </button>
 
-            <button
-              type="button"
-              onClick={() => prepararCorreccion(row, "reabrir")}
-              className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-100"
-            >
-              Reabrir revisión
-            </button>
+                <button
+                  type="button"
+                  onClick={() => prepararCorreccion(row, "reabrir")}
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-100"
+                >
+                  Reabrir revisión
+                </button>
 
-            <button
-              type="button"
-              onClick={() => prepararCorreccion(row, "revertir")}
-              className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10px] font-semibold text-red-800 hover:bg-red-100"
-            >
-              Revertir a recibido
-            </button>
+                <button
+                  type="button"
+                  onClick={() => prepararCorreccion(row, "revertir")}
+                  className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10px] font-semibold text-red-800 hover:bg-red-100"
+                >
+                  Revertir a recibido
+                </button>
 
-            {row.fuente_url ? (
-              <a
-                href={row.fuente_url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Fuente PDF
-              </a>
-            ) : null}
+                {row.fuente_url ? (
+                  <a
+                    href={row.fuente_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Fuente PDF
+                  </a>
+                ) : null}
 
-            <Link
-              href={`/matriz-normativa-documental?fase=${row.fase}&control=${row.documento_normativo_id}`}
-              className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-center text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
-            >
-              Matriz
-            </Link>
+                <Link
+                  href={`/matriz-normativa-documental?fase=${row.fase}&control=${row.documento_normativo_id}`}
+                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-center text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                >
+                  Matriz
+                </Link>
+              </div>
+            </details>
           </div>
         </div>
       </div>
@@ -1231,7 +1553,7 @@ export default function MesaDocumentalPage() {
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-              Subexpediente {id || "—"}
+              Subexpediente {subexpedienteVisibleId}
             </div>
             <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-100">
               {loadingDetalle
@@ -1305,6 +1627,12 @@ export default function MesaDocumentalPage() {
           </section>
         ) : null}
 
+        <ContextoSubexpedienteCard
+          contexto={contextoSubexpediente}
+          subexpedienteId={subexpedienteId}
+          loading={loadingContexto}
+        />
+
         <section className="grid gap-2 lg:grid-cols-8">
           <KpiBox
             label="Controles"
@@ -1365,37 +1693,65 @@ export default function MesaDocumentalPage() {
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setFaseActiva("todos")}
-              className={
-                faseActiva === "todos"
-                  ? "rounded-lg bg-[#183B63] px-2.5 py-1 text-[10px] font-semibold text-white"
-                  : "rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
-              }
-            >
-              Todas · {num(resumenTrabajo.total)} docs
-            </button>
-
-            {faseStats.map((item) => (
-              <button
-                key={item.fase}
-                type="button"
-                onClick={() => setFaseActiva(item.fase)}
-                className={`rounded-lg border px-2.5 py-1 text-[10px] font-semibold hover:brightness-95 ${
-                  faseActiva === item.fase
-                    ? "border-[#183B63] bg-[#183B63] text-white"
-                    : faseBoxClass(item)
-                }`}
-                title={faseResumenOperativo(item)}
+          <div className="grid gap-2 lg:grid-cols-[0.8fr_1.4fr_1fr]">
+            <div>
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Fase documental
+              </label>
+              <select
+                value={faseSeleccionada}
+                onChange={(event) => setFaseActiva(event.target.value)}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none focus:border-blue-400"
               >
-                {faseResumenOperativo(item)}
-              </button>
-            ))}
+                {faseStats.map((item) => (
+                  <option key={item.fase} value={item.fase}>
+                    {faseResumenOperativo(item)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                Documento/control a trabajar
+              </label>
+              <select
+                value={selectedRowFaseSeleccionada?.recepcion_id ?? ""}
+                onChange={(event) =>
+                  selectDocumentForPhase(faseSeleccionada, Number(event.target.value))
+                }
+                className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none focus:border-blue-400"
+              >
+                {selectorRowsFaseSeleccionada.length === 0 ? (
+                  <option value="">Sin controles para esta fase/filtro</option>
+                ) : null}
+
+                {selectorRowsFaseSeleccionada.map((row) => (
+                  <option key={row.recepcion_id} value={row.recepcion_id}>
+                    {labelFromOptions(estadoOptions, row.estado_documental)} · {row.nombre_documento}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-700">
+                Lectura de la fase activa
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold leading-4 text-blue-950">
+                {statsFaseSeleccionada
+                  ? faseResumenOperativo(statsFaseSeleccionada)
+                  : "Sin lectura de fase"}
+              </p>
+              <p className="mt-0.5 text-[10px] leading-4 text-blue-800">
+                {selectorRowsFaseSeleccionada.length > 0
+                  ? `${num(selectorRowsFaseSeleccionada.length)} controles disponibles con el filtro actual.`
+                  : "No hay controles disponibles con el filtro actual."}
+              </p>
+            </div>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2">
             {[
               ["todos", "Todos"],
               ["pendientes_validar", "Pendientes de validar"],
@@ -1456,75 +1812,44 @@ export default function MesaDocumentalPage() {
           ) : null}
 
           {!loadingDetalle && detalleRows.length > 0 ? (
-            <div className="mt-3 space-y-3">
-              {visibleFases.map((fase) => {
-                const rows = rowsByFase[fase] ?? [];
-                const stats = faseStats.find((item) => item.fase === fase);
-                const selectedRow = getSelectedRowForPhase(fase);
-                const filteredRows = rows.filter((row) =>
-                  shouldShowByTrabajo(row, estadoTrabajo)
-                );
-                const selectorRows = filteredRows.length > 0 ? filteredRows : rows;
-
-                return (
-                  <section
-                    key={fase}
-                    className={`rounded-xl border px-3 py-2 shadow-sm ${
-                      stats ? faseBoxClass(stats) : "border-slate-200 bg-white"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <SmallBadge className={faseBadgeClass(fase)}>
-                            {labelFromOptions(faseOptions, fase)}
-                          </SmallBadge>
-                          <p className="text-[11px] font-semibold text-slate-800">
-                            {stats ? faseResumenOperativo(stats) : "Sin lectura de fase"}
-                          </p>
-                        </div>
-                        <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
-                          {selectorRows.length > 0
-                            ? `${num(selectorRows.length)} controles disponibles con el filtro actual.`
-                            : "No hay controles disponibles para esta fase con el filtro actual."}
-                        </p>
-                      </div>
-
-                      <div className="w-full min-w-[260px] lg:w-[440px]">
-                        <label className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                          Control documental de la fase
-                        </label>
-                        <select
-                          value={selectedRow?.recepcion_id ?? ""}
-                          onChange={(event) =>
-                            selectDocumentForPhase(fase, Number(event.target.value))
-                          }
-                          className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold outline-none focus:border-blue-400"
-                        >
-                          {selectorRows.length === 0 ? (
-                            <option value="">Sin controles</option>
-                          ) : null}
-
-                          {selectorRows.map((row) => (
-                            <option key={row.recepcion_id} value={row.recepcion_id}>
-                              {labelFromOptions(estadoOptions, row.estado_documental)} ·{" "}
-                              {row.nombre_documento}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+            <div className="mt-3">
+              <section
+                className={`rounded-xl border px-3 py-2 shadow-sm ${
+                  statsFaseSeleccionada
+                    ? faseBoxClass(statsFaseSeleccionada)
+                    : "border-slate-200 bg-white"
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <SmallBadge className={faseBadgeClass(faseSeleccionada)}>
+                        {labelFromOptions(faseOptions, faseSeleccionada)}
+                      </SmallBadge>
+                      <p className="text-[11px] font-semibold text-slate-800">
+                        {statsFaseSeleccionada
+                          ? faseResumenOperativo(statsFaseSeleccionada)
+                          : "Sin lectura de fase"}
+                      </p>
                     </div>
+                    <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                      Se muestra solo el control seleccionado. Cambie de fase o documento en los selectores superiores.
+                    </p>
+                  </div>
 
-                    {selectedRow ? (
-                      renderDocumentCard(selectedRow)
-                    ) : (
-                      <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4 text-center text-[11px] text-slate-500">
-                        No hay control documental seleccionado para esta fase.
-                      </div>
-                    )}
-                  </section>
-                );
-              })}
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] leading-4 text-emerald-900">
+                    Trazabilidad activa: cada guardado registra movimiento histórico y recalcula el estado documental del subexpediente.
+                  </div>
+                </div>
+
+                {selectedRowFaseSeleccionada ? (
+                  renderDocumentCard(selectedRowFaseSeleccionada)
+                ) : (
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4 text-center text-[11px] text-slate-500">
+                    No hay control documental seleccionado para esta fase.
+                  </div>
+                )}
+              </section>
             </div>
           ) : null}
         </section>
