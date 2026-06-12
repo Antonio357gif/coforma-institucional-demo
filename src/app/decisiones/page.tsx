@@ -42,6 +42,8 @@ type DecisionMesaRow = {
   riesgo_administrativo: string | null;
   riesgo_economico: string | null;
   actuacion_sugerida: string | null;
+  documentacion_estado: string | null;
+  estado_pago_administrativo: string | null;
 };
 
 function euro(value: number | null | undefined) {
@@ -143,9 +145,11 @@ function badgeClass(value: string | null | undefined) {
 
 function ejecucionCerradaPagada(row: DecisionMesaRow) {
   const estado = normalize(estadoOperativo(row));
+  const documentacion = normalize(row.documentacion_estado);
+  const pago = normalize(row.estado_pago_administrativo);
 
-  if (estado === "finalizada") {
-    return Number(row.importe_ejecutado ?? 0);
+  if (estado === "finalizada" && documentacion === "validada" && pago === "pagado") {
+    return Number(row.importe_concedido ?? 0);
   }
 
   return 0;
@@ -185,16 +189,16 @@ function estadoEconomicoControl(row: DecisionMesaRow) {
   ) {
     return {
       etiqueta: "Pendiente / no devengado",
-      descripcion: "Acción pendiente o no iniciada. No devenga ejecución económica.",
+      descripcion: "Acción pendiente o no iniciada. Importe no devengado.",
       tono: "pending" as const,
     };
   }
 
   if (estado === "finalizada") {
     return {
-      etiqueta: "Ejecución cerrada / pagada",
+      etiqueta: "Importe cerrado / pagado administrativamente",
       descripcion:
-        "Acción finalizada con ejecución económica cerrada/pagada según lectura backend.",
+        "Acción finalizada con documentación validada y pago administrativo registrado.",
       tono: "ok" as const,
     };
   }
@@ -203,7 +207,7 @@ function estadoEconomicoControl(row: DecisionMesaRow) {
     return {
       etiqueta: "Seguimiento operativo",
       descripcion:
-        "Acción en ejecución: seguimiento operativo/documental sin imputación económica automática.",
+        "Acción en ejecución: seguimiento operativo/documental sin imputación económica.",
       tono: "ok" as const,
     };
   }
@@ -211,7 +215,7 @@ function estadoEconomicoControl(row: DecisionMesaRow) {
   return {
     etiqueta: "Control ordinario",
     descripcion:
-      "Lectura institucional ordinaria sin ejecución económica automática registrada.",
+      "Lectura institucional saneada desde backend",
     tono: "ok" as const,
   };
 }
@@ -231,7 +235,7 @@ function observacionInstitucional(row: DecisionMesaRow) {
   const texto = String(row.motivo_decision ?? row.actuacion_sugerida ?? "").trim();
 
   if (estado === "en_ejecucion") {
-    return "Seguimiento operativo/documental activo. Sin imputación económica automática.";
+    return "Seguimiento operativo/documental activo. Sin imputación económica.";
   }
 
   if (
@@ -243,7 +247,7 @@ function observacionInstitucional(row: DecisionMesaRow) {
   }
 
   if (estado === "finalizada") {
-    return "Ejecución económica cerrada/pagada según lectura backend.";
+    return "Importe cerrado / pagado administrativamente con documentación validada y pago registrado.";
   }
 
   return texto || "Sin observación económica adicional registrada.";
@@ -751,7 +755,7 @@ function DecisionesPageContent() {
                 Mesa económica por subexpediente
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
-                Control de ejecución cerrada/pagada, no devengado, revisión/riesgo y actuación administrativa vinculada.
+                Control de cierre/pago administrativo, importe no devengado, revisión ordinaria y actuación administrativa vinculada.
               </p>
             </div>
 
@@ -843,7 +847,7 @@ function DecisionesPageContent() {
                           Concedido: <strong>{euro(row.importe_concedido)}</strong>
                         </p>
                         <p className="text-[10px] leading-4 text-emerald-700">
-                          Cerrado/pagado: <strong>{euro(ejecucionCerradaPagada(row))}</strong>
+                          Cierre/pago adm.: <strong>{euro(ejecucionCerradaPagada(row))}</strong>
                         </p>
                         <p className="text-[10px] leading-4 text-amber-700">
                           No devengado: <strong>{euro(importeNoDevengado(row))}</strong>
@@ -956,3 +960,6 @@ export default function DecisionesPage() {
     </Suspense>
   );
 }
+
+
+

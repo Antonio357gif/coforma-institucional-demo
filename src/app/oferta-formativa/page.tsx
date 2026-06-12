@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -45,7 +45,7 @@ function num(value: number | null | undefined) {
   return new Intl.NumberFormat("es-ES").format(Number(value ?? 0));
 }
 
-function text(row: OfertaRow, keys: string[], fallback = "—") {
+function text(row: OfertaRow, keys: string[], fallback = "â€”") {
   for (const key of keys) {
     const value = row[key];
     if (value !== null && value !== undefined && String(value).trim() !== "") {
@@ -91,7 +91,7 @@ function fechaCorta(row: OfertaRow, keys: string[]) {
   const fecha = fechaValue(row, keys);
 
   if (!fecha) {
-    return "—";
+    return "â€”";
   }
 
   return new Intl.DateTimeFormat("es-ES", {
@@ -115,11 +115,11 @@ function diasEntre(fecha: Date, referencia: Date) {
 function estadoLabel(estado: string | null | undefined) {
   const normalizado = normalizar(estado);
 
-  if (normalizado === "en_ejecucion") return "En ejecución";
+  if (normalizado === "en_ejecucion") return "En ejecuciÃ³n";
   if (normalizado === "finalizada") return "Finalizada";
   if (normalizado === "pendiente_ejecutar") return "Pendiente de ejecutar";
-  if (normalizado === "en_ejecucion_con_incidencia") return "Revisión/Riesgo";
-  if (normalizado === "riesgo_reintegro") return "Revisión/Riesgo";
+  if (normalizado === "en_ejecucion_con_incidencia") return "RevisiÃ³n/Riesgo";
+  if (normalizado === "riesgo_reintegro") return "RevisiÃ³n/Riesgo";
   if (normalizado === "finalizada_pendiente_justificacion") return "Finalizada";
   if (!normalizado) return "Sin estado";
 
@@ -499,7 +499,7 @@ export default function OfertaFormativaPage() {
             Error cargando oferta formativa institucional
           </p>
           <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-red-50 p-4 text-xs text-red-800">
-            {error ?? "No se pudo cargar la información."}
+            {error ?? "No se pudo cargar la informaciÃ³n."}
           </pre>
         </section>
       </main>
@@ -522,7 +522,7 @@ export default function OfertaFormativaPage() {
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            {num(filteredRows.length)} acciones visibles · {num(rows.length)} total cargado
+            {num(filteredRows.length)} acciones visibles Â· {num(rows.length)} total cargado
           </div>
         </div>
       </section>
@@ -530,7 +530,7 @@ export default function OfertaFormativaPage() {
       <section className="mx-auto max-w-7xl space-y-2 px-5 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link href="/dashboard" className="text-xs font-semibold text-blue-800 hover:text-blue-950">
-            ← Volver al dashboard
+            â† Volver al dashboard
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -538,7 +538,7 @@ export default function OfertaFormativaPage() {
               href="/oferta-formativa/nueva"
               className="rounded-full border border-blue-700 bg-blue-700 px-3 py-1 text-[10px] font-semibold text-white shadow-sm hover:bg-blue-800"
             >
-              + Nueva acción
+              + Nueva acciÃ³n
             </Link>
 
             {soloRequerimientos ? (
@@ -549,7 +549,7 @@ export default function OfertaFormativaPage() {
 
             {finalizacionFiltro !== "todas" ? (
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-800 shadow-sm">
-                Filtro activo: finalización validada
+                Filtro activo: finalizaciÃ³n validada
               </span>
             ) : null}
 
@@ -563,15 +563,15 @@ export default function OfertaFormativaPage() {
           <Kpi
             label="Total acciones"
             value={num(resumen.acciones_total)}
-            detail={`${num(resumen.acciones_af)} AF · ${num(resumen.acciones_cp)} CP`}
+            detail={`${num(resumen.acciones_af)} AF Â· ${num(resumen.acciones_cp)} CP`}
             onClick={limpiarFiltros}
             tone="violet"
           />
 
           <Kpi
-            label="En ejecución"
+            label="En ejecuciÃ³n"
             value={num(resumen.en_ejecucion)}
-            detail="acciones en ejecución ordinaria"
+            detail="acciones en ejecuciÃ³n ordinaria"
             tone="green"
             onClick={() => {
               setSoloRequerimientos(false);
@@ -602,7 +602,7 @@ export default function OfertaFormativaPage() {
           />
 
           <Kpi
-            label="Revisión/Riesgo"
+            label="RevisiÃ³n/Riesgo"
             value={num(revisionRiesgoAcciones)}
             detail={euro(resumen.importe_en_riesgo_total)}
             tone="red"
@@ -619,7 +619,7 @@ export default function OfertaFormativaPage() {
           <Kpi
             label="Requerimientos"
             value={num(resumen.requerimientos_pendientes)}
-            detail="pendientes según lectura backend"
+            detail="pendientes segÃºn lectura backend"
             tone="red"
             onClick={() => {
               setEstadoFiltro("todos");
@@ -637,7 +637,7 @@ export default function OfertaFormativaPage() {
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
-                placeholder="Entidad, CIF, código, especialidad, denominación..."
+                placeholder="Entidad, CIF, cÃ³digo, especialidad, denominaciÃ³n..."
                 className="mt-0.5 h-7 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] outline-none focus:border-blue-400 focus:bg-white"
               />
             </div>
@@ -704,9 +704,9 @@ export default function OfertaFormativaPage() {
               >
                 <option value="todas">Todas</option>
                 <option value="vencidas">Vencidas</option>
-                <option value="proximos_7">Próx. 7 días</option>
-                <option value="proximos_15">Próx. 15 días</option>
-                <option value="proximos_30">Próx. 30 días</option>
+                <option value="proximos_7">PrÃ³x. 7 dÃ­as</option>
+                <option value="proximos_15">PrÃ³x. 15 dÃ­as</option>
+                <option value="proximos_30">PrÃ³x. 30 dÃ­as</option>
               </select>
             </div>
 
@@ -744,7 +744,7 @@ export default function OfertaFormativaPage() {
 
             <div className="flex items-center gap-2 text-[10px] text-slate-500">
               <span>
-                Página {paginaSegura} de {totalPaginas}
+                PÃ¡gina {paginaSegura} de {totalPaginas}
               </span>
 
               <select
@@ -781,11 +781,11 @@ export default function OfertaFormativaPage() {
             <table className="w-full border-collapse text-left text-[11px]">
               <thead className="sticky top-0 z-10 bg-slate-50 text-[9.5px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-2 py-1.5">Código</th>
+                  <th className="px-2 py-1.5">CÃ³digo</th>
                   <th className="px-2 py-1.5">Entidad</th>
                   <th className="px-2 py-1.5">Tipo</th>
                   <th className="px-2 py-1.5">Especialidad</th>
-                  <th className="px-2 py-1.5">Denominación</th>
+                  <th className="px-2 py-1.5">DenominaciÃ³n</th>
                   <th className="px-2 py-1.5">Estado</th>
                   <th className="px-2 py-1.5">Fin prevista</th>
                   <th className="px-2 py-1.5">Fin validada</th>

@@ -753,12 +753,12 @@ export default function DashboardPage() {
         label: "Económico",
         icon: "🏦",
         href: "/justificacion-economica",
-        description: "Importes concedidos, ejecución económica cerrada y situación de pago.",
+        description: "Importes concedidos, cierre/pago administrativo y situación de control.",
         children: [
           {
-            label: "Ejecución económica cerrada",
+            label: "Importe cerrado / pagado administrativamente",
             href: "/justificacion-economica",
-            description: "Lectura económica cerrada/pagada desde backend.",
+            description: "Lectura de cierre/pago administrativo.",
           },
           {
             label: "Decisiones económicas",
@@ -920,7 +920,7 @@ export default function DashboardPage() {
   const ejecucionEconomicaCerradaPct = ofertaResumen.porcentaje_ejecucion_economica_cerrada_pagada ?? 0;
 
   const etiquetaEjecucionEconomica =
-    ofertaResumen.etiqueta_ejecucion_economica_cerrada || "Ejecución económica cerrada / pagada";
+    ofertaResumen.etiqueta_ejecucion_economica_cerrada || "Importe cerrado / pagado administrativamente / pagada";
 
   const maxCargaAdministrativa = Math.max(
     ofertaResumen.requerimientos_pendientes,
@@ -986,7 +986,7 @@ export default function DashboardPage() {
 
               <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-50">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                Resolución oficial trazada · simulación controlada con lectura backend
+                Resolución oficial trazada · lectura institucional saneada desde backend
               </span>
             </div>
           </header>
@@ -1301,7 +1301,7 @@ export default function DashboardPage() {
                   <span className="font-black text-slate-900">
                     {euro(ofertaResumen.ejecucion_economica_cerrada_pagada)}
                   </span>{" "}
-                  ({percentText(ejecucionEconomicaCerradaPct)} según backend sobre lo concedido). Corresponde a
+                  ({percentText(ejecucionEconomicaCerradaPct)} sobre el importe concedido). Corresponde a
                   acciones finalizadas, documentación validada y pago administrativo registrado.
                 </div>
               </div>
@@ -1318,3 +1318,4 @@ export default function DashboardPage() {
     </main>
   );
 }
+

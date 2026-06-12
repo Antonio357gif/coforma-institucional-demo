@@ -694,7 +694,7 @@ export default function MesaFiscalizacionPage() {
             href="/oferta-formativa"
           />
           <KpiMini
-            label="Ejec. cerrada/pagada"
+            label="Cierre/pago adm."
             value={euro(resumen.importe_total_ejecutado)}
             detail="finalizadas · validadas · pagadas"
             href="/justificacion-economica"
@@ -839,7 +839,7 @@ export default function MesaFiscalizacionPage() {
                 </p>
               </div>
               <div className="rounded-lg border border-emerald-100 px-3 py-1.5">
-                <p className="text-[9px] uppercase text-slate-500">Ejecución cerrada</p>
+                <p className="text-[9px] uppercase text-slate-500">Importe no computado</p>
                 <p className="truncate text-[11px] font-semibold leading-4 text-emerald-700">
                   {euro(selectedEntidad?.importe_ejecutado)}
                 </p>
@@ -1233,7 +1233,7 @@ export default function MesaFiscalizacionPage() {
                         </p>
                       </div>
                       <div className="rounded-md border border-emerald-100 bg-white px-2 py-1">
-                        <p className="uppercase text-slate-400">Cerrado/pagado</p>
+                        <p className="uppercase text-slate-400">Importe no computado</p>
                         <p className="mt-0.5 truncate font-semibold text-emerald-700">
                           {euro(decision.importe_ejecutado)}
                         </p>
@@ -1276,3 +1276,5 @@ export default function MesaFiscalizacionPage() {
     </main>
   );
 }
+
+

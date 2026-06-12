@@ -43,6 +43,7 @@ type JustificacionRow = {
   riesgo_administrativo: string | null;
   riesgo_economico: string | null;
   actuacion_sugerida: string | null;
+  documentacion_estado?: string | null;
   estado_pago_administrativo?: string | null;
 };
 
@@ -111,21 +112,22 @@ function esRevisionRiesgo(row: JustificacionRow) {
 
 function pagoAdministrativo(row: JustificacionRow): PagoAdministrativo {
   const pagoReal = normalizar(row.estado_pago_administrativo);
+  const documentacion = normalizar(row.documentacion_estado);
 
   // Regla institucional saneada:
-  // en ejecución no imputa economía automáticamente, aunque existan importes parciales históricos.
-  if (esEnEjecucion(row)) return "en_ejecucion_no_abonado";
-  if (esPendiente(row)) return "no_devengado";
-  if (esRevisionRiesgo(row)) return "revision_riesgo";
-  if (esFinalizada(row)) return "pagado";
-
-  if (pagoReal === "pagado") return "pagado";
+  // el pago no se deduce por estar finalizada; debe venir del estado administrativo real.
+  if (pagoReal === "pagado" && documentacion === "validada") return "pagado";
   if (pagoReal === "en_revision_parcial") return "en_revision_parcial";
   if (pagoReal === "en_ejecucion_no_abonado") return "en_ejecucion_no_abonado";
   if (pagoReal === "no_devengado") return "no_devengado";
   if (pagoReal === "retenido_revision" || pagoReal === "retenido_riesgo") {
     return "revision_riesgo";
   }
+
+  if (esEnEjecucion(row)) return "en_ejecucion_no_abonado";
+  if (esPendiente(row)) return "no_devengado";
+  if (esRevisionRiesgo(row)) return "revision_riesgo";
+  if (esFinalizada(row)) return "en_revision_parcial";
 
   return "en_ejecucion_no_abonado";
 }
@@ -168,7 +170,7 @@ function lecturaControl(row: JustificacionRow) {
     return "Finalizada pendiente de decisión económica";
   }
 
-  if (esEnEjecucion(row)) return "Seguimiento operativo/documental · sin imputación económica automática";
+  if (esEnEjecucion(row)) return "Seguimiento operativo/documental · sin imputación económica";
   if (esPendiente(row)) return "Pendiente de ejecución / no devengado";
   return "Revisión o riesgo activo";
 }
@@ -855,3 +857,4 @@ export default function JustificacionEconomicaPage() {
     </Suspense>
   );
 }
+
