@@ -1,11 +1,11 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 const VERSION_MESA_FISCALIZACION =
-  "2026-06-10-v5-subexpedientes-sin-scroll-horizontal";
+  "2026-06-12-v6-mesa-fiscalizacion-desplegables";
 
 type Resumen = {
   convocatoria_codigo: string;
@@ -248,8 +248,8 @@ function estadoPagoLabel(value: string | null | undefined) {
   const current = normalize(value);
 
   if (current === "pagado") return "Pagado";
-  if (current === "en_revision_parcial") return "En revisión";
-  if (current === "en_ejecucion_no_abonado") return "Pendiente devengo";
+  if (current === "en_revision_parcial") return "En revisión administrativa";
+  if (current === "en_ejecucion_no_abonado") return "Sin devengo automático";
   if (current === "no_devengado") return "No devengado";
   if (current === "retenido_revision") return "Retenido revisión";
   if (current === "retenido_riesgo") return "Retenido riesgo";
@@ -427,8 +427,68 @@ function ButtonLink({
   );
 }
 
+function CollapsibleSection({
+  title,
+  detail,
+  children,
+  defaultOpen = false,
+  badges = [],
+}: {
+  title: string;
+  detail: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  badges?: string[];
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+    >
+      <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-2 hover:bg-slate-50 group-open:border-slate-100 [&::-webkit-details-marker]:hidden">
+        <div className="flex min-w-0 items-start gap-2">
+          <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[10px] font-bold text-[#183B63] group-open:hidden">
+            ▶
+          </span>
+          <span className="mt-0.5 hidden h-5 w-5 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[10px] font-bold text-[#183B63] group-open:inline-flex">
+            ▼
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[14px] font-semibold leading-5 text-slate-950">
+              {title}
+            </span>
+            <span className="block text-[10.5px] leading-4 text-slate-500">
+              {detail}
+            </span>
+          </span>
+        </div>
+
+        {badges.length > 0 ? (
+          <span className="flex flex-wrap justify-end gap-1">
+            {badges.map((badge) => (
+              <span
+                key={badge}
+                className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+              >
+                {badge}
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </summary>
+
+      <div className="p-2">{children}</div>
+    </details>
+  );
+}
+
 export default function MesaFiscalizacionPage() {
   const [resumen, setResumen] = useState<Resumen | null>(null);
+  const [resumenOferta, setResumenOferta] = useState<{
+    importe_en_ejecucion_concedido: number | null;
+    ejecucion_economica_cerrada_pagada: number | null;
+    porcentaje_ejecucion_economica_cerrada_pagada?: number | null;
+  } | null>(null);
   const [decisiones, setDecisiones] = useState<Decision[]>([]);
   const [entidades, setEntidades] = useState<Entidad[]>([]);
   const [acciones, setAcciones] = useState<Accion[]>([]);
@@ -480,12 +540,29 @@ export default function MesaFiscalizacionPage() {
       }
 
       const loadedResumen = resumenRes.data as Resumen;
+
+      const ofertaResumenRes = await supabase
+        .from("v_oferta_formativa_resumen_institucional")
+        .select("importe_en_ejecucion_concedido, ejecucion_economica_cerrada_pagada, porcentaje_ejecucion_economica_cerrada_pagada")
+        .single();
+
+      if (ofertaResumenRes.error) {
+        setError(ofertaResumenRes.error.message);
+        return;
+      }
+
+      const loadedOfertaResumen = ofertaResumenRes.data as {
+        importe_en_ejecucion_concedido: number | null;
+        ejecucion_economica_cerrada_pagada: number | null;
+        porcentaje_ejecucion_economica_cerrada_pagada?: number | null;
+      };
       const loadedDecisiones = (decisionesRes.data ?? []) as Decision[];
       const loadedEntidades = entidadesRes.data;
       const loadedAcciones = accionesRes.data;
       const loadedTrazabilidad = trazabilidadRes.data;
 
       setResumen(loadedResumen);
+      setResumenOferta(loadedOfertaResumen);
       setDecisiones(loadedDecisiones);
       setEntidades(loadedEntidades);
       setAcciones(loadedAcciones);
@@ -559,6 +636,7 @@ export default function MesaFiscalizacionPage() {
     () => acciones.find((accion) => accion.oferta_id === selectedOfertaId) ?? null,
     [acciones, selectedOfertaId]
   );
+
 
   const resumenPrioridadesEntidad = useMemo(() => {
     return accionesEntidadTodas.reduce(
@@ -640,7 +718,7 @@ export default function MesaFiscalizacionPage() {
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs text-blue-100">
-            Resolución concedida · ejecución · justificación · actuación administrativa
+            Resolución concedida · control operativo · control económico · actuación administrativa
           </div>
         </div>
       </section>
@@ -695,8 +773,8 @@ export default function MesaFiscalizacionPage() {
           />
           <KpiMini
             label="Cierre/pago adm."
-            value={euro(resumen.importe_total_ejecutado)}
-            detail="finalizadas · validadas · pagadas"
+            value={euro(Number(resumenOferta?.ejecucion_economica_cerrada_pagada ?? 0))}
+            detail="417 finalizadas · validadas · pagadas"
             href="/justificacion-economica"
             tone="green"
           />
@@ -712,19 +790,33 @@ export default function MesaFiscalizacionPage() {
             tone={hayRiesgoGlobal ? "red" : "green"}
           />
           <KpiMini
-            label="Control ordinario"
-            value={num(resumen.acciones_sin_alerta_critica)}
-            detail="sin alerta crítica"
-            href="/acciones"
-            tone="green"
+            label="En ejecución"
+            value={euro(Number(resumenOferta?.importe_en_ejecucion_concedido ?? 0))}
+            detail="sin imputación automática"
+            href="/oferta-formativa"
+            tone="amber"
           />
         </section>
 
+        <p className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
+          Vista operativa por bloques desplegables
+        </p>
+
+        <CollapsibleSection
+          title="1. Entidades beneficiarias y subexpedientes"
+          detail="Bloque abierto por defecto: seleccionar entidad y revisar sus subexpedientes sin perder la foto madre saneada."
+          defaultOpen
+          badges={[
+            `${num(entidades.length)} entidades`,
+            `${num(acciones.length)} subexpedientes`,
+            `${euro(resumen.importe_total_en_riesgo)} riesgo`,
+          ]}
+        >
         <section className="grid gap-2 lg:grid-cols-[0.95fr_2.05fr]">
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-3 py-1.5">
               <h2 className="text-[14px] font-semibold leading-5">Entidades beneficiarias</h2>
-              <p className="text-[10.5px] leading-4 text-slate-500">
+              <p className="text-[10px] leading-3 text-slate-500">
                 {num(entidadesFiltradas.length)} de {num(entidades.length)} entidades · consulta institucional
               </p>
               <input
@@ -736,12 +828,12 @@ export default function MesaFiscalizacionPage() {
             </div>
 
             <div className="max-h-[610px] overflow-y-auto overflow-x-hidden">
-              {entidadesFiltradas.map((entidad) => {
+              {entidadesFiltradas.map((entidad, entidadIndex) => {
                 const entidadConRiesgo = Number(entidad.importe_en_riesgo ?? 0) > 0;
 
                 return (
                   <button
-                    key={entidad.entidad_id}
+                    key={`${entidad.entidad_id}-${entidadIndex}`}
                     type="button"
                     onClick={() => selectEntidad(entidad.entidad_id)}
                     className={`w-full border-b border-slate-100 px-3 py-1.5 text-left hover:bg-blue-50 ${
@@ -808,7 +900,7 @@ export default function MesaFiscalizacionPage() {
                 <h2 className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-5 text-slate-950">
                   {selectedEntidad?.entidad_nombre ?? "—"}
                 </h2>
-                <p className="text-[10.5px] leading-4 text-slate-500">
+                <p className="text-[10px] leading-3 text-slate-500">
                   {selectedEntidad?.cif ?? "—"} · {selectedEntidad?.entidad_isla ?? "Canarias"} ·{" "}
                   {selectedEntidad?.entidad_municipio ?? "varios municipios"}
                 </p>
@@ -839,7 +931,7 @@ export default function MesaFiscalizacionPage() {
                 </p>
               </div>
               <div className="rounded-lg border border-emerald-100 px-3 py-1.5">
-                <p className="text-[9px] uppercase text-slate-500">Importe no computado</p>
+                <p className="text-[9px] uppercase text-slate-500">No computado como pago</p>
                 <p className="truncate text-[11px] font-semibold leading-4 text-emerald-700">
                   {euro(selectedEntidad?.importe_ejecutado)}
                 </p>
@@ -904,7 +996,7 @@ export default function MesaFiscalizacionPage() {
             <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
               <div>
                 <h2 className="text-[14px] font-semibold leading-5">Subexpedientes de la entidad</h2>
-                <p className="text-[10.5px] leading-4 text-slate-500">
+                <p className="text-[10px] leading-3 text-slate-500">
                   {num(accionesEntidad.length)} visibles · alta {num(resumenPrioridadesEntidad.alta)} · media{" "}
                   {num(resumenPrioridadesEntidad.media)} · baja {num(resumenPrioridadesEntidad.baja)} · normal{" "}
                   {num(resumenPrioridadesEntidad.normal)}
@@ -940,12 +1032,12 @@ export default function MesaFiscalizacionPage() {
               </div>
 
               <div className="divide-y divide-slate-100">
-                {accionesEntidad.map((accion) => {
+                {accionesEntidad.map((accion, accionIndex) => {
                   const accionConRiesgo = Number(accion.importe_en_riesgo ?? 0) > 0;
 
                   return (
                     <button
-                      key={accion.oferta_id}
+                      key={`${accion.oferta_id}-${accion.subexpediente_id ?? "sin-subexpediente"}-${accionIndex}`}
                       type="button"
                       onClick={() => setSelectedOfertaId(accion.oferta_id)}
                       className={`grid w-full grid-cols-[116px_minmax(260px,1fr)_158px_96px_126px_82px] gap-2 px-3 py-1.5 text-left text-[11px] hover:bg-blue-50 ${
@@ -965,7 +1057,7 @@ export default function MesaFiscalizacionPage() {
                           {accion.denominacion}
                         </p>
                         <p className="mt-0.5 truncate text-[9.5px] leading-3 text-slate-400">
-                          Doc.: {label(accion.documentacion_estado)} · Pago: {estadoPagoLabel(accion.estado_pago_administrativo)}
+                          Doc.: {label(accion.documentacion_estado)} · Econ./control: {estadoPagoLabel(accion.estado_pago_administrativo)}
                         </p>
                       </div>
 
@@ -1021,8 +1113,19 @@ export default function MesaFiscalizacionPage() {
             </section>
           </div>
         </section>
+        </CollapsibleSection>
 
-        <section className="grid gap-2 lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="grid items-start gap-2 lg:grid-cols-2">
+          <CollapsibleSection
+            title="2. Panel de decisión del subexpediente seleccionado"
+            detail="Se abre al seleccionar una fila: estado operativo, control económico, evidencia, fechas y acciones disponibles."
+            defaultOpen
+            badges={[
+              selectedAccion?.codigo_accion ?? "sin acción seleccionada",
+              estadoOperativoLabel(estadoOperativoSeleccionado),
+              controlLabel(selectedAccion?.prioridad_operativa, selectedAccion?.importe_en_riesgo),
+            ]}
+          >
           <section className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
@@ -1095,7 +1198,7 @@ export default function MesaFiscalizacionPage() {
                     Periodo de ejecución
                   </p>
                   <p className="mt-0.5 text-[10.5px] leading-4 text-blue-900">
-                    Fechas previstas y validadas para interpretar ejecución, documentación y pago.
+                    Fechas previstas y validadas para interpretar estado operativo, documentación y control económico.
                   </p>
                 </div>
                 <span
@@ -1178,13 +1281,22 @@ export default function MesaFiscalizacionPage() {
               </ButtonLink>
             </div>
           </section>
+          </CollapsibleSection>
 
+          <CollapsibleSection
+            title="3. Carga administrativa global"
+            detail="Bloque plegado por defecto: visión de cartera completa, decisiones agrupadas y control económico saneado."
+            badges={[
+              `${num(decisiones.length)} decisiones`,
+              `${euro(resumenOferta?.ejecucion_economica_cerrada_pagada)} cierre/pago`,
+            ]}
+          >
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
               <div>
                 <h2 className="text-[14px] font-semibold leading-5">Carga administrativa global</h2>
-                <p className="text-[10.5px] leading-4 text-slate-500">
-                  Resumen de decisiones calculado desde backend para toda la resolución.
+                <p className="text-[10px] leading-3 text-slate-500">
+                  Resumen de decisiones administrativas para toda la resolución.
                 </p>
               </div>
 
@@ -1196,22 +1308,22 @@ export default function MesaFiscalizacionPage() {
               </Link>
             </div>
 
-            <div className="grid gap-1.5 p-2.5 sm:grid-cols-2">
-              {decisiones.map((decision) => {
+            <div className="grid gap-1.5 p-2 sm:grid-cols-2">
+              {decisiones.map((decision, decisionIndex) => {
                 const decisionConRiesgo = Number(decision.importe_en_riesgo ?? 0) > 0;
 
                 return (
                   <div
-                    key={`${decision.decision_recomendada}-${decision.prioridad_operativa}`}
-                    className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+                    key={`${decision.decision_recomendada}-${decision.prioridad_operativa}-${decisionIndex}`}
+                    className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5"
                   >
-                    <p className="line-clamp-2 text-[11px] font-semibold leading-4 text-slate-900">
+                    <p className="line-clamp-2 text-[10.5px] font-semibold leading-3 text-slate-900">
                       {label(decision.decision_recomendada)}
                     </p>
-                    <div className="mt-1.5 flex items-end justify-between gap-2">
+                    <div className="mt-1 flex items-end justify-between gap-1.5">
                       <div>
-                        <p className="text-[16px] font-semibold leading-5">{num(decision.acciones)}</p>
-                        <p className="text-[10.5px] leading-4 text-slate-500">
+                        <p className="text-[14px] font-semibold leading-4">{num(decision.acciones)}</p>
+                        <p className="text-[10px] leading-3 text-slate-500">
                           {num(decision.entidades_afectadas)} entidades
                         </p>
                       </div>
@@ -1225,21 +1337,21 @@ export default function MesaFiscalizacionPage() {
                       </span>
                     </div>
 
-                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px] leading-3">
-                      <div className="rounded-md border border-slate-200 bg-white px-2 py-1">
+                    <div className="mt-1.5 grid grid-cols-3 gap-1 text-[9.5px] leading-3">
+                      <div className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5">
                         <p className="uppercase text-slate-400">Concedido</p>
                         <p className="mt-0.5 truncate font-semibold text-slate-800">
                           {euro(decision.importe_concedido)}
                         </p>
                       </div>
-                      <div className="rounded-md border border-emerald-100 bg-white px-2 py-1">
-                        <p className="uppercase text-slate-400">Importe no computado</p>
+                      <div className="rounded-md border border-emerald-100 bg-white px-1.5 py-0.5">
+                        <p className="uppercase text-slate-400">No computado como pago</p>
                         <p className="mt-0.5 truncate font-semibold text-emerald-700">
                           {euro(decision.importe_ejecutado)}
                         </p>
                       </div>
                       <div
-                        className={`rounded-md border bg-white px-2 py-1 ${
+                        className={`rounded-md border bg-white px-1.5 py-0.5 ${
                           decisionConRiesgo ? "border-red-100" : "border-emerald-100"
                         }`}
                       >
@@ -1259,22 +1371,37 @@ export default function MesaFiscalizacionPage() {
 
               {decisiones.length === 0 ? (
                 <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-6 text-center text-xs text-slate-500 sm:col-span-2">
-                  No hay decisiones globales cargadas desde backend.
+                  No hay decisiones globales cargadas.
                 </div>
               ) : null}
             </div>
           </section>
+          </CollapsibleSection>
         </section>
 
+        <CollapsibleSection
+          title="4. Trazabilidad institucional y nota saneada"
+          detail="Nota explicativa plegada para no saturar la mesa de trabajo."
+          badges={["resolución", "estado operativo", "documentación", "control económico"]}
+        >
         <footer className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] leading-4 text-slate-600 shadow-sm">
           <p className="font-semibold text-slate-800">Trazabilidad general</p>
           <p className="mt-0.5">{resumen.nota_trazabilidad}</p>
         </footer>
+        </CollapsibleSection>
       </section>
 
       <span className="hidden">{VERSION_MESA_FISCALIZACION}</span>
     </main>
   );
 }
+
+
+
+
+
+
+
+
 
 
