@@ -77,7 +77,8 @@ async function cargarOfertasPaginadas() {
         "oferta_id, convocatoria_codigo, entidad_id, entidad_nombre, cif, codigo_accion, tipo_oferta, codigo_especialidad, denominacion, estado_ejecucion, estado_operativo_label, importe_concedido, importe_ejecutado, importe_en_riesgo"
       )
       .order("entidad_nombre", { ascending: true })
-      .range(inicio, fin);
+.order("oferta_id", { ascending: true })
+.range(inicio, fin);
 
     if (error) throw error;
 
