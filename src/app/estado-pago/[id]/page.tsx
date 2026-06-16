@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 
 const VERSION_ESTADO_PAGO =
-  "2026-06-10-v9-estado-pago-semantica-saneada";
+  "2026-06-16-v10-estado-pago-cierre-registrado";
 
 type AccionResumenRow = {
   subexpediente_id: number;
@@ -516,6 +516,15 @@ function pagoRegistradoConCondicionesPendientes(accion: AccionResumenRow | null)
   );
 }
 
+function pagoRegistradoSinBloqueos(accion: AccionResumenRow | null) {
+  if (!accion) return false;
+
+  return (
+    accion.estado_pago_administrativo === "pagado" &&
+    getBloqueosNoInformativosPago(accion).length === 0
+  );
+}
+
 function decisionRecomendada(accion: AccionResumenRow | null) {
   if (!accion) return "Cargando lectura económica/control del subexpediente.";
 
@@ -654,6 +663,7 @@ export default function EstadoPagoPage() {
   );
   const puedeAutorizarPago = canAutorizarPago(accion);
   const pagoConCondicionesPendientes = pagoRegistradoConCondicionesPendientes(accion);
+  const pagoRegistradoLimpio = pagoRegistradoSinBloqueos(accion);
 
   const hasPagoChanges = useMemo(() => {
     return Boolean(accion && pagoDraft && pagoDraft !== accion.estado_pago_administrativo);
@@ -736,7 +746,7 @@ export default function EstadoPagoPage() {
             </p>
             <h1 className="mt-1 text-xl font-semibold">Estado económico/control operativo</h1>
             <p className="mt-0.5 text-xs text-blue-100">
-              Revisión económica/control separada para perfiles superiores: decisión de pago, retención o no devengo.
+              Control económico/administrativo separado para perfiles superiores: pago registrado, retención, revisión o no devengo.
             </p>
           </div>
 
@@ -952,7 +962,7 @@ export default function EstadoPagoPage() {
 
         <section
           className={
-            puedeAutorizarPago
+            pagoRegistradoLimpio || puedeAutorizarPago
               ? "rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 shadow-sm"
               : "rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 shadow-sm"
           }
@@ -961,41 +971,56 @@ export default function EstadoPagoPage() {
             <div>
               <p
                 className={
-                  puedeAutorizarPago
+                  pagoRegistradoLimpio || puedeAutorizarPago
                     ? "text-[11px] font-semibold text-emerald-950"
                     : "text-[11px] font-semibold text-amber-950"
                 }
               >
-                Control documental previo al cierre/pago
+                {pagoRegistradoLimpio
+                  ? "Cierre/pago administrativo registrado"
+                  : "Control documental previo al cierre/pago"}
               </p>
               <p
                 className={
-                  puedeAutorizarPago
+                  pagoRegistradoLimpio || puedeAutorizarPago
                     ? "mt-0.5 text-[11px] leading-4 text-emerald-900"
                     : "mt-0.5 text-[11px] leading-4 text-amber-900"
                 }
               >
-                {puedeAutorizarPago
-                  ? "Todas las fases documentales obligatorias constan completas y validadas. El pago puede autorizarse si no existe revisión económica/control adicional."
-                  : pagoConCondicionesPendientes
-                    ? "Existe un pago registrado, pero el expediente mantiene condiciones documentales u operativas pendientes. Debe revisarse antes de considerarlo cierre económico defendible."
-                    : "El cierre/pago queda bloqueado hasta revisar o subsanar las fases/documentos pendientes en la mesa documental."}
+                {pagoRegistradoLimpio
+                  ? "El expediente consta como pagado y con documentación validada. Mantener trazabilidad y revisar solo si aparece una incidencia sobrevenida."
+                  : puedeAutorizarPago
+                    ? "Todas las fases documentales obligatorias constan completas y validadas. El pago puede autorizarse si no existe revisión económica/control adicional."
+                    : pagoConCondicionesPendientes
+                      ? "Existe un pago registrado, pero el expediente mantiene condiciones documentales u operativas pendientes. Debe revisarse antes de considerarlo cierre económico defendible."
+                      : "El cierre/pago queda bloqueado hasta revisar o subsanar las fases/documentos pendientes en la mesa documental."}
               </p>
             </div>
 
             <Link
               href={`/mesa-documental/${id}`}
               className={
-                puedeAutorizarPago
+                pagoRegistradoLimpio || puedeAutorizarPago
                   ? "rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
                   : "rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-[10px] font-semibold text-amber-900 hover:bg-amber-100"
               }
             >
-              {puedeAutorizarPago ? "Ver mesa documental" : "Ir a mesa documental"}
+              {pagoRegistradoLimpio || puedeAutorizarPago ? "Ver mesa documental" : "Ir a mesa documental"}
             </Link>
           </div>
 
-          {!puedeAutorizarPago ? (
+          {pagoRegistradoLimpio ? (
+            <div className="mt-2 grid gap-1.5 md:grid-cols-1">
+              <div className="rounded-lg border border-emerald-200 bg-white px-2.5 py-2 text-emerald-900">
+                <p className="text-[10.5px] font-semibold leading-4">
+                  Pago ya registrado
+                </p>
+                <p className="mt-0.5 text-[10px] leading-4">
+                  El estado administrativo consta como pagado. No existen bloqueos documentales u operativos activos en esta lectura.
+                </p>
+              </div>
+            </div>
+          ) : !puedeAutorizarPago ? (
             <div className="mt-2 grid gap-1.5 md:grid-cols-2">
               {(pagoConCondicionesPendientes ? bloqueosNoInformativosPago : bloqueosPago).map((bloqueo) => (
                 <div

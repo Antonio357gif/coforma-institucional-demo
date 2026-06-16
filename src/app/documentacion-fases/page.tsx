@@ -104,7 +104,7 @@ const fases: FaseConfig[] = [
   {
     key: "justificacion",
     label: "Justificación",
-    description: "Soporte documental/económico asociado a la fase justificativa.",
+    description: "Soporte documental asociado a la fase de justificación y cierre.",
   },
   {
     key: "cierre",
@@ -173,7 +173,7 @@ function formatDate(value: string | null | undefined) {
 
 function estadoPagoLabel(value: string | null | undefined) {
   if (value === "en_ejecucion_no_abonado") {
-    return "En ejecución · pendiente de devengo";
+    return "En ejecución · sin devengo automático";
   }
 
   return clean(value).replaceAll("_", " ");
@@ -335,7 +335,7 @@ function DocumentoAccionableCard({ doc }: { doc: DocumentoAccionable }) {
             </Badge>
           </div>
           <p className="mt-1 line-clamp-1 text-[10.5px] text-slate-600">
-            Pago: {estadoPagoLabel(doc.estado_pago_administrativo)}
+            Econ./control: {estadoPagoLabel(doc.estado_pago_administrativo)}
           </p>
           <p className="line-clamp-1 text-[10.5px] text-slate-500">
             {clean(doc.obligatoriedad)} · {clean(doc.riesgo_actual ?? doc.criticidad_documental)} · {clean(doc.riesgo_activo_label)}

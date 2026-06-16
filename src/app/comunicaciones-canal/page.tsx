@@ -251,7 +251,7 @@ export default function ComunicacionesCanalPage() {
           </div>
 
           <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">
-            Canal demo visible · API bidireccional prevista
+            Canal demo visible · integración API prevista
           </span>
         </div>
 

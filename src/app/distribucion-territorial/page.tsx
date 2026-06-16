@@ -51,7 +51,7 @@ const ordenIslas = [
   "EL HIERRO",
 ];
 
-function clean(value: unknown, fallback = "â€”") {
+function clean(value: unknown, fallback = "—") {
   if (value === null || value === undefined) return fallback;
   const text = String(value).trim();
   return text === "" ? fallback : text;
@@ -100,7 +100,7 @@ function lecturaIsla(row: IslaResumen) {
   const finalizadas = Number(row.porcentaje_finalizadas ?? 0);
 
   if (pendientes >= 50) return "Alta carga pendiente";
-  if (ejecucion >= 65 && pendientes <= 10) return "EjecuciÃ³n avanzada";
+  if (ejecucion >= 65 && pendientes <= 10) return "Ejecución avanzada";
   if (finalizadas >= 20) return "Cierre relevante";
   if (ejecucion >= 60) return "Actividad viva";
   return "Seguimiento ordinario";
@@ -202,7 +202,7 @@ function IslaCard({
             {isla}
           </p>
           <p className="text-[9px] text-slate-500">
-            {num(row.municipios)} mun. Â· {num(total)} acc.
+            {num(row.municipios)} mun. · {num(total)} acc.
           </p>
         </div>
 
@@ -284,7 +284,7 @@ function MunicipioCard({ row }: { row: MunicipioResumen }) {
             {num(row.acciones_total)} acciones
           </p>
           <p className="text-[10.5px] text-slate-500">
-            {num(row.acciones_af)} AF Â· {num(row.acciones_cp)} CP
+            {num(row.acciones_af)} AF · {num(row.acciones_cp)} CP
           </p>
         </section>
 
@@ -310,7 +310,7 @@ function MunicipioCard({ row }: { row: MunicipioResumen }) {
 
         <section>
           <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-            EconÃ³mico
+            Económico
           </p>
           <p className="truncate text-[11px] font-black text-slate-950">
             {money(row.importe_concedido)}
@@ -331,7 +331,7 @@ function MunicipioCard({ row }: { row: MunicipioResumen }) {
             {porcentajePendiente >= 50
               ? "Alta carga pendiente."
               : porcentajeEjecucion >= 60
-                ? "Predomina ejecuciÃ³n."
+                ? "Predomina ejecución."
                 : porcentajeFinalizadas >= 25
                   ? "Cierre avanzado."
                   : "Seguimiento ordinario."}
@@ -438,7 +438,7 @@ export default function DistribucionTerritorialPage() {
         : municipios.filter((row) => clean(row.isla) === filtroIsla);
 
     return Array.from(new Set(base.map((row) => clean(row.municipio))))
-      .filter((value) => value !== "â€”")
+      .filter((value) => value !== "—")
       .sort((a, b) => a.localeCompare(b, "es"));
   }, [filtroIsla, municipios]);
 
@@ -492,7 +492,7 @@ export default function DistribucionTerritorialPage() {
               Coforma Institucional
             </p>
             <h1 className="mt-1 text-xl font-semibold">
-              DistribuciÃ³n territorial
+              Distribución territorial
             </h1>
             <p className="mt-0.5 text-xs text-blue-100">
               Lectura de cobertura territorial de AF y CP por isla, municipio, estado operativo e importe.
@@ -500,7 +500,7 @@ export default function DistribucionTerritorialPage() {
           </div>
 
           <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-blue-50">
-            Fuentes: v_distribucion_territorial_islas Â· v_distribucion_territorial_oferta_estado
+            Fuentes: v_distribucion_territorial_islas · v_distribucion_territorial_oferta_estado
           </div>
         </div>
       </section>
@@ -512,7 +512,7 @@ export default function DistribucionTerritorialPage() {
               href="/dashboard"
               className="text-xs font-semibold text-blue-800 hover:text-blue-950"
             >
-              â† Volver al dashboard
+              ← Volver al dashboard
             </Link>
 
             <Link
@@ -526,14 +526,14 @@ export default function DistribucionTerritorialPage() {
               href="/recepcion-documentacion"
               className="text-xs font-semibold text-blue-800 hover:text-blue-950"
             >
-              RecepciÃ³n documental
+              Recepción documental
             </Link>
 
             <Link
               href="/documentacion-fases"
               className="text-xs font-semibold text-emerald-800 hover:text-emerald-950"
             >
-              DocumentaciÃ³n por fases
+              Documentación por fases
             </Link>
           </div>
 
@@ -559,31 +559,31 @@ export default function DistribucionTerritorialPage() {
         <section className="grid gap-2 md:grid-cols-5">
           <KpiCard
             label="Acciones filtradas"
-            value={loadingMunicipios ? "â€¦" : num(totals.acciones)}
-            detail={`${num(totals.af)} AF Â· ${num(totals.cp)} CP`}
+            value={loadingMunicipios ? "…" : num(totals.acciones)}
+            detail={`${num(totals.af)} AF · ${num(totals.cp)} CP`}
           />
 
           <KpiCard
-            label="En ejecuciÃ³n"
-            value={loadingMunicipios ? "â€¦" : num(totals.enEjecucion)}
+            label="En ejecución"
+            value={loadingMunicipios ? "…" : num(totals.enEjecucion)}
             detail="actividad viva territorial"
           />
 
           <KpiCard
             label="Finalizadas"
-            value={loadingMunicipios ? "â€¦" : num(totals.finalizadas)}
+            value={loadingMunicipios ? "…" : num(totals.finalizadas)}
             detail="acciones cerradas"
           />
 
           <KpiCard
             label="Pendientes"
-            value={loadingMunicipios ? "â€¦" : num(totals.pendientes)}
+            value={loadingMunicipios ? "…" : num(totals.pendientes)}
             detail="pendientes de ejecutar"
           />
 
           <KpiCard
             label="Importe concedido"
-            value={loadingMunicipios ? "â€¦" : money(totals.importeConcedido)}
+            value={loadingMunicipios ? "…" : money(totals.importeConcedido)}
             detail={`Importe no computado: ${money(totals.importeEjecutado)}`}
           />
         </section>
@@ -688,7 +688,7 @@ export default function DistribucionTerritorialPage() {
               >
                 <option value="todos">Todos</option>
                 <option value="finalizadas">Finalizadas</option>
-                <option value="en_ejecucion">En ejecuciÃ³n</option>
+                <option value="en_ejecucion">En ejecución</option>
                 <option value="pendientes">Pendientes</option>
               </select>
             </div>
@@ -709,7 +709,7 @@ export default function DistribucionTerritorialPage() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
             <div>
               <h2 className="text-sm font-black text-slate-950">
-                Municipios y estado de ejecuciÃ³n
+                Municipios y estado de ejecución
               </h2>
               <p className="text-[10.5px] leading-4 text-slate-500">
                 Resultado filtrado: {num(municipiosFiltrados.length)} municipios. Vista de cobertura territorial de AF/CP.
@@ -717,7 +717,7 @@ export default function DistribucionTerritorialPage() {
             </div>
 
             <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black text-slate-700">
-              {num(totals.acciones)} acciones Â· {num(totals.pendientes)} pendientes
+              {num(totals.acciones)} acciones · {num(totals.pendientes)} pendientes
             </div>
           </div>
 

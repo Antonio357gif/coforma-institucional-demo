@@ -774,7 +774,7 @@ export default function PlanificacionEjecucionPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
               Coforma Institucional
             </p>
-            <h1 className="mt-1 text-xl font-semibold">Planning de ejecución</h1>
+            <h1 className="mt-1 text-xl font-semibold">Planificación de ejecución</h1>
             <p className="mt-0.5 text-xs text-blue-100">
               Vista visual de AF y CP por año, mes y semana. Convocatoria 2026 completa y entidades beneficiarias.
             </p>
@@ -803,7 +803,7 @@ export default function PlanificacionEjecucionPage() {
           <KpiCard
             label="Con fecha completa"
             value={loading ? "…" : num(resumenConvocatoria.conFechaCompleta)}
-            detail="pintables en planning"
+            detail="visibles en planificación"
           />
           <KpiCard
             label="Sin fecha comunicada"
