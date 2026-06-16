@@ -141,7 +141,7 @@ function pagoLabel(value: string | null | undefined) {
 
   if (estado === "pagado") return "Pagado";
   if (estado === "en_ejecucion_no_abonado") return "Sin devengo automático";
-  if (estado === "en_revision_parcial") return "En revisión parcial";
+  if (estado === "en_revision_parcial") return "En revisión administrativa";
   if (estado === "no_devengado") return "No devengado";
   if (estado === "retenido_revision") return "Retenido por revisión";
   if (estado === "retenido_riesgo") return "Retenido por riesgo";

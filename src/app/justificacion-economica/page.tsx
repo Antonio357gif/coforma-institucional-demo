@@ -134,7 +134,7 @@ function pagoAdministrativo(row: JustificacionRow): PagoAdministrativo {
 
 function pagoLabel(value: PagoAdministrativo) {
   if (value === "pagado") return "Pagado";
-  if (value === "en_revision_parcial") return "Revisión económica";
+  if (value === "en_revision_parcial") return "En revisión administrativa";
   if (value === "en_ejecucion_no_abonado") return "Sin devengo automático";
   if (value === "no_devengado") return "No devengado";
   return "Revisión/Riesgo";
@@ -163,7 +163,7 @@ function lecturaControl(row: JustificacionRow) {
   }
 
   if (esFinalizada(row) && pago === "en_revision_parcial") {
-    return "Finalizada con revisión económica parcial";
+    return "Finalizada con revisión administrativa pendiente";
   }
 
   if (esFinalizada(row)) {
@@ -654,7 +654,7 @@ function JustificacionEconomicaPageContent() {
               >
                 <option value="todos">Todos</option>
                 <option value="pagado">Pagado</option>
-                <option value="en_revision_parcial">Revisión económica</option>
+                <option value="en_revision_parcial">En revisión administrativa</option>
                 <option value="en_ejecucion_no_abonado">Sin devengo automático</option>
                 <option value="no_devengado">No devengado</option>
                 <option value="revision_riesgo">Revisión/Riesgo</option>
@@ -857,4 +857,5 @@ export default function JustificacionEconomicaPage() {
     </Suspense>
   );
 }
+
 
